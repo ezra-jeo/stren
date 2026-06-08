@@ -1,0 +1,11 @@
+-- =============================================================================
+-- 001_production_baseline.sql
+-- Full production schema baseline (captured 2026-06-08)
+--
+-- This is the SINGLE source of truth for the Stren database schema.
+-- Applied to a clean DB it reproduces the production schema exactly.
+-- Applied to the live production DB it is a safe no-op (all statements
+-- use IF NOT EXISTS / CREATE OR REPLACE / DROP IF EXISTS).
+--
+-- Old draft migrations 001-004 are archived in supabase/migrations/_archive/.
+-- =============================================================================
