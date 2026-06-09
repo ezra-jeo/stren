@@ -9,165 +9,187 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  /* --- Stren Brand Colors --- */
-  --color-primary:        #D4956A;
-  --color-primary-light:  #E8B99A;
-  --color-primary-dark:   #B5724A;
-  --color-primary-glow:   rgba(212, 149, 106, 0.15);
+  /* --- Stren Brand Colors (HSL for Tailwind + hex fallback) --- */
+  --background: 24 40% 97%;
+  --foreground: 0 0% 10%;
+  --primary: 24 57% 63%;
+  --primary-foreground: 0 0% 100%;
+  --primary-light: 24 70% 71%;
+  --primary-dark: 24 50% 49%;
+  --primary-glow: 24 57% 63% / 0.15;
+  --secondary: 0 0% 17%;
+  --secondary-foreground: 0 0% 100%;
+  --accent: 24 57% 63%;
+  --accent-foreground: 24 40% 97%;
+  --muted: 24 27% 94%;
+  --muted-foreground: 0 0% 54%;
+  --destructive: 0 73% 67%;
+  --destructive-foreground: 0 0% 100%;
 
   /* --- Neutrals --- */
-  --color-charcoal:       #2C2C2C;
-  --color-graphite:       #3D3D3D;
-  --color-smoke:          #5A5A5A;
-  --color-gray:           #8A8A8A;
-  --color-light-gray:     #C4C4C4;
-  --color-surface:        #F2EDE8;
-  --color-background:     #FAF7F4;
-  --color-white:          #FFFFFF;
+  --charcoal: 0 0% 17%;
+  --graphite: 0 0% 24%;
+  --smoke: 0 0% 35%;
+  --gray: 0 0% 54%;
+  --light-gray: 0 0% 77%;
+  --surface: 24 27% 94%;
+  --white: 0 0% 100%;
 
   /* --- Semantic --- */
-  --color-text-primary:   #1A1A1A;
-  --color-text-secondary: #5A5A5A;
-  --color-text-muted:     #8A8A8A;
-  --color-text-inverse:   #FAF7F4;
+  --text-primary: 0 0% 10%;
+  --text-secondary: 0 0% 35%;
+  --text-muted: 0 0% 54%;
+  --text-inverse: 24 40% 97%;
 
   /* --- Status Colors --- */
-  --color-success:        #4CAF7D;
-  --color-success-bg:     rgba(76, 175, 125, 0.12);
-  --color-danger:         #E05C5C;
-  --color-danger-bg:      rgba(224, 92, 92, 0.12);
-  --color-warning:        #E8A920;
-  --color-warning-bg:     rgba(232, 169, 32, 0.12);
+  --success: 142 43% 59%;
+  --success-bg: 142 43% 59% / 0.12;
+  --danger: 0 73% 67%;
+  --danger-bg: 0 73% 67% / 0.12;
+  --warning: 40 89% 57%;
+  --warning-bg: 40 89% 57% / 0.12;
+
+  /* --- Legacy token aliases (temporary) --- */
+  --color-primary: hsl(var(--primary));
+  --color-primary-light: hsl(var(--primary-light));
+  --color-primary-dark: hsl(var(--primary-dark));
+  --color-primary-glow: hsl(var(--primary-glow));
+  --color-charcoal: hsl(var(--charcoal));
+  --color-graphite: hsl(var(--graphite));
+  --color-smoke: hsl(var(--smoke));
+  --color-gray: hsl(var(--gray));
+  --color-light-gray: hsl(var(--light-gray));
+  --color-surface: hsl(var(--surface));
+  --color-background: hsl(var(--background));
+  --color-white: hsl(var(--white));
+  --color-text-primary: hsl(var(--text-primary));
+  --color-text-secondary: hsl(var(--text-secondary));
+  --color-text-muted: hsl(var(--text-muted));
+  --color-text-inverse: hsl(var(--text-inverse));
+  --color-success: hsl(var(--success));
+  --color-success-bg: hsl(var(--success-bg));
+  --color-danger: hsl(var(--danger));
+  --color-danger-bg: hsl(var(--danger-bg));
+  --color-warning: hsl(var(--warning));
+  --color-warning-bg: hsl(var(--warning-bg));
 
   /* --- Typography --- */
-  --font-display:         'Playfair Display', serif;
-  --font-heading:         'Syne', sans-serif;
-  --font-body:            'Inter', sans-serif;
+  --font-display: 'Playfair Display', serif;
+  --font-heading: 'Syne', sans-serif;
+  --font-body: 'Inter', sans-serif;
 
   /* --- Spacing --- */
-  --space-1:  4px;
-  --space-2:  8px;
-  --space-3:  12px;
-  --space-4:  16px;
-  --space-6:  24px;
-  --space-8:  32px;
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
 
   /* --- Radius --- */
-  --radius-sm:   4px;
-  --radius-md:   8px;
-  --radius-lg:   16px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
 
   /* --- Type Scale (Landing) --- */
-  --type-hero:        clamp(2.75rem, 5vw, 5rem);
-  --type-hero-sub:    clamp(1.125rem, 1.5vw, 1.75rem);
-  --type-section:     clamp(2rem, 3vw, 3rem);
-  --type-body:        clamp(1rem, 1.1vw, 1.125rem);
-  --type-label:       0.8125rem;
-  --type-quote:       clamp(1.125rem, 1.4vw, 1.375rem);
+  --type-hero: clamp(2.75rem, 5vw, 5rem);
+  --type-hero-sub: clamp(1.125rem, 1.5vw, 1.75rem);
+  --type-section: clamp(2rem, 3vw, 3rem);
+  --type-body: clamp(1rem, 1.1vw, 1.125rem);
+  --type-label: 0.8125rem;
+  --type-quote: clamp(1.125rem, 1.4vw, 1.375rem);
 
   /* --- Additional Tokens --- */
-  --color-hero-overlay: rgba(26, 26, 26, 0.45);
-  --color-quote-mark:   rgba(212, 149, 106, 0.12);
+  --hero-overlay: 0 0% 10% / 0.45;
+  --quote-mark-bg: 24 57% 63% / 0.12;
 
-  /* Tailwind compatibility */
-  --background: var(--color-background);
-  --foreground: var(--color-text-primary);
-  --card: var(--color-white);
-  --card-foreground: var(--color-text-primary);
-  --popover: var(--color-white);
-  --popover-foreground: var(--color-text-primary);
-  --primary: var(--color-primary);
-  --primary-foreground: var(--color-white);
-  --secondary: var(--color-charcoal);
-  --secondary-foreground: var(--color-white);
-  --muted: var(--color-surface);
-  --muted-foreground: var(--color-text-muted);
-  --accent: var(--color-primary);
-  --accent-foreground: var(--color-background);
-  --destructive: var(--color-danger);
-  --destructive-foreground: var(--color-white);
-  --border: var(--color-surface);
-  --input: var(--color-white);
-  --ring: var(--color-primary);
+  /* --- Tailwind Semantic Aliases --- */
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 10%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 0 0% 10%;
+  --border: 24 27% 94%;
+  --input: 0 0% 100%;
+  --ring: 24 57% 63%;
   
   /* Chart colors */
-  --chart-1: var(--color-primary);
-  --chart-2: var(--color-charcoal);
-  --chart-3: var(--color-primary-light);
-  --chart-4: var(--color-graphite);
-  --chart-5: var(--color-smoke);
-  
-  --radius: var(--radius-lg);
+  --chart-1: 24 57% 63%;
+  --chart-2: 0 0% 17%;
+  --chart-3: 24 70% 71%;
+  --chart-4: 0 0% 24%;
+  --chart-5: 0 0% 35%;
   
   /* Sidebar */
-  --sidebar: var(--color-charcoal);
-  --sidebar-foreground: var(--color-light-gray);
-  --sidebar-primary: var(--color-primary);
-  --sidebar-primary-foreground: var(--color-white);
-  --sidebar-accent: var(--color-primary-glow);
-  --sidebar-accent-foreground: var(--color-primary);
-  --sidebar-border: var(--color-graphite);
-  --sidebar-ring: var(--color-primary);
+  --sidebar-background: 0 0% 17%;
+  --sidebar-foreground: 0 0% 77%;
+  --sidebar-primary: 24 57% 63%;
+  --sidebar-primary-foreground: 0 0% 100%;
+  --sidebar-accent: 24 57% 63% / 0.15;
+  --sidebar-accent-foreground: 24 57% 63%;
+  --sidebar-border: 0 0% 24%;
+  --sidebar-ring: 24 57% 63%;
   /* Admin design system tokens */
-  --admin-bg:            #F8F7F5;
-  --admin-surface:       #FFFFFF;
-  --admin-surface-2:     #F3F1EE;
-  --admin-border:        #E8E3DC;
-  --admin-border-focus:  #D4956A;
-  --admin-text:          #1A1A1A;
-  --admin-text-2:        #5A5A5A;
-  --admin-text-muted:    #9A9A9A;
-  --admin-active-bg:     #ECFDF3;
-  --admin-active-text:   #16A34A;
-  --admin-active-border: #BBF7D0;
-  --admin-expired-bg:    #FEF2F2;
-  --admin-expired-text:  #DC2626;
-  --admin-expired-border:#FECACA;
-  --admin-frozen-bg:     #FFFBEB;
-  --admin-frozen-text:   #D97706;
-  --admin-frozen-border: #FDE68A;
-  --admin-noplan-bg:     #F3F1EE;
-  --admin-noplan-text:   #5A5A5A;
-  --admin-noplan-border: #D1C9BE;
+  --admin-bg: 24 25% 96%;
+  --admin-surface: 0 0% 100%;
+  --admin-surface-2: 24 25% 94%;
+  --admin-border: 24 22% 90%;
+  --admin-border-focus: 24 57% 63%;
+  --admin-text: 0 0% 10%;
+  --admin-text-2: 0 0% 35%;
+  --admin-text-muted: 0 0% 60%;
+  --admin-active-bg: 142 71% 96%;
+  --admin-active-text: 142 67% 33%;
+  --admin-active-border: 142 60% 85%;
+  --admin-expired-bg: 0 93% 97%;
+  --admin-expired-text: 0 75% 56%;
+  --admin-expired-border: 0 100% 87%;
+  --admin-frozen-bg: 45 100% 97%;
+  --admin-frozen-text: 35 100% 42%;
+  --admin-frozen-border: 45 100% 85%;
+  --admin-noplan-bg: 24 25% 94%;
+  --admin-noplan-text: 0 0% 35%;
+  --admin-noplan-border: 24 20% 75%;
 }
 
 .dark {
-  --background: var(--color-charcoal);
-  --foreground: var(--color-text-inverse);
-  --card: var(--color-graphite);
-  --card-foreground: var(--color-text-inverse);
-  --popover: var(--color-graphite);
-  --popover-foreground: var(--color-text-inverse);
-  --primary: var(--color-primary);
-  --primary-foreground: var(--color-charcoal);
-  --secondary: var(--color-primary-light);
-  --secondary-foreground: var(--color-charcoal);
-  --muted: var(--color-smoke);
-  --muted-foreground: var(--color-light-gray);
-  --accent: var(--color-primary);
-  --accent-foreground: var(--color-charcoal);
-  --destructive: var(--color-danger);
-  --destructive-foreground: var(--color-text-inverse);
-  --border: var(--color-graphite);
-  --input: var(--color-graphite);
-  --ring: var(--color-primary);
-  --chart-1: var(--color-primary-light);
-  --chart-2: var(--color-primary);
-  --chart-3: var(--color-primary-dark);
-  --chart-4: var(--color-smoke);
-  --chart-5: var(--color-light-gray);
-  --sidebar: var(--color-charcoal);
-  --sidebar-foreground: var(--color-light-gray);
-  --sidebar-primary: var(--color-primary);
-  --sidebar-primary-foreground: var(--color-charcoal);
-  --sidebar-accent: var(--color-primary-glow);
-  --sidebar-accent-foreground: var(--color-primary);
-  --sidebar-border: var(--color-graphite);
-  --sidebar-ring: var(--color-primary);
+  --background: 0 0% 17%;
+  --foreground: 24 40% 97%;
+  --card: 0 0% 24%;
+  --card-foreground: 24 40% 97%;
+  --popover: 0 0% 24%;
+  --popover-foreground: 24 40% 97%;
+  --primary: 24 57% 63%;
+  --primary-foreground: 0 0% 17%;
+  --secondary: 24 70% 71%;
+  --secondary-foreground: 0 0% 17%;
+  --muted: 0 0% 35%;
+  --muted-foreground: 0 0% 77%;
+  --accent: 24 57% 63%;
+  --accent-foreground: 0 0% 17%;
+  --destructive: 0 73% 67%;
+  --destructive-foreground: 24 40% 97%;
+  --border: 0 0% 24%;
+  --input: 0 0% 24%;
+  --ring: 24 57% 63%;
+  --chart-1: 24 70% 71%;
+  --chart-2: 24 57% 63%;
+  --chart-3: 24 50% 49%;
+  --chart-4: 0 0% 35%;
+  --chart-5: 0 0% 77%;
+  --sidebar-background: 0 0% 17%;
+  --sidebar-foreground: 0 0% 77%;
+  --sidebar-primary: 24 57% 63%;
+  --sidebar-primary-foreground: 0 0% 17%;
+  --sidebar-accent: 24 57% 63% / 0.15;
+  --sidebar-accent-foreground: 24 57% 63%;
+  --sidebar-border: 0 0% 24%;
+  --sidebar-ring: 24 57% 63%;
 }
 
 @theme inline {
   --font-sans: var(--font-body);
+  --font-serif: var(--font-display);
+  --font-display: var(--font-heading);
   --font-mono: 'Geist Mono', 'Geist Mono Fallback';
 }
 
@@ -177,8 +199,8 @@ html {
 
 body {
   font-family: var(--font-body);
-  color: var(--color-text-primary);
-  background-color: var(--color-background);
+  color: hsl(var(--foreground));
+  background-color: hsl(var(--background));
 }
 
 @keyframes ken-burns {
@@ -203,6 +225,11 @@ body {
 .scroll-reveal.revealed {
   opacity: 1;
   transform: translateY(0);
+}
+
+.content-visibility-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1000px;
 }
 
 @media (prefers-reduced-motion: reduce) {

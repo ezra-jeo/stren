@@ -4,13 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Search } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
-
-type GymSearchResult = {
-  id: string;
-  name: string;
-  code: string;
-  address: string | null;
-};
+import { searchGymsWithFallback, type GymSearchResult } from '@/lib/gym-search';
 
 export function GymFinderSection() {
   const supabase = useMemo(() => createClient(), []);
@@ -33,15 +27,12 @@ export function GymFinderSection() {
     setIsLoading(true);
 
     const timeout = setTimeout(async () => {
-      const { data, error } = await supabase.rpc('search_gyms', { p_query: trimmed });
       if (isCancelled || requestId !== requestIdRef.current) return;
 
-      if (error) {
-        setResults([]);
-      } else {
-        const nextResults = ((data ?? []) as GymSearchResult[]).slice(0, 5);
-        setResults(nextResults);
-      }
+      const nextResults = await searchGymsWithFallback(supabase, trimmed);
+      if (isCancelled || requestId !== requestIdRef.current) return;
+
+      setResults(nextResults);
       setIsLoading(false);
     }, 300);
 

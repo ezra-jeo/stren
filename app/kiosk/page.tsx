@@ -132,9 +132,22 @@ export default function KioskPage() {
 
   useEffect(() => {
     loadCheckedIn()
-    const interval = setInterval(loadCheckedIn, 30000)
-    return () => clearInterval(interval)
-  }, [])
+    const interval = setInterval(loadCheckedIn, 60000)
+
+    const channel = supabase
+      .channel('kiosk-attendance')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'attendance' },
+        () => { void loadCheckedIn() }
+      )
+      .subscribe()
+
+    return () => {
+      clearInterval(interval)
+      void supabase.removeChannel(channel)
+    }
+  }, [supabase])
 
   async function loadCheckedIn() {
     if (isRefreshingCheckedInRef.current) {

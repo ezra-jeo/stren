@@ -1,10 +1,13 @@
-const CACHE_VERSION = 'v3';
+const CACHE_VERSION = 'v5';
 const STATIC_CACHE = `stren-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `stren-runtime-${CACHE_VERSION}`;
-const NAVIGATION_CACHE = `stren-pages-${CACHE_VERSION}`;
 
-const APP_SHELL_URLS = ['/landing', '/login', '/manifest.webmanifest', '/stren-logo.png'];
-const PUBLIC_NAV_ROUTES = new Set(['/', '/landing', '/login']);
+const APP_SHELL_URLS = [
+  '/landing',
+  '/login',
+  '/manifest.webmanifest',
+  '/stren-logo.png'
+];
 const NETWORK_ONLY_PREFIXES = ['/admin', '/member', '/kiosk', '/signup', '/api'];
 
 const STATIC_DESTINATIONS = new Set(['style', 'script', 'font', 'image']);
@@ -42,13 +45,13 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     (async () => {
-      const expectedCaches = [STATIC_CACHE, RUNTIME_CACHE, NAVIGATION_CACHE];
+      const expectedCaches = [STATIC_CACHE, RUNTIME_CACHE];
       const existingCaches = await caches.keys();
 
       await Promise.all(
         existingCaches
           .filter((cacheName) => !expectedCaches.includes(cacheName))
-          .map((cacheName) => caches.delete(cacheName))
+          .map((cacheName) => caches.delete(cacheName)) // Clears existing cached upon activate
       );
 
       await self.clients.claim();
@@ -79,29 +82,19 @@ self.addEventListener('fetch', (event) => {
   }
 
   if (request.mode === 'navigate') {
-    const isPublicRoute = PUBLIC_NAV_ROUTES.has(requestUrl.pathname);
-
-    if (!isPublicRoute) {
-      event.respondWith(fetch(request));
-      return;
-    }
-
     event.respondWith(
       (async () => {
-        const cache = await caches.open(NAVIGATION_CACHE);
-
+        const cache = await caches.open(RUNTIME_CACHE);
         try {
           const networkResponse = await withTimeout(fetch(request), 4000);
-
           if (isCacheableResponse(networkResponse)) {
             cache.put(request, networkResponse.clone());
           }
-
           return networkResponse;
         } catch {
-          const cachedPage = await cache.match(request);
-          if (cachedPage) {
-            return cachedPage;
+          const cachedResponse = await cache.match(request);
+          if (cachedResponse) {
+            return cachedResponse;
           }
 
           const shellFallback = await caches.match('/landing');

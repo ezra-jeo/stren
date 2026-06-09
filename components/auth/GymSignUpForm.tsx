@@ -7,6 +7,9 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { memberSignUpSchema } from '@/lib/validations';
 import { createClient } from '@/lib/supabase';
 import type { z } from 'zod';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 
 type FormData = z.infer<typeof memberSignUpSchema>;
 
@@ -15,26 +18,21 @@ interface GymSignUpFormProps {
   gymId: string;
 }
 
-const inputStyle = {
-  backgroundColor: 'var(--color-white)',
-  borderColor: 'var(--color-light-gray)',
-  borderWidth: '1.5px' as const,
-  color: 'var(--color-text-primary)',
-};
-
 export function GymSignUpForm({ gymCode, gymId }: GymSignUpFormProps) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const [serverError, setServerError] = useState('');
 
-  const {
-    register,
-    handleSubmit,
-    formState: { errors, isSubmitting },
-  } = useForm<FormData>({
+  const form = useForm<FormData>({
     resolver: zodResolver(memberSignUpSchema),
     defaultValues: { name: '', email: '', password: '' },
   });
+
+  const {
+    handleSubmit,
+    control,
+    formState: { isSubmitting },
+  } = form;
 
   const onSubmit = async (data: FormData) => {
     setServerError('');
@@ -81,112 +79,110 @@ export function GymSignUpForm({ gymCode, gymId }: GymSignUpFormProps) {
     }
 
     router.replace('/member');
+    router.refresh();
   };
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" data-gym-code={gymCode}>
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-text-secondary)' }}>
-          Full Name
-        </label>
-        <input
-          {...register('name')}
-          type="text"
-          placeholder="Juan Dela Cruz"
-          disabled={isSubmitting}
-          className="w-full px-4 py-3 rounded-lg border focus:outline-none transition-all"
-          style={inputStyle}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-primary)';
-            e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-primary-glow)';
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-light-gray)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
+    <Form {...form}>
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-5" data-gym-code={gymCode}>
+        <FormField
+          control={control}
+          name="name"
+          render={({ field }) => (
+            <FormItem className="space-y-2">
+              <FormLabel className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'hsl(var(--text-secondary))' }}>
+                Full Name
+              </FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  type="text"
+                  placeholder="Juan Dela Cruz"
+                  disabled={isSubmitting}
+                  className="h-12 rounded-lg border-[1.5px]"
+                  style={{
+                    backgroundColor: 'hsl(var(--white))',
+                    borderColor: 'hsl(var(--light-gray))',
+                    color: 'hsl(var(--text-primary))',
+                  }}
+                />
+              </FormControl>
+              <FormMessage className="text-xs mt-1" />
+            </FormItem>
+          )}
         />
-        {errors.name && (
-          <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>
-            {errors.name.message}
+
+        <FormField
+          control={control}
+          name="email"
+          render={({ field }) => (
+            <FormItem className="space-y-2">
+              <FormLabel className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'hsl(var(--text-secondary))' }}>
+                Email
+              </FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  type="email"
+                  placeholder="you@example.com"
+                  disabled={isSubmitting}
+                  className="h-12 rounded-lg border-[1.5px]"
+                  style={{
+                    backgroundColor: 'hsl(var(--white))',
+                    borderColor: 'hsl(var(--light-gray))',
+                    color: 'hsl(var(--text-primary))',
+                  }}
+                />
+              </FormControl>
+              <FormMessage className="text-xs mt-1" />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={control}
+          name="password"
+          render={({ field }) => (
+            <FormItem className="space-y-2">
+              <FormLabel className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'hsl(var(--text-secondary))' }}>
+                Password
+              </FormLabel>
+              <FormControl>
+                <Input
+                  {...field}
+                  type="password"
+                  placeholder="********"
+                  disabled={isSubmitting}
+                  className="h-12 rounded-lg border-[1.5px]"
+                  style={{
+                    backgroundColor: 'hsl(var(--white))',
+                    borderColor: 'hsl(var(--light-gray))',
+                    color: 'hsl(var(--text-primary))',
+                  }}
+                />
+              </FormControl>
+              <p className="text-xs" style={{ color: 'hsl(var(--text-muted))' }}>
+                Must be at least 6 characters
+              </p>
+              <FormMessage className="text-xs mt-1" />
+            </FormItem>
+          )}
+        />
+
+        {serverError && (
+          <p className="text-sm font-medium" style={{ color: 'hsl(var(--danger))' }}>
+            {serverError}
           </p>
         )}
-      </div>
 
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-text-secondary)' }}>
-          Email
-        </label>
-        <input
-          {...register('email')}
-          type="email"
-          placeholder="you@example.com"
+        <Button
+          type="submit"
           disabled={isSubmitting}
-          className="w-full px-4 py-3 rounded-lg border focus:outline-none transition-all"
-          style={inputStyle}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-primary)';
-            e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-primary-glow)';
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-light-gray)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        />
-        {errors.email && (
-          <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>
-            {errors.email.message}
-          </p>
-        )}
-      </div>
-
-      <div className="space-y-2">
-        <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-text-secondary)' }}>
-          Password
-        </label>
-        <input
-          {...register('password')}
-          type="password"
-          placeholder="********"
-          disabled={isSubmitting}
-          className="w-full px-4 py-3 rounded-lg border focus:outline-none transition-all"
-          style={inputStyle}
-          onFocus={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-primary)';
-            e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-primary-glow)';
-          }}
-          onBlur={(e) => {
-            e.currentTarget.style.borderColor = 'var(--color-light-gray)';
-            e.currentTarget.style.boxShadow = 'none';
-          }}
-        />
-        <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-          Must be at least 6 characters
-        </p>
-        {errors.password && (
-          <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>
-            {errors.password.message}
-          </p>
-        )}
-      </div>
-
-      {serverError && (
-        <p className="text-sm font-medium" style={{ color: 'var(--color-danger)' }}>
-          {serverError}
-        </p>
-      )}
-
-      <button
-        type="submit"
-        disabled={isSubmitting}
-        className="w-full py-3 rounded-lg font-semibold uppercase tracking-widest transition-all hover:scale-105 active:scale-100 disabled:opacity-60 disabled:cursor-not-allowed"
-        style={{
-          background: 'linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%)',
-          color: 'var(--color-white)',
-          boxShadow: '0 4px 14px var(--color-primary-glow)',
-        }}
-      >
-        {isSubmitting ? 'Creating account...' : 'Create Account'}
-      </button>
-    </form>
+          className="w-full h-12 rounded-lg font-semibold uppercase tracking-widest"
+        >
+          {isSubmitting ? 'Creating account...' : 'Create Account'}
+        </Button>
+      </form>
+    </Form>
   );
 }

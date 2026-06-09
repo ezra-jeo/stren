@@ -7,6 +7,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { MemberNotificationsPanel } from '@/components/member-notifications-panel';
+import { NavLinkItem } from '@/components/layout/nav-link';
 import { Home, Activity, Trophy, User, Settings } from 'lucide-react';
 import type { GymBranding } from '@/lib/gym-member';
 
@@ -40,7 +41,7 @@ export function MemberShell({ children, gymBranding, hasServerUser }: MemberShel
   }, [user, isLoading, hasServerUser, router, gymLoginHref]);
 
   useEffect(() => {
-    if (!isLoading) {
+    if (!isLoading || hasServerUser) {
       setAuthTimeoutExceeded(false);
       return;
     }
@@ -55,11 +56,11 @@ export function MemberShell({ children, gymBranding, hasServerUser }: MemberShel
   }, [isLoading]);
 
   useEffect(() => {
-    if (!authTimeoutExceeded) return;
+    if (!authTimeoutExceeded || hasServerUser) return;
     router.replace(gymLoginHref);
-  }, [authTimeoutExceeded, gymLoginHref, router]);
+  }, [authTimeoutExceeded, gymLoginHref, hasServerUser, router]);
 
-  if (isLoading || authTimeoutExceeded) return <LoadingScreen />;
+  if ((isLoading && !hasServerUser) || (authTimeoutExceeded && !hasServerUser)) return <LoadingScreen />;
 
   const gymName = gymBranding?.name ?? 'Stren';
   const gymLogoUrl = gymBranding?.logo_url ?? null;
@@ -96,34 +97,23 @@ export function MemberShell({ children, gymBranding, hasServerUser }: MemberShel
         </Link>
 
         <div className="flex items-center gap-6">
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-            const isActive = pathname === href;
-            return (
-              <Link
-                key={href}
-                href={href}
-                className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm font-medium"
-                style={{
-                  color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                  backgroundColor: isActive ? 'var(--color-primary-glow)' : 'transparent',
-                }}
-              >
-                <Icon size={18} />
-                {label}
-              </Link>
-            );
-          })}
-          <Link
+          {NAV_ITEMS.map(({ href, label, icon }) => (
+            <NavLinkItem
+              key={href}
+              href={href}
+              label={label}
+              icon={icon}
+              active={pathname === href}
+              tone="light"
+            />
+          ))}
+          <NavLinkItem
             href="/member/profile"
-            className="flex items-center gap-2 px-3 py-2 rounded-lg transition-all text-sm font-medium"
-            style={{
-              color: pathname === '/member/profile' ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-              backgroundColor: pathname === '/member/profile' ? 'var(--color-primary-glow)' : 'transparent',
-            }}
-          >
-            <User size={18} />
-            {profile?.name ?? 'Profile'}
-          </Link>
+            label={profile?.name ?? 'Profile'}
+            icon={User}
+            active={pathname === '/member/profile'}
+            tone="light"
+          />
           <MemberNotificationsPanel />
         </div>
       </header>
@@ -183,25 +173,25 @@ export function MemberShell({ children, gymBranding, hasServerUser }: MemberShel
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href;
           return (
-            <Link
+            <NavLinkItem
               key={href}
               href={href}
-              className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-all"
-              style={{ color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)' }}
-            >
-              <Icon size={22} />
-              <span className="text-[10px] font-medium">{label}</span>
-            </Link>
+              label={label}
+              icon={Icon}
+              active={isActive}
+              tone="muted"
+              layout="column"
+            />
           );
         })}
-        <Link
+        <NavLinkItem
           href="/member/profile"
-          className="flex flex-col items-center gap-0.5 px-3 py-1 rounded-lg transition-all"
-          style={{ color: pathname === '/member/profile' ? 'var(--color-primary)' : 'var(--color-text-muted)' }}
-        >
-          <User size={22} />
-          <span className="text-[10px] font-medium">Profile</span>
-        </Link>
+          label="Profile"
+          icon={User}
+          active={pathname === '/member/profile'}
+          tone="muted"
+          layout="column"
+        />
       </nav>
     </div>
   );

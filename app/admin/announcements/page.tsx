@@ -80,7 +80,7 @@ export default function AdminAnnouncementsPage() {
     await supabase.from('feed_items').insert({
       member_id: profile.id,
       type: 'announcement' as const,
-      title: `📢 ${data.title}`,
+      title: `${data.title}`,
       description: data.body,
     });
 

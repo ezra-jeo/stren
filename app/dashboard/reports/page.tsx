@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -11,22 +11,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import {
-  BarChart,
-  Bar,
-  LineChart,
-  Line,
-  PieChart,
-  Pie,
-  Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
 import { Download } from 'lucide-react';
+
+const DashboardReportsCharts = dynamic(
+  () => import('@/components/dashboard/DashboardReportsCharts').then((mod) => mod.DashboardReportsCharts),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="space-y-4">
+        <div className="h-12 rounded-lg bg-muted" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <Card className="p-6 h-80" />
+          <Card className="p-6 h-80" />
+        </div>
+      </div>
+    ),
+  }
+)
 
 export default function ReportsPage() {
   const [dateRange, setDateRange] = useState('month');
@@ -106,172 +107,58 @@ export default function ReportsPage() {
           >
             Reports
           </h1>
-          <p 
+          <p
             className="text-lg mt-3"
             style={{ color: 'var(--color-text-secondary)' }}
           >
-            Gym analytics and performance metrics
+            Track attendance, revenue, and membership trends
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-col sm:flex-row gap-3 w-full md:w-auto">
           <Select value={dateRange} onValueChange={setDateRange}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
+            <SelectTrigger className="w-full sm:w-44">
+              <SelectValue placeholder="Date range" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="week">This Week</SelectItem>
-              <SelectItem value="month">This Month</SelectItem>
-              <SelectItem value="quarter">This Quarter</SelectItem>
-              <SelectItem value="year">This Year</SelectItem>
+              <SelectItem value="week">Last 7 days</SelectItem>
+              <SelectItem value="month">Last 30 days</SelectItem>
+              <SelectItem value="quarter">Last 90 days</SelectItem>
+              <SelectItem value="year">Last 12 months</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" className="gap-2">
-            <Download size={20} />
+          <Button className="gap-2 bg-primary hover:bg-primary/90 md:w-auto w-full">
+            <Download size={18} />
             Export
           </Button>
         </div>
       </div>
 
-      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {stats.map((stat, idx) => (
-          <Card key={idx} className="p-4">
-            <p className="text-sm text-muted-foreground">{stat.label}</p>
-            <p className="text-2xl font-bold text-foreground mt-2">{stat.value}</p>
-            <p className="text-xs text-green-600 dark:text-green-400 mt-2">{stat.change}</p>
+        {stats.map((stat) => (
+          <Card key={stat.label} className="p-4">
+            <p
+              className="text-xs font-semibold uppercase tracking-widest"
+              style={{ color: 'var(--color-text-secondary)' }}
+            >
+              {stat.label}
+            </p>
+            <div className="mt-3 flex items-baseline justify-between">
+              <span className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)' }}>
+                {stat.value}
+              </span>
+              <span className="text-sm font-semibold text-emerald-600">{stat.change}</span>
+            </div>
           </Card>
         ))}
       </div>
 
-      {/* Charts */}
-      <Tabs defaultValue="attendance" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-4">
-          <TabsTrigger value="attendance">Attendance</TabsTrigger>
-          <TabsTrigger value="revenue">Revenue</TabsTrigger>
-          <TabsTrigger value="membership">Membership</TabsTrigger>
-          <TabsTrigger value="members">Members</TabsTrigger>
-        </TabsList>
-
-        {/* Attendance Tab */}
-        <TabsContent value="attendance">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Weekly Attendance</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={attendanceData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis stroke="var(--muted-foreground)" />
-                  <YAxis stroke="var(--muted-foreground)" />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="checkins" fill="var(--primary)" radius={[8, 8, 0, 0]} />
-                  <Bar dataKey="checkouts" fill="var(--secondary)" radius={[8, 8, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </Card>
-
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Peak Hours</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <LineChart data={peakHoursData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                  <XAxis stroke="var(--muted-foreground)" />
-                  <YAxis stroke="var(--muted-foreground)" />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="members" stroke="var(--primary)" strokeWidth={2} />
-                </LineChart>
-              </ResponsiveContainer>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Revenue Tab */}
-        <TabsContent value="revenue">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Monthly Revenue vs Target</h3>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={revenueData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis stroke="var(--muted-foreground)" />
-                <YAxis stroke="var(--muted-foreground)" />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="revenue" fill="var(--primary)" radius={[8, 8, 0, 0]} />
-                <Bar dataKey="target" fill="var(--muted)" radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        </TabsContent>
-
-        {/* Membership Tab */}
-        <TabsContent value="membership">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4">Members by Plan</h3>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={membershipData}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, value }) => `${name}: ${value}`}
-                    outerRadius={100}
-                    fill="#8884d8"
-                    dataKey="value"
-                  >
-                    {membershipData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            </Card>
-
-            <Card className="p-6 space-y-4">
-              <h3 className="text-lg font-semibold text-foreground">Membership Details</h3>
-              {membershipData.map((item) => (
-                <div key={item.name} className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: item.color }} />
-                    <span className="text-muted-foreground">{item.name}</span>
-                  </div>
-                  <span className="font-semibold text-foreground">{item.value}</span>
-                </div>
-              ))}
-              <div className="pt-4 border-t border-border">
-                <div className="flex items-center justify-between">
-                  <span className="text-muted-foreground">Total</span>
-                  <span className="font-semibold text-foreground">
-                    {membershipData.reduce((sum, item) => sum + item.value, 0)}
-                  </span>
-                </div>
-              </div>
-            </Card>
-          </div>
-        </TabsContent>
-
-        {/* Members Tab */}
-        <TabsContent value="members">
-          <Card className="p-6">
-            <h3 className="text-lg font-semibold text-foreground mb-4">Member Status Distribution</h3>
-            <ResponsiveContainer width="100%" height={350}>
-              <BarChart data={memberStatusData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" />
-                <XAxis dataKey="name" stroke="var(--muted-foreground)" />
-                <YAxis stroke="var(--muted-foreground)" />
-                <Tooltip />
-                <Bar dataKey="value" fill="var(--primary)" radius={[8, 8, 0, 0]}>
-                  {memberStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-        </TabsContent>
-      </Tabs>
+      <DashboardReportsCharts
+        attendanceData={attendanceData}
+        revenueData={revenueData}
+        membershipData={membershipData}
+        peakHoursData={peakHoursData}
+        memberStatusData={memberStatusData}
+      />
     </div>
   );
 }

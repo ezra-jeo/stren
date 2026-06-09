@@ -7,7 +7,7 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { canPreviewUnpublishedGym } from '@/lib/gym-visibility';
 import type { Json } from '@/lib/database.types';
 
-export const revalidate = 86400;
+export const revalidate = 3600;
 
 type GymData = {
   id: string;
@@ -84,25 +84,47 @@ function ComingSoonPage({ gym }: { gym: GymData }) {
       className="relative min-h-screen overflow-hidden"
       style={{ background: 'linear-gradient(135deg, var(--color-secondary), var(--color-primary-dark), var(--color-primary))' }}
     >
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,rgba(255,255,255,0.12),transparent_40%),radial-gradient(circle_at_bottom,rgba(255,255,255,0.08),transparent_35%)]" />
+      <div className="relative z-10 flex justify-start px-6 pt-6 sm:px-8">
+        <Link
+          href="/landing"
+          className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-sm font-medium text-white/90 transition-colors hover:bg-white/15"
+        >
+          &larr; Back to Stren
+        </Link>
+      </div>
       <div className="flex min-h-screen items-center justify-center px-5 sm:px-6">
-        <div className="max-w-3xl text-center">
+        <div className="relative z-10 max-w-3xl text-center">
+          <div className="mb-6 inline-flex items-center rounded-full border border-white/20 bg-white/10 px-4 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-white/85">
+            Coming soon
+          </div>
           <h1
             className="text-4xl font-bold tracking-tight sm:text-5xl md:text-7xl"
             style={{ color: 'var(--color-white)', fontFamily: 'var(--font-heading)' }}
           >
             {gym.name}
           </h1>
-          <p className="mt-4 text-xl sm:text-2xl" style={{ color: 'var(--color-white)', opacity: 0.8 }}>
-            Coming soon.
+          <p className="mt-4 text-lg sm:text-xl md:text-2xl" style={{ color: 'var(--color-white)', opacity: 0.85 }}>
+            This gym has not published its public landing page yet, but staff can still log in.
           </p>
-          <Link href={`/gym/${encodeURIComponent(gym.code)}/signup`} className="mt-10 inline-block">
-            <button
-              className="w-full max-w-[90vw] rounded-full px-8 py-4 text-base font-semibold sm:w-auto sm:max-w-none sm:px-10"
-              style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-white)' }}
-            >
-              Join {gym.name}
-            </button>
-          </Link>
+          <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
+            <Link href={`/gym/${encodeURIComponent(gym.code)}/login?from=landing`}>
+              <button
+                className="w-full rounded-full px-8 py-4 text-base font-semibold sm:w-auto sm:px-10"
+                style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-white)' }}
+              >
+                Log In
+              </button>
+            </Link>
+            <Link href={`/gym/${encodeURIComponent(gym.code)}/signup`}>
+              <button
+                className="w-full rounded-full border px-8 py-4 text-base font-semibold sm:w-auto sm:px-10"
+                style={{ borderColor: 'rgba(255,255,255,0.35)', backgroundColor: 'rgba(255,255,255,0.08)', color: 'var(--color-white)' }}
+              >
+                Join {gym.name}
+              </button>
+            </Link>
+          </div>
         </div>
       </div>
     </div>

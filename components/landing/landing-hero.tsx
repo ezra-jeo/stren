@@ -13,11 +13,12 @@ export function LandingHero() {
           muted
           loop
           playsInline
+          preload="metadata"
+          poster="/stren-hero-poster.webp"
           className="absolute inset-0 w-full h-full object-cover"
           style={{ display: 'block' }}
         >
-          <source src="/stren-hero.mp4" type="video/mp4" />
-          <source src="/stren-hero.mp4" type="video/mp4; codecs='avc1.4D401E'" />
+          <source src="/stren-hero.webm" type="video/webm" />
         </video>
       </div>
 

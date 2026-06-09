@@ -33,7 +33,7 @@ const features: Feature[] = [
       'Live headcount visible to owner',
       'Automatic attendance history',
     ],
-    image: '/checkin.jpg',
+    image: '/checkin.webp',
     imageAlt: 'QR check-in screen on phone',
   },
   {
@@ -47,7 +47,7 @@ const features: Feature[] = [
       'Revenue summary at a glance',
       'Payment history per member',
     ],
-    image: '/strendashboard.jpg',
+    image: '/strendashboard.webp',
     imageAlt: 'Payment tracking dashboard',
   },
   {
@@ -57,7 +57,7 @@ const features: Feature[] = [
     description:
       'Plans, payments, attendance - all in one place. Search any member and see everything.',
     bullets: ['Full membership and visit history', 'Instant search across all members'],
-    image: '/landingmembers.jpg',
+    image: '/landingmembers.webp',
     imageAlt: 'Member profile view',
   },
   {
@@ -67,7 +67,7 @@ const features: Feature[] = [
     description:
       'Revenue, attendance trends, membership growth. A real dashboard built for gym owners.',
     bullets: ['No spreadsheets needed', 'Visual trends you can act on'],
-    image: '/YourGym.jpg',
+    image: '/YourGym.webp',
     imageAlt: 'Gym analytics dashboard',
   },
 ];
@@ -224,7 +224,7 @@ export function FeatureTabViewer() {
                 alt={active.imageAlt}
                 fill
                 className="object-cover photo-warm transition-opacity duration-250 ease-out"
-                loading="eager"
+                loading="lazy"
                 style={{ opacity: transitioning ? 0 : 1 }}
               />
             </div>

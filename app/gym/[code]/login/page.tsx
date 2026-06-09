@@ -18,8 +18,9 @@ export default async function GymLoginPage({ params, searchParams }: PageProps) 
   const source = resolvedSearchParams?.from;
   const backHref = source === 'select' ? '/gym-select' : `/gym/${encodeURIComponent(code)}`;
   const backLabel = source === 'select' ? 'Back to gym select' : 'Back to gym page';
+  const originPath = source ? `/gym/${encodeURIComponent(code)}/login?from=${source}` : `/gym/${encodeURIComponent(code)}/login`
 
-  if (!gym || !gym.is_published) {
+  if (!gym) {
     notFound();
   }
 
@@ -95,7 +96,7 @@ export default async function GymLoginPage({ params, searchParams }: PageProps) 
             </p>
           </div>
 
-          <LoginForm gymCode={code} />
+          <LoginForm gymCode={code} initialOriginPath={originPath} />
         </div>
 
         <p className="text-center text-xs mt-6" style={{ color: 'rgba(255,255,255,0.85)' }}>

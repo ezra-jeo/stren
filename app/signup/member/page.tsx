@@ -211,10 +211,10 @@ function MemberSignUpPageContent() {
   };
 
   const inputStyle = {
-    backgroundColor: 'var(--color-white)',
-    borderColor: 'var(--color-light-gray)',
+    backgroundColor: 'hsl(var(--white))',
+    borderColor: 'hsl(var(--light-gray))',
     borderWidth: '1.5px' as const,
-    color: 'var(--color-text-primary)',
+    color: 'hsl(var(--text-primary))',
   };
 
   return (
@@ -228,21 +228,21 @@ function MemberSignUpPageContent() {
           </Link>
         </div>
 
-        <div className="p-8 rounded-lg border shadow-md" style={{ backgroundColor: 'var(--color-white)', borderColor: 'var(--color-surface)', borderWidth: '1px' }}>
-          <Link href="/signup" className="inline-flex items-center gap-1 mb-6 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
+        <div className="p-8 rounded-lg border shadow-md" style={{ backgroundColor: 'hsl(var(--white))', borderColor: 'hsl(var(--surface))', borderWidth: '1px' }}>
+          <Link href="/signup" className="inline-flex items-center gap-1 mb-6 text-sm" style={{ color: 'hsl(var(--text-secondary))' }}>
             <ArrowLeft className="h-4 w-4" /> Back
           </Link>
 
           {step === 'done' ? (
             <div className="text-center py-4">
-              <CheckCircle2 className="h-16 w-16 mx-auto mb-4" style={{ color: 'var(--color-primary)' }} />
-              <h2 className="text-2xl font-bold mb-2" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}>
+              <CheckCircle2 className="h-16 w-16 mx-auto mb-4" style={{ color: 'hsl(var(--primary))' }} />
+              <h2 className="text-2xl font-bold mb-2" style={{ color: 'hsl(var(--text-primary))', fontFamily: 'var(--font-heading)' }}>
                 Account Created!
               </h2>
-              <p className="text-base mb-6" style={{ color: 'var(--color-text-secondary)' }}>
+              <p className="text-base mb-6" style={{ color: 'hsl(var(--text-secondary))' }}>
                 Your account for <strong>{selectedGym?.name}</strong> is ready. You can now log in.
               </p>
-              <Link href="/login" className="inline-block py-3 px-8 rounded-lg font-semibold" style={{ background: 'linear-gradient(135deg, var(--color-primary), var(--color-primary-dark))', color: 'var(--color-white)' }}>
+              <Link href="/login" className="inline-block py-3 px-8 rounded-lg font-semibold" style={{ background: 'linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-dark)))', color: 'hsl(var(--white))' }}>
                 Go to Login
               </Link>
             </div>
@@ -255,7 +255,7 @@ function MemberSignUpPageContent() {
                 Search by gym name or code
               </p>
               <div className="relative mb-4">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'var(--color-text-muted)' }} />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: 'hsl(var(--text-muted))' }} />
                 <input
                   type="text"
                   placeholder="e.g. Iron Paradise or GYM-ABC"
@@ -265,7 +265,7 @@ function MemberSignUpPageContent() {
                   style={inputStyle}
                 />
               </div>
-              {searching && <p className="text-sm mb-2" style={{ color: 'var(--color-text-muted)' }}>Searching...</p>}
+              {searching && <p className="text-sm mb-2" style={{ color: 'hsl(var(--text-muted))' }}>Searching...</p>}
               {gyms.length > 0 && (
                 <div className="space-y-2 mb-6">
                   {gyms.map((g) => (
@@ -276,16 +276,16 @@ function MemberSignUpPageContent() {
                         setStep('details');
                       }}
                       className="w-full text-left p-4 rounded-lg border transition-all"
-                      style={{ borderColor: 'var(--color-light-gray)', borderWidth: '1.5px' }}
+                      style={{ borderColor: 'hsl(var(--light-gray))', borderWidth: '1.5px' }}
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--color-primary)';
+                        e.currentTarget.style.borderColor = 'hsl(var(--primary))';
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.borderColor = 'var(--color-light-gray)';
+                        e.currentTarget.style.borderColor = 'hsl(var(--light-gray))';
                       }}
                     >
-                      <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>{g.name}</p>
-                      <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                      <p className="font-semibold" style={{ color: 'hsl(var(--text-primary))' }}>{g.name}</p>
+                      <p className="text-xs" style={{ color: 'hsl(var(--text-muted))' }}>
                         Code: {g.code}
                         {g.address ? ` · ${g.address}` : ''}
                       </p>
@@ -294,7 +294,7 @@ function MemberSignUpPageContent() {
                 </div>
               )}
               {gymQuery.length >= 2 && gyms.length === 0 && !searching && (
-                <p className="text-sm py-4 text-center" style={{ color: 'var(--color-text-muted)' }}>
+                <p className="text-sm py-4 text-center" style={{ color: 'hsl(var(--text-muted))' }}>
                   No gyms found. Ask your gym to register on Stren.
                 </p>
               )}
@@ -304,20 +304,20 @@ function MemberSignUpPageContent() {
               <h1 className="text-3xl font-bold mb-1" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}>
                 Create Account
               </h1>
-              <p className="text-sm mb-6" style={{ color: 'var(--color-text-secondary)' }}>
+              <p className="text-sm mb-6" style={{ color: 'hsl(var(--text-secondary))' }}>
                 Joining <strong>{selectedGym?.name}</strong>{' '}
-                <button onClick={() => setStep('gym')} className="underline" style={{ color: 'var(--color-primary)' }}>change</button>
+                <button onClick={() => setStep('gym')} className="underline" style={{ color: 'hsl(var(--primary))' }}>change</button>
               </p>
               <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-text-secondary)' }}>Full Name</label>
+                  <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'hsl(var(--text-secondary))' }}>Full Name</label>
                   <input {...register('name')} type="text" placeholder="Juan Dela Cruz" disabled={isLoading} className="w-full px-4 py-3 rounded-lg border focus:outline-none" style={inputStyle} />
-                  {errors.name && <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>{errors.name.message}</p>}
+                  {errors.name && <p className="text-xs mt-1" style={{ color: 'hsl(var(--danger))' }}>{errors.name.message}</p>}
                 </div>
                 <div className="space-y-2">
-                  <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-text-secondary)' }}>Email</label>
+                  <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'hsl(var(--text-secondary))' }}>Email</label>
                   <input {...register('email')} type="email" placeholder="you@example.com" disabled={isLoading} className="w-full px-4 py-3 rounded-lg border focus:outline-none" style={inputStyle} />
-                  {errors.email && <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>{errors.email.message}</p>}
+                  {errors.email && <p className="text-xs mt-1" style={{ color: 'hsl(var(--danger))' }}>{errors.email.message}</p>}
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-semibold uppercase tracking-widest" style={{ color: 'var(--color-text-secondary)' }}>Password</label>

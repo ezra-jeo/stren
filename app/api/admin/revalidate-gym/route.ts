@@ -77,6 +77,14 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
   }
 
+  const { data: gym } = await supabase
+    .from('gyms')
+    .select('id')
+    .eq('code', code)
+    .maybeSingle();
+
+  const gymId = gym?.id ?? '';
+
   const encodedCode = encodeURIComponent(code);
   revalidatePath(`/gym/${encodedCode}`);
   revalidatePath(`/gym/${encodedCode}/contact`);
@@ -84,6 +92,12 @@ export async function POST(request: Request) {
   revalidatePath(`/gym/${encodedCode}/locate`);
   revalidateTag('gym-public', 'max');
   revalidateTag('gym-branding', 'max');
+
+  if (gymId) {
+    revalidateTag(`gym-stats-${gymId}`, 'max');
+    revalidateTag(`gym-reports-${gymId}`, 'max');
+    revalidateTag(`leaderboard-${gymId}`, 'max');
+  }
 
   return NextResponse.json({ revalidated: true, code });
 }

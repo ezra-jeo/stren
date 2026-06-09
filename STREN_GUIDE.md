@@ -46,13 +46,6 @@ A comprehensive gym management system built with Next.js 16, React 19, and Tailw
 - Member status breakdown
 - Exportable reports
 
-#### Class Management
-- Schedule classes by day
-- Track enrollment capacity
-- Color-coded availability indicators
-- Instructor assignment
-- Class level classification (Beginner/Intermediate/Advanced)
-
 #### Membership Plans
 - Create and manage pricing tiers
 - Track members per plan

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Search, QrCode, HelpCircle, Building2, X, ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase';
+import { searchGymsWithFallback, type GymSearchResult } from '@/lib/gym-search';
 
 const STORAGE_KEY = 'stren-selected-gym';
 
@@ -13,13 +14,6 @@ type SavedGym = {
   id: string;
   name: string;
   code: string;
-};
-
-type GymSearchResult = {
-  id: string;
-  name: string;
-  code: string;
-  address: string | null;
 };
 
 export default function GymSelectPage() {
@@ -87,15 +81,12 @@ export default function GymSelectPage() {
     setIsLoading(true);
 
     const timeout = setTimeout(async () => {
-      const { data, error } = await supabase.rpc('search_gyms', { p_query: trimmed });
       if (isCancelled || requestId !== requestIdRef.current) return;
 
-      if (error) {
-        setResults([]);
-      } else {
-        const nextResults = ((data ?? []) as GymSearchResult[]).slice(0, 5);
-        setResults(nextResults);
-      }
+      const nextResults = await searchGymsWithFallback(supabase, trimmed);
+      if (isCancelled || requestId !== requestIdRef.current) return;
+
+      setResults(nextResults);
       setIsLoading(false);
     }, 300);
 

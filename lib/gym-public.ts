@@ -26,7 +26,7 @@ const fetchGymByCode = unstable_cache(
     return data;
   },
   ['gym-public-by-code'],
-  { revalidate: 86400, tags: ['gym-public'] },
+  { revalidate: 3600, tags: ['gym-public'] },
 );
 
 const fetchGymSecondaryColorByCode = unstable_cache(
@@ -40,7 +40,7 @@ const fetchGymSecondaryColorByCode = unstable_cache(
     return gymRow?.secondary_color ?? null;
   },
   ['gym-public-secondary-by-code'],
-  { revalidate: 86400, tags: ['gym-public'] },
+  { revalidate: 3600, tags: ['gym-public'] },
 );
 
 export async function getGymPublicByCode(rawCode: string) {
