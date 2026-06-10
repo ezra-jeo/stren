@@ -9,7 +9,9 @@ function addSecurityHeaders(response: NextResponse, pathname: string): NextRespo
   // In App Router client-side navigations, document-level policies may persist from
   // the initial page load. Keep camera available to same-origin so /kiosk can start
   // without requiring a hard refresh after navigating from /admin or /landing.
-  const cameraPolicy = 'camera=(self)'
+  // Camera is only needed on /kiosk for QR scanning. Deny it everywhere else
+  // so a compromised admin or member page can't silently access the camera.
+  const cameraPolicy = pathname.startsWith('/kiosk') ? 'camera=(self)' : 'camera=()'
 
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('X-Frame-Options', 'DENY')
@@ -115,7 +117,7 @@ export async function middleware(request: NextRequest) {
   const pathWithSearch = request.nextUrl.pathname + request.nextUrl.search
 
   const isApiRoute = pathname.startsWith("/api")
-  const isGymOrKioskRoute = pathname.startsWith("/kiosk") || pathname.startsWith("/gym")
+  const isGymOrKioskRoute = pathname.startsWith("/gym")
   const isMarketingRoute = pathname === "/" || pathname.startsWith("/landing")
   const isGymSelectRoute = pathname === "/gym-select" || pathname === "/qr-login"
   const isAuthCallbackRoute = pathname === "/auth/callback"
@@ -235,8 +237,8 @@ export async function middleware(request: NextRequest) {
     return finalize(NextResponse.redirect(new URL(resolveLoginPath(request, pathname), request.url)))
   }
 
-  // Admin routes — only admin/staff/owner
-  if (pathname.startsWith("/admin")) {
+  // Admin and kiosk routes — only admin/staff/owner
+  if (pathname.startsWith("/admin") || pathname.startsWith("/kiosk")) {
     if (profile.role !== "admin" && profile.role !== "staff" && profile.role !== "owner") {
       return finalize(NextResponse.redirect(new URL("/member", request.url)))
     }

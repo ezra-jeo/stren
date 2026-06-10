@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { MemberNotificationsPanel } from '@/components/member-notifications-panel';
@@ -18,8 +18,6 @@ const NAV_ITEMS = [
   { href: '/member/settings', label: 'Settings', icon: Settings },
 ];
 
-const AUTH_LOADING_TIMEOUT_MS = 12000;
-
 interface MemberShellProps {
   children: React.ReactNode;
   gymBranding: GymBranding | null;
@@ -28,39 +26,11 @@ interface MemberShellProps {
 
 export function MemberShell({ children, gymBranding, hasServerUser }: MemberShellProps) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { user, profile, isLoading } = useAuth();
-  const [authTimeoutExceeded, setAuthTimeoutExceeded] = React.useState(false);
+  const { profile, isLoading } = useAuth();
   const gymCode = gymBranding?.code ?? null;
-  const gymLoginHref = gymCode ? `/gym/${encodeURIComponent(gymCode)}/login` : '/gym-select';
 
-  useEffect(() => {
-    if (!isLoading && !user && !hasServerUser) {
-      router.replace(gymLoginHref);
-    }
-  }, [user, isLoading, hasServerUser, router, gymLoginHref]);
-
-  useEffect(() => {
-    if (!isLoading || hasServerUser) {
-      setAuthTimeoutExceeded(false);
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setAuthTimeoutExceeded(true);
-    }, AUTH_LOADING_TIMEOUT_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [isLoading]);
-
-  useEffect(() => {
-    if (!authTimeoutExceeded || hasServerUser) return;
-    router.replace(gymLoginHref);
-  }, [authTimeoutExceeded, gymLoginHref, hasServerUser, router]);
-
-  if ((isLoading && !hasServerUser) || (authTimeoutExceeded && !hasServerUser)) return <LoadingScreen />;
+  // Middleware is the single auth guard — no client-side redirects here.
+  if (isLoading && !hasServerUser) return <LoadingScreen />;
 
   const gymName = gymBranding?.name ?? 'Stren';
   const gymLogoUrl = gymBranding?.logo_url ?? null;
