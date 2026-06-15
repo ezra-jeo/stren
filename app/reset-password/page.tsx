@@ -95,7 +95,6 @@ export default function ResetPasswordPage() {
 
     void bootstrap();
     return () => { active = false; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function handleSubmit(e: React.FormEvent) {
