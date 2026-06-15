@@ -119,9 +119,13 @@ export async function middleware(request: NextRequest) {
   const isMarketingRoute = pathname === "/" || pathname.startsWith("/landing")
   const isGymSelectRoute = pathname === "/gym-select" || pathname === "/qr-login"
   const isAuthCallbackRoute = pathname === "/auth/callback"
+  // /reset-password is intentionally excluded from isAuthRoute: the PKCE recovery
+  // flow lands here with a ?code= param and needs to exchange it for a session
+  // client-side. Treating it as an auth route would eject already-authenticated
+  // users (e.g. on refresh) before they can submit the new password.
+  const isResetPasswordRoute = pathname === "/reset-password"
   const isAuthRoute =
     pathname === "/login" ||
-    pathname === "/reset-password" ||
     pathname === "/signup" ||
     pathname.startsWith("/signup/")
 
@@ -140,7 +144,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Public pages should not pay Supabase auth/profile initialization cost.
-  if (isGymOrKioskRoute || isMarketingRoute || isGymSelectRoute || isAuthCallbackRoute) {
+  // /reset-password also bypasses the auth check — it exchanges its own PKCE code
+  // client-side, so middleware must not redirect authenticated users away from it.
+  if (isGymOrKioskRoute || isMarketingRoute || isGymSelectRoute || isAuthCallbackRoute || isResetPasswordRoute) {
     return finalize(supabaseResponse)
   }
 
