@@ -14,6 +14,7 @@ import { z } from "zod"
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { createAdminClient } from "@/lib/supabase-admin"
 import { sendOnboardingEmail, type SendResult } from "@/lib/email"
+import { rateLimit } from "@/lib/rate-limit"
 
 type ManagerRole = "owner" | "admin" | "staff"
 const MANAGER_ROLES: ManagerRole[] = ["owner", "admin", "staff"]
@@ -95,6 +96,16 @@ export async function POST(request: Request) {
     !profile.gym_id
   ) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 })
+  }
+
+  // Rate-limit: max 20 onboarding requests per gym per minute to prevent
+  // accidental bulk-invite abuse or email spam.
+  const rl = rateLimit(`onboard:${profile.gym_id}`, 20, 60_000)
+  if (!rl.success) {
+    return NextResponse.json(
+      { error: "Too many onboarding requests. Please wait a moment and try again." },
+      { status: 429 },
+    )
   }
 
   let body: z.infer<typeof onboardSchema>
