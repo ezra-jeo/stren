@@ -3,7 +3,6 @@ import { NextResponse, type NextRequest } from "next/server"
 import { isValidLoginOrigin } from '@/lib/login-origin'
 
 const LOGIN_ORIGIN_COOKIE_KEY = "stren.auth.loginOriginPath"
-const GYM_LOGIN_PATH_REGEX = /^\/gym\/[^/]+\/login$/
 
 function addSecurityHeaders(response: NextResponse, pathname: string): NextResponse {
   // Camera is only needed on /kiosk for QR scanning. Deny it everywhere else
@@ -116,7 +115,7 @@ export async function middleware(request: NextRequest) {
   const isApiRoute = pathname.startsWith("/api")
   const isGymOrKioskRoute = pathname.startsWith("/gym")
   const isMarketingRoute = pathname === "/" || pathname.startsWith("/landing")
-  const isGymSelectRoute = pathname === "/gym-select" || pathname === "/qr-login"
+  const isGymSelectRoute = pathname === "/gym-select"
   const isAuthCallbackRoute = pathname === "/auth/callback"
   // /reset-password is intentionally excluded from isAuthRoute: the PKCE recovery
   // flow lands here with a ?code= param and needs to exchange it for a session

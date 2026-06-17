@@ -2,20 +2,25 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
 
-export default function ResetPasswordPage() {
+function ResetPasswordContent() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const { completePasswordSetup, signIn } = useAuth();
+  const searchParams = useSearchParams();
+  const gymCode = searchParams.get('gym')?.trim() || null;
+  const { completePasswordSetup, signIn, signOut } = useAuth();
 
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  const loginHref = gymCode ? `/gym/${encodeURIComponent(gymCode)}/login` : '/gym-select';
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -43,7 +48,9 @@ export default function ResetPasswordPage() {
     }
 
     const signInEmail = currentUserData.user?.email ?? data.user?.email ?? '';
-    const signInResult = signInEmail ? await signIn(signInEmail, password) : { error: 'Missing user email.', user: null, profile: null }
+    const signInResult = signInEmail
+      ? await signIn(signInEmail, password)
+      : { error: 'Missing user email.', user: null, profile: null };
 
     if (signInResult.error) {
       setError(signInResult.error);
@@ -51,12 +58,33 @@ export default function ResetPasswordPage() {
       return;
     }
 
+    // If this reset came from a gym login page, verify the account belongs to that gym.
+    if (gymCode && signInResult.profile) {
+      const { data: gymRow } = await supabase
+        .from('gyms')
+        .select('id')
+        .eq('code', gymCode)
+        .maybeSingle();
+
+      if (!gymRow || signInResult.profile.gymId !== gymRow.id) {
+        setError('This account is not a member of this gym. Password was not changed.');
+        await signOut({ redirect: false });
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     completePasswordSetup(signInResult.user?.id ?? data.user?.id ?? null);
 
     setSuccess(true);
     setIsSubmitting(false);
+
+    const role = signInResult.profile?.role;
+    const destination =
+      role === 'owner' || role === 'admin' || role === 'staff' ? '/admin' : '/member';
+
     setTimeout(() => {
-      router.replace('/member/settings');
+      router.replace(destination);
     }, 1200);
   }
 
@@ -109,7 +137,7 @@ export default function ResetPasswordPage() {
 
           {success && (
             <p className="text-sm" style={{ color: '#16A34A' }}>
-              Password updated. Redirecting to login...
+              Password updated. Redirecting you now…
             </p>
           )}
 
@@ -124,11 +152,19 @@ export default function ResetPasswordPage() {
         </form>
 
         <div className="mt-4 text-center">
-          <Link href="/gym-select" className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
+          <Link href={loginHref} className="text-xs" style={{ color: 'var(--color-text-secondary)' }}>
             Back to login
           </Link>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={null}>
+      <ResetPasswordContent />
+    </Suspense>
   );
 }

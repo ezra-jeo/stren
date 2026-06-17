@@ -93,7 +93,8 @@ export function LoginForm({ gymCode, initialOriginPath }: LoginFormProps) {
 
       if (profile?.status === 'rejected') {
         setError('Your membership request was not approved. Contact the gym for details.');
-        await signOut();
+        setValue('password', '', { shouldDirty: false, shouldTouch: false, shouldValidate: false });
+        await signOut({ redirect: false });
         return;
       }
 
@@ -101,13 +102,15 @@ export function LoginForm({ gymCode, initialOriginPath }: LoginFormProps) {
         const targetGymId = await resolveGymIdByCode(gymCode);
         if (!targetGymId) {
           setError('Unable to verify gym. Please try again.');
-          await signOut();
+          setValue('password', '', { shouldDirty: false, shouldTouch: false, shouldValidate: false });
+          await signOut({ redirect: false });
           return;
         }
 
         if (profile?.gymId !== targetGymId) {
           setError('This account is not part of this gym.');
-          await signOut();
+          setValue('password', '', { shouldDirty: false, shouldTouch: false, shouldValidate: false });
+          await signOut({ redirect: false });
           return;
         }
       }
@@ -157,7 +160,25 @@ export function LoginForm({ gymCode, initialOriginPath }: LoginFormProps) {
     }
 
     setIsSendingReset(true);
-    const redirectTo = `${window.location.origin}/reset-password`;
+
+    // Gate: if on a gym login page, verify the email belongs to this gym before
+    // sending a reset link (prevents resetting credentials for accounts not listed here).
+    if (gymCode) {
+      const { data: isMember, error: memberCheckError } = await supabase.rpc(
+        'check_gym_membership',
+        { p_email: email, p_gym_code: gymCode },
+      );
+      if (memberCheckError || !isMember) {
+        setError('This email is not registered as a member of this gym.');
+        setIsSendingReset(false);
+        return;
+      }
+    }
+
+    const resetParams = gymCode
+      ? `?gym=${encodeURIComponent(gymCode)}`
+      : '';
+    const redirectTo = `${window.location.origin}/reset-password${resetParams}`;
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
     if (resetError) {

@@ -118,7 +118,7 @@ interface AuthContextValue {
   needsPasswordSetup: boolean
   signIn: (email: string, password: string) => Promise<{ error: string | null; user: User | null; profile: Profile | null }>
   signUp: (email: string, password: string, name: string, role?: "member" | "admin") => Promise<{ error: string | null }>
-  signOut: () => Promise<void>
+  signOut: (options?: { redirect?: boolean }) => Promise<void>
   completePasswordSetup: (userId?: string | null) => void
   refreshProfile: () => Promise<void>
 }
@@ -585,7 +585,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     return { error: error?.message ?? null }
   }
 
-  async function signOut() {
+  async function signOut({ redirect = true }: { redirect?: boolean } = {}) {
     if (isSigningOut) return
 
     setIsSigningOut(true)
@@ -625,13 +625,15 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       } catch {
         // Storage can be unavailable in private/locked-down browser contexts.
       }
-      router.replace(targetLoginPath)
-      window.setTimeout(() => {
-        const currentPath = `${window.location.pathname}${window.location.search}`
-        if (currentPath !== targetLoginPath) {
-          window.location.assign(targetLoginPath)
-        }
-      }, NAVIGATION_FAILSAFE_MS)
+      if (redirect) {
+        router.replace(targetLoginPath)
+        window.setTimeout(() => {
+          const currentPath = `${window.location.pathname}${window.location.search}`
+          if (currentPath !== targetLoginPath) {
+            window.location.assign(targetLoginPath)
+          }
+        }, NAVIGATION_FAILSAFE_MS)
+      }
     }
   }
 
