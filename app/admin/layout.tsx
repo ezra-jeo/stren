@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { useRouter, usePathname } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
@@ -42,7 +42,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: '/kiosk',                 label: 'Kiosk',         icon: Monitor },
 ];
 
-const AUTH_LOADING_TIMEOUT_MS = 12000;
 const PROFILE_GRACE_MS = 2500;
 
 export default function AdminLayout({
@@ -50,48 +49,15 @@ export default function AdminLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const router = useRouter();
   const pathname = usePathname();
   const { user, profile, isLoading, isSigningOut, signOut, refreshProfile } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const [isOpen, setIsOpen] = useState(false);
   const [gymName, setGymName] = useState<string | null>(null);
-  const [authTimeoutExceeded, setAuthTimeoutExceeded] = useState(false);
   const [profileGraceExceeded, setProfileGraceExceeded] = useState(false);
 
-  useEffect(() => {
-    if (isSigningOut) return;
-
-    if (isLoading) return;
-    if (!user) {
-      router.replace('/login');
-      return;
-    }
-
-    if (!profile) {
-      return;
-    }
-
-    if (!['owner', 'admin', 'staff'].includes(profile.role)) {
-      router.replace('/member');
-    }
-  }, [isLoading, isSigningOut, profile, router, user]);
-
-  useEffect(() => {
-    if (!isLoading || user) {
-      setAuthTimeoutExceeded(false);
-      return;
-    }
-
-    const timeoutId = window.setTimeout(() => {
-      setAuthTimeoutExceeded(true);
-    }, AUTH_LOADING_TIMEOUT_MS);
-
-    return () => {
-      window.clearTimeout(timeoutId);
-    };
-  }, [isLoading, user]);
-
+  // Middleware is the single auth guard — no redirects here.
+  // This effect only drives the "taking too long" UX for profile hydration.
   useEffect(() => {
     if (!user || isLoading || profile) {
       setProfileGraceExceeded(false);
@@ -106,13 +72,6 @@ export default function AdminLayout({
       window.clearTimeout(timeoutId);
     };
   }, [isLoading, profile, user]);
-
-  useEffect(() => {
-    if (isSigningOut) return;
-
-    if (!authTimeoutExceeded || user) return;
-    router.replace('/login');
-  }, [authTimeoutExceeded, isSigningOut, router, user]);
 
   // Fetch gym name once profile (and gymId) is available
   useEffect(() => {
@@ -146,10 +105,7 @@ export default function AdminLayout({
     await signOut();
   };
 
-  if (isLoading) return <LoadingScreen />;
-  if (authTimeoutExceeded && !user) return <LoadingScreen />;
-
-  if (!user) return <LoadingScreen />;
+  if (isLoading || !user) return <LoadingScreen />;
 
   if (!profile && profileGraceExceeded) {
     return (
