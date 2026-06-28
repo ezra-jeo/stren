@@ -8,6 +8,7 @@ node_modules/
 .next/
 .env
 .env.*
+!.env.local.example
 .DS_Store
 
 # misc
