@@ -18,16 +18,59 @@ function isBucketNotFoundError(error: unknown): boolean {
   return maybeCode === "404" || /bucket not found/i.test(maybeMessage)
 }
 
+const ALLOWED_IMAGE_MIME_TYPES = new Set([
+  "image/jpeg",
+  "image/png",
+  "image/gif",
+  "image/webp",
+])
+
+// Maximum avatar upload size: 2 MB (base64-encoded data URL is ~4/3 the binary size)
+const MAX_AVATAR_BYTES = 2 * 1024 * 1024
+
+// Validate image magic bytes (first 4-8 bytes of decoded buffer)
+function isValidImageBuffer(buffer: Buffer, contentType: string): boolean {
+  if (buffer.length < 4) return false
+  const b = buffer
+
+  if (contentType === "image/jpeg") {
+    return b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff
+  }
+  if (contentType === "image/png") {
+    return b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47
+  }
+  if (contentType === "image/gif") {
+    return b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46
+  }
+  if (contentType === "image/webp") {
+    return buffer.length >= 12 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50
+  }
+  return false
+}
+
 function parseDataUrl(dataUrl: string): { contentType: string; buffer: Buffer } {
   const match = dataUrl.match(/^data:([^;]+);base64,(.+)$/)
   if (!match) {
     throw new Error("Invalid avatar image payload.")
   }
 
-  return {
-    contentType: match[1],
-    buffer: Buffer.from(match[2], "base64"),
+  const contentType = match[1].toLowerCase()
+
+  if (!ALLOWED_IMAGE_MIME_TYPES.has(contentType)) {
+    throw new Error(`Unsupported image type. Allowed types: jpeg, png, gif, webp.`)
   }
+
+  const buffer = Buffer.from(match[2], "base64")
+
+  if (buffer.length > MAX_AVATAR_BYTES) {
+    throw new Error(`Avatar exceeds the 2 MB size limit.`)
+  }
+
+  if (!isValidImageBuffer(buffer, contentType)) {
+    throw new Error(`Image data does not match the declared content type.`)
+  }
+
+  return { contentType, buffer }
 }
 
 function buildAvatarPath(userId: string): string {
@@ -61,7 +104,16 @@ export async function POST(request: Request) {
   let uploadedPath: string | null = null
 
   if (avatarDataUrl) {
-    const { contentType, buffer } = parseDataUrl(avatarDataUrl)
+    let contentType: string
+    let buffer: Buffer
+    try {
+      ;({ contentType, buffer } = parseDataUrl(avatarDataUrl))
+    } catch (err) {
+      return NextResponse.json(
+        { error: err instanceof Error ? err.message : "Invalid image payload." },
+        { status: 400 },
+      )
+    }
     const uploadPath = buildAvatarPath(user.id)
 
     for (const bucket of AVATAR_BUCKET_CANDIDATES) {
