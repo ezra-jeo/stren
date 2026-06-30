@@ -175,13 +175,13 @@ export function LoginForm({ gymCode, initialOriginPath }: LoginFormProps) {
       }
     }
 
-    // Store gymCode in sessionStorage so the reset page can read it back.
-    // We do NOT put ?gym= in the redirectTo URL — Supabase uses exact matching
-    // on the allowlist so query params would cause it to fall back to site_url.
-    if (gymCode) {
-      try { sessionStorage.setItem('stren.reset.gymCode', gymCode) } catch { /* ignore */ }
-    }
-    const redirectTo = `${window.location.origin}/reset-password`;
+    // Route through /auth/callback which is already in the Supabase allowlist.
+    // The callback exchanges the PKCE code server-side then forwards to /reset-password.
+    // We pass gym as a query param on the callback URL (not the final redirectTo)
+    // so the allowlist only needs to match /auth/callback exactly.
+    const callbackParams = new URLSearchParams({ next: '/reset-password' });
+    if (gymCode) callbackParams.set('gym', gymCode);
+    const redirectTo = `${window.location.origin}/auth/callback?${callbackParams.toString()}`;
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
     if (resetError) {
