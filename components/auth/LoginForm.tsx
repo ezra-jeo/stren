@@ -175,10 +175,13 @@ export function LoginForm({ gymCode, initialOriginPath }: LoginFormProps) {
       }
     }
 
-    const resetParams = gymCode
-      ? `?gym=${encodeURIComponent(gymCode)}`
-      : '';
-    const redirectTo = `${window.location.origin}/reset-password${resetParams}`;
+    // Store gymCode in sessionStorage so the reset page can read it back.
+    // We do NOT put ?gym= in the redirectTo URL — Supabase uses exact matching
+    // on the allowlist so query params would cause it to fall back to site_url.
+    if (gymCode) {
+      try { sessionStorage.setItem('stren.reset.gymCode', gymCode) } catch { /* ignore */ }
+    }
+    const redirectTo = `${window.location.origin}/reset-password`;
     const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo });
 
     if (resetError) {
