@@ -119,8 +119,6 @@ double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
 # Disable for local dev so seeded accounts can log in without a real inbox.
 enable_confirmations = false
-# If enabled, users will need to reauthenticate or have logged in recently to change their password.
-enable_secure_email_change = true
 # Controls the minimum amount of seconds that must pass before sending another signup confirmation
 # or password reset email.
 max_frequency = "1s"
