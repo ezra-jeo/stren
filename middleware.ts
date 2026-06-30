@@ -3,13 +3,11 @@ import { NextResponse, type NextRequest } from "next/server"
 import { isValidLoginOrigin } from '@/lib/login-origin'
 
 const LOGIN_ORIGIN_COOKIE_KEY = "stren.auth.loginOriginPath"
-const GYM_LOGIN_PATH_REGEX = /^\/gym\/[^/]+\/login$/
 
 function addSecurityHeaders(response: NextResponse, pathname: string): NextResponse {
-  // In App Router client-side navigations, document-level policies may persist from
-  // the initial page load. Keep camera available to same-origin so /kiosk can start
-  // without requiring a hard refresh after navigating from /admin or /landing.
-  const cameraPolicy = 'camera=(self)'
+  // Camera is only needed on /kiosk for QR scanning. Deny it everywhere else
+  // so a compromised admin or member page can't silently access the camera.
+  const cameraPolicy = pathname.startsWith('/kiosk') ? 'camera=(self)' : 'camera=()'
 
   response.headers.set('X-Content-Type-Options', 'nosniff')
   response.headers.set('X-Frame-Options', 'DENY')
@@ -115,13 +113,17 @@ export async function middleware(request: NextRequest) {
   const pathWithSearch = request.nextUrl.pathname + request.nextUrl.search
 
   const isApiRoute = pathname.startsWith("/api")
-  const isGymOrKioskRoute = pathname.startsWith("/kiosk") || pathname.startsWith("/gym")
+  const isGymOrKioskRoute = pathname.startsWith("/gym")
   const isMarketingRoute = pathname === "/" || pathname.startsWith("/landing")
-  const isGymSelectRoute = pathname === "/gym-select" || pathname === "/qr-login"
+  const isGymSelectRoute = pathname === "/gym-select"
   const isAuthCallbackRoute = pathname === "/auth/callback"
+  // /reset-password is intentionally excluded from isAuthRoute: the PKCE recovery
+  // flow lands here with a ?code= param and needs to exchange it for a session
+  // client-side. Treating it as an auth route would eject already-authenticated
+  // users (e.g. on refresh) before they can submit the new password.
+  const isResetPasswordRoute = pathname === "/reset-password"
   const isAuthRoute =
     pathname === "/login" ||
-    pathname === "/reset-password" ||
     pathname === "/signup" ||
     pathname.startsWith("/signup/")
 
@@ -140,7 +142,9 @@ export async function middleware(request: NextRequest) {
   }
 
   // Public pages should not pay Supabase auth/profile initialization cost.
-  if (isGymOrKioskRoute || isMarketingRoute || isGymSelectRoute || isAuthCallbackRoute) {
+  // /reset-password also bypasses the auth check — it exchanges its own PKCE code
+  // client-side, so middleware must not redirect authenticated users away from it.
+  if (isGymOrKioskRoute || isMarketingRoute || isGymSelectRoute || isAuthCallbackRoute || isResetPasswordRoute) {
     return finalize(supabaseResponse)
   }
 
@@ -235,8 +239,8 @@ export async function middleware(request: NextRequest) {
     return finalize(NextResponse.redirect(new URL(resolveLoginPath(request, pathname), request.url)))
   }
 
-  // Admin routes — only admin/staff/owner
-  if (pathname.startsWith("/admin")) {
+  // Admin and kiosk routes — only admin/staff/owner
+  if (pathname.startsWith("/admin") || pathname.startsWith("/kiosk")) {
     if (profile.role !== "admin" && profile.role !== "staff" && profile.role !== "owner") {
       return finalize(NextResponse.redirect(new URL("/member", request.url)))
     }

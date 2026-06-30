@@ -6,7 +6,9 @@ __v0_jsx-dev-runtime.ts
 # Common ignores
 node_modules/
 .next/
-.env*.local
+.env
+.env.*
+!.env.local.example
 .DS_Store
 
 # misc
@@ -21,5 +23,6 @@ test-results/
 tsconfig.tsbuildinfo
 *.tsbuildinfo
 
-# Generated files
-repomix-output.xmltsconfig.tsbuildinfo
+# Generated files / repo dumps
+repomix-output.xml
+*.patch

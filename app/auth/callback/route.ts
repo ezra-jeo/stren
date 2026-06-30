@@ -6,6 +6,8 @@ export async function GET(request: Request) {
   const code = requestUrl.searchParams.get("code")
   const tokenHash = requestUrl.searchParams.get("token_hash")
   const tokenType = requestUrl.searchParams.get("type")?.toLowerCase() ?? null
+  const next = requestUrl.searchParams.get("next")
+  const gymCode = requestUrl.searchParams.get("gym")
 
   const supabase = await createServerSupabaseClient()
   let authError: string | null = null
@@ -26,6 +28,15 @@ export async function GET(request: Request) {
 
   if (authError) {
     return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(authError)}`, requestUrl.origin))
+  }
+
+  // Password reset: forward to /reset-password so the user can set a new password.
+  // The session is now established (code was exchanged above), so the reset page
+  // will find a valid user via getUser() without needing to re-exchange anything.
+  if (next === "/reset-password") {
+    const resetParams = new URLSearchParams({ reset: "1" })
+    if (gymCode) resetParams.set("gym", gymCode)
+    return NextResponse.redirect(new URL(`/reset-password?${resetParams.toString()}`, requestUrl.origin))
   }
 
   const {

@@ -635,6 +635,10 @@ export type Database = {
     }
     Functions: {
       // ── Auth helpers ──
+      check_gym_membership: {
+        Args: { p_email: string; p_gym_code: string }
+        Returns: boolean
+      }
       get_gym_id: { Args: Record<string, never>; Returns: string }
       get_user_role: { Args: Record<string, never>; Returns: string }
       is_manager: { Args: Record<string, never>; Returns: boolean }

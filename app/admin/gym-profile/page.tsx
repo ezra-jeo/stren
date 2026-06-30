@@ -794,19 +794,10 @@ export default function GymProfilePage() {
     if (!code) return;
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession();
-
       const response = await withTimeout(
         fetch('/api/admin/revalidate-gym', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            ...(session?.access_token
-              ? { Authorization: `Bearer ${session.access_token}` }
-              : {}),
-          },
+          headers: { 'Content-Type': 'application/json' },
           credentials: 'include',
           body: JSON.stringify({ code }),
         }),

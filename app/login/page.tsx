@@ -2,9 +2,9 @@
 
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { isValidLoginOrigin } from '@/lib/login-origin';
 
 const LOGIN_ORIGIN_STORAGE_KEY = 'stren.auth.loginOriginPath';
-const GYM_LOGIN_PATH_REGEX = /^\/gym\/[^/]+\/login$/;
 
 function getReadableAuthError(error: string): string {
   const normalized = error.trim().toLowerCase()
@@ -36,14 +36,25 @@ function LoginPageContent() {
       return;
     }
 
-    try {
-      const storedOriginPath = window.localStorage.getItem(LOGIN_ORIGIN_STORAGE_KEY);
-      if (storedOriginPath && GYM_LOGIN_PATH_REGEX.test(storedOriginPath)) {
-        router.replace(storedOriginPath);
-        return;
-      }
-    } catch {
-      // Storage can be unavailable in private/locked-down browser contexts.
+    // Prefer the cookie written by middleware (authoritative), fall back to localStorage.
+    const cookieOrigin = document.cookie
+      .split('; ')
+      .find((row) => row.startsWith(`${LOGIN_ORIGIN_STORAGE_KEY}=`))
+      ?.split('=')[1];
+
+    const candidateOrigin = cookieOrigin
+      ? decodeURIComponent(cookieOrigin)
+      : (() => {
+          try {
+            return window.localStorage.getItem(LOGIN_ORIGIN_STORAGE_KEY);
+          } catch {
+            return null;
+          }
+        })();
+
+    if (candidateOrigin && isValidLoginOrigin(candidateOrigin)) {
+      router.replace(candidateOrigin);
+      return;
     }
 
     router.replace('/gym-select');
