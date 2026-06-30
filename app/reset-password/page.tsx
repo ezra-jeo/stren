@@ -11,12 +11,7 @@ function ResetPasswordContent() {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const searchParams = useSearchParams();
-  // gymCode may come from the URL (?gym=) or from sessionStorage set by LoginForm.
-  // We prefer the URL param (tamper-evident); sessionStorage is the fallback for
-  // the common case where redirectTo couldn't carry query params through Supabase.
-  const gymCode = searchParams.get('gym')?.trim() || (() => {
-    try { return sessionStorage.getItem('stren.reset.gymCode') } catch { return null }
-  })();
+  const gymCode = searchParams.get('gym')?.trim() || null;
   const { completePasswordSetup, signIn, signOut } = useAuth();
 
   // Session bootstrap state
@@ -110,9 +105,6 @@ function ResetPasswordContent() {
       setIsSubmitting(false);
       return;
     }
-
-    // Clear the stored gym code regardless of outcome.
-    try { sessionStorage.removeItem('stren.reset.gymCode') } catch { /* ignore */ }
 
     // If this reset came from a gym login page, verify the account belongs to that gym.
     if (gymCode && signInResult.profile) {
