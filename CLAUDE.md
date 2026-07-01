@@ -108,10 +108,13 @@ Payment recording, renewal date math, and membership-expiry transitions are the 
 | Phase 1 — Performance / server components | ✅ Shipped |
 | Phase 2 — Auth & routing (single guard) | ✅ Shipped |
 | Phase 2.5 — Security & shippability hardening (RLS/kiosk lockdown, login/gym-search bugfixes, password-reset stabilization) | ✅ Shipped |
-| Phase 3 — Dead weight removal | Queued |
-| Phase 4 — Design system | Queued |
-| Phase 5 — Money path tests (test-first pilot) | Queued |
-| Phase 6 — Documentation completion | Queued |
-| Phase 7 — TDD as standing methodology | Queued |
+| Phase 2.6 — Notification-system RPC hardening (Critical: unscoped SECURITY DEFINER functions) | Queued — do before Phase 3 |
+| Phase 3 — Dead weight removal | Queued (scope refined) |
+| Phase 4 — Design system | Queued (scope quantified) |
+| Phase 5 — Money path tests (test-first pilot, now incl. transactional RPC extraction) | Queued |
+| Phase 6 — Documentation completion | Queued (fold into Phase 3's doc cleanup) |
+| Phase 7 — TDD as standing methodology | Queued (policy already documented; enforcement undecided) |
 
 Full plan: `/root/.claude/plans/stateless-humming-parnas.md`
+Diagnostic re-validation of Phases 3–7 + newly found Critical/High security
+issues: `PHASE_3_TO_7_DIAGNOSTIC_AND_PLAN.md`
