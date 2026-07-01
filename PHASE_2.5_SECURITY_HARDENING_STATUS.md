@@ -1,13 +1,20 @@
-# Password Reset Hotfix — Status & Continuation Notes
+# Phase 2.5 — Security & Shippability Hardening: Status & Continuation Notes
 
 _Last updated: 2026-07-01_
+
+This is Phase 2.5 of the remediation plan (see the phase table in `CLAUDE.md`):
+RLS/kiosk lockdown (migration `011`), login/gym-search/reset bugfixes
+(migration `012`), and the password-reset stabilization documented below
+(migration `013` + app/dashboard changes). All of it targets one goal — making
+the app shippable — and all of it is now ✅ shipped.
 
 ## Current state: ✅ RESOLVED
 
 Password reset (forgot-password → email link → set new password) is confirmed
 working end-to-end on `qa--stren.netlify.app` as of commit `ba11055` /
 `db05ac5`. `main`, `qa`, and `feat/auth-security-hardening` are all in sync at
-this point — no outstanding branch drift.
+this point — no outstanding branch drift. This closes out the last open item
+of Phase 2.5.
 
 ## What was broken and what fixed it
 
@@ -120,9 +127,7 @@ Full detailed plan lives at `/root/.claude/plans/stateless-humming-parnas.md`
 | Phase 0 — Repo as source of truth | ✅ Shipped |
 | Phase 1 — Performance / server components | ✅ Shipped |
 | Phase 2 — Auth & routing (single guard) | ✅ Shipped |
-| Phase 2.5 — Security hardening (migration 011) | ✅ Shipped |
-| Bugfix — login/reset/gym-search (migration 012) | ✅ Shipped |
-| Hotfix — Password reset PKCE/token_hash flow | ✅ Shipped (this doc) |
+| Phase 2.5 — Security & shippability hardening (RLS/kiosk lockdown [011], login/gym-search/reset bugfixes [012], password-reset stabilization [013] — this doc) | ✅ Shipped |
 | **Phase 3 — Dead weight removal** | Queued |
 | **Phase 4 — Design system** | Queued |
 | **Phase 5 — Money path tests (test-first pilot)** | Queued |

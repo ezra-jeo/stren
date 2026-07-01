@@ -106,7 +106,8 @@ Payment recording, renewal date math, and membership-expiry transitions are the 
 |-------|--------|
 | Phase 0 — Repo as source of truth | ✅ Shipped |
 | Phase 1 — Performance / server components | ✅ Shipped |
-| Phase 2 — Auth & routing (single guard) | ✅ Committed on `auth/phase-2-single-guard` |
+| Phase 2 — Auth & routing (single guard) | ✅ Shipped |
+| Phase 2.5 — Security & shippability hardening (RLS/kiosk lockdown, login/gym-search bugfixes, password-reset stabilization) | ✅ Shipped |
 | Phase 3 — Dead weight removal | Queued |
 | Phase 4 — Design system | Queued |
 | Phase 5 — Money path tests (test-first pilot) | Queued |
