@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react'
 import { Flame, TrendingUp, Clock, ChevronLeft, ChevronRight, Users } from 'lucide-react'
 import Link from 'next/link'
 import type { MemberStats } from '@/lib/types'
+import { isFeatureEnabled, type FeatureFlags } from '@/lib/features'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -387,10 +388,12 @@ export interface MemberHomeData {
   stats: MemberStats
   visitedDates: string[]
   peopleInGym: number
+  /** Effective gym feature flags (§8.5). Wired server-side by Agent B; defaults to catalog-on. */
+  features?: FeatureFlags
 }
 
 export function MemberHomeClient({ data }: { data: MemberHomeData }) {
-  const { memberName, stats, visitedDates: visitedDatesArr, peopleInGym } = data
+  const { memberName, stats, visitedDates: visitedDatesArr, peopleInGym, features } = data
   const visitedDates = useMemo(() => new Set(visitedDatesArr), [visitedDatesArr])
   const greeting = getGreeting()
 
@@ -491,8 +494,12 @@ export function MemberHomeClient({ data }: { data: MemberHomeData }) {
         <h2 className="text-sm font-semibold uppercase tracking-widest" style={{ color: 'var(--color-text-secondary)' }}>
           Quick Access
         </h2>
-        <QuickLink href="/member/feed"        label="Activity Feed"  description="See what everyone's up to" />
-        <QuickLink href="/member/leaderboard" label="Leaderboard"    description="Rankings" />
+        {isFeatureEnabled(features, 'member_feed') && (
+          <QuickLink href="/member/feed"        label="Activity Feed"  description="See what everyone's up to" />
+        )}
+        {isFeatureEnabled(features, 'leaderboards') && (
+          <QuickLink href="/member/leaderboard" label="Leaderboard"    description="Rankings" />
+        )}
         <QuickLink href="/member/profile"     label="My QR Code"     description="Show at check-in" />
         <QuickLink href="/member/settings"    label="Settings"       description="Account & preferences" />
       </div>

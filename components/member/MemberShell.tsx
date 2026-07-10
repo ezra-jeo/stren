@@ -10,11 +10,12 @@ import { MemberNotificationsPanel } from '@/components/member-notifications-pane
 import { NavLinkItem } from '@/components/layout/nav-link';
 import { Home, Activity, Trophy, User, Settings } from 'lucide-react';
 import type { GymBranding } from '@/lib/gym-member';
+import { isFeatureEnabled, type FeatureFlags, type FeatureKey } from '@/lib/features';
 
-const NAV_ITEMS = [
+const NAV_ITEMS: { href: string; label: string; icon: typeof Home; feature?: FeatureKey }[] = [
   { href: '/member', label: 'Home', icon: Home },
-  { href: '/member/feed', label: 'Feed', icon: Activity },
-  { href: '/member/leaderboard', label: 'Ranks', icon: Trophy },
+  { href: '/member/feed', label: 'Feed', icon: Activity, feature: 'member_feed' },
+  { href: '/member/leaderboard', label: 'Ranks', icon: Trophy, feature: 'leaderboards' },
   { href: '/member/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -22,12 +23,15 @@ interface MemberShellProps {
   children: React.ReactNode;
   gymBranding: GymBranding | null;
   hasServerUser: boolean;
+  /** Effective gym feature flags (§8.5). Wired server-side by Agent B; defaults to catalog-on. */
+  features?: FeatureFlags;
 }
 
-export function MemberShell({ children, gymBranding, hasServerUser }: MemberShellProps) {
+export function MemberShell({ children, gymBranding, hasServerUser, features }: MemberShellProps) {
   const pathname = usePathname();
   const { profile, isLoading } = useAuth();
   const gymCode = gymBranding?.code ?? null;
+  const navItems = NAV_ITEMS.filter((item) => !item.feature || isFeatureEnabled(features, item.feature));
 
   // Middleware is the single auth guard — no client-side redirects here.
   if (isLoading && !hasServerUser) return <LoadingScreen />;
@@ -67,7 +71,7 @@ export function MemberShell({ children, gymBranding, hasServerUser }: MemberShel
         </Link>
 
         <div className="flex items-center gap-6">
-          {NAV_ITEMS.map(({ href, label, icon }) => (
+          {navItems.map(({ href, label, icon }) => (
             <NavLinkItem
               key={href}
               href={href}
@@ -140,7 +144,7 @@ export function MemberShell({ children, gymBranding, hasServerUser }: MemberShel
         className="md:hidden fixed bottom-0 left-0 right-0 border-t flex justify-around py-2 z-50"
         style={{ backgroundColor: 'var(--color-white)', borderColor: 'var(--color-surface)' }}
       >
-        {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href;
           return (
             <NavLinkItem

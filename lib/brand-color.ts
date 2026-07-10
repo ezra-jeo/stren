@@ -50,3 +50,61 @@ export function brandColorVars(hex: string, secondaryHex?: string | null): strin
     `--color-secondary-glow: ${safeSecondary}29;`,
   ].join('\n');
 }
+
+// ── Brand studio helpers (ImplementationPlan.md §7.7) ────────────────────────
+
+function hexToRgb(hex: string): [number, number, number] {
+  const h = (hex || '').replace('#', '');
+  const full = h.length === 3 ? h.split('').map((c) => c + c).join('') : h;
+  return [
+    parseInt(full.slice(0, 2), 16) || 0,
+    parseInt(full.slice(2, 4), 16) || 0,
+    parseInt(full.slice(4, 6), 16) || 0,
+  ];
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+  const to = (x: number) =>
+    Math.max(0, Math.min(255, Math.round(x))).toString(16).padStart(2, '0');
+  return `#${to(r)}${to(g)}${to(b)}`.toUpperCase();
+}
+
+/**
+ * Mix a color toward white (pct > 0) or black (pct < 0) by the given fraction.
+ * Matches the studio prototype's `_shade`.
+ */
+function shade(hex: string, pct: number): string {
+  const [r, g, b] = hexToRgb(hex);
+  if (pct >= 0) {
+    return rgbToHex(r + (255 - r) * pct, g + (255 - g) * pct, b + (255 - b) * pct);
+  }
+  const f = 1 + pct;
+  return rgbToHex(r * f, g * f, b * f);
+}
+
+function relativeLuminance(hex: string): number {
+  const channels = hexToRgb(hex).map((v) => {
+    const s = v / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  });
+  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
+}
+
+/**
+ * WCAG contrast ratio between two colors (1–21). Order-independent.
+ * contrastRatio('#000000','#FFFFFF') === 21; ('#767676','#FFFFFF') ≈ 4.54.
+ */
+export function contrastRatio(hexA: string, hexB: string): number {
+  const la = relativeLuminance(hexA);
+  const lb = relativeLuminance(hexB);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
+}
+
+/**
+ * Five-swatch ramp of a seed color: +34% white, +16% white, the seed itself,
+ * +18% black, +36% black. Invalid seeds fall back to the Stren default.
+ */
+export function generatePalette(seedHex: string): [string, string, string, string, string] {
+  const seed = isValidHex(seedHex) ? seedHex.toUpperCase() : '#D4956A';
+  return [shade(seed, 0.34), shade(seed, 0.16), seed, shade(seed, -0.18), shade(seed, -0.36)];
+}

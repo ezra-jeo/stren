@@ -9,42 +9,21 @@ import { createClient } from '@/lib/supabase';
 import { NotificationsPanel } from '@/components/notifications-panel';
 import { LoadingScreen, Spinner } from '@/components/ui/loading-screen';
 import { AppShell } from '@/components/layout/app-shell';
-import {
-  LayoutDashboard,
-  Users,
-  CreditCard,
-  BarChart3,
-  LogOut,
-  Megaphone,
-  Monitor,
-  PackageOpen,
-  Tag,
-  Globe,
-  type LucideIcon,
-} from 'lucide-react';
-
-type NavItem = {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  ownerOnly?: boolean;
-};
-
-const NAV_ITEMS: NavItem[] = [
-  { href: '/admin',                 label: 'Dashboard',     icon: LayoutDashboard },
-  { href: '/admin/members',         label: 'Members',       icon: Users },
-  { href: '/admin/payments',        label: 'Payments',      icon: CreditCard },
-  { href: '/admin/plans',           label: 'Plans',         icon: PackageOpen },
-  { href: '/admin/promos',          label: 'Promos',        icon: Tag },
-  // { href: '/admin/announcements',   label: 'Announcements', icon: Megaphone },
-  { href: '/admin/gym-profile',     label: 'Gym Page',      icon: Globe, ownerOnly: true },
-  { href: '/admin/reports',         label: 'Reports',       icon: BarChart3 },
-  { href: '/kiosk',                 label: 'Kiosk',         icon: Monitor },
-];
+import { LogOut } from 'lucide-react';
+import { AccessProvider, useAccess } from '@/lib/access-context';
+import { visibleAdminNav } from '@/components/admin/admin-nav-items';
 
 const PROFILE_GRACE_MS = 2500;
 
-export default function AdminLayout({
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <AccessProvider>
+      <AdminLayoutInner>{children}</AdminLayoutInner>
+    </AccessProvider>
+  );
+}
+
+function AdminLayoutInner({
   children,
 }: {
   children: React.ReactNode;
@@ -86,14 +65,8 @@ export default function AdminLayout({
       });
   }, [profile?.gymId, supabase]);
 
-  const visibleNavItems = useMemo(
-    () =>
-      NAV_ITEMS.filter((item) => {
-        if (item.ownerOnly) return profile?.role === 'owner';
-        return true;
-      }),
-    [profile?.role]
-  );
+  const access = useAccess();
+  const visibleNavItems = useMemo(() => visibleAdminNav(access), [access]);
 
   // Always collapse mobile menu after route changes.
   useEffect(() => {
