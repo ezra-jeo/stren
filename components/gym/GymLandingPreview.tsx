@@ -716,6 +716,11 @@ function JoinBody({ gym, interactive, focalOverlay }: { gym: GymPreviewData; int
         <div className="absolute inset-x-0 bottom-0 z-10 p-6">
           <h1 className="text-2xl font-bold text-white md:text-3xl" style={{ fontFamily: 'var(--font-heading)' }}>Join {gym.name}</h1>
           {gym.tagline && <p className="mt-1 text-sm text-white/80">{gym.tagline}</p>}
+          {gym.memberCount > 0 && (
+            <span className="mt-3 inline-flex rounded-full px-3 py-1.5 text-xs font-medium text-white" style={{ backgroundColor: 'rgba(255,255,255,0.2)' }}>
+              {gym.memberCount} active members
+            </span>
+          )}
         </div>
       </div>
 

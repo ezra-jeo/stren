@@ -2,7 +2,7 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-11 (both original halves committed on `CustomizationPermissionsToggles`; **B7 is implemented and validated in the working tree, awaiting developer commit/merge**. Full local CI green: lint, typecheck, 212 unit/integration tests, production build, and 4 public E2E tests. NOT prod-ready until B7 ships and the remaining pre-prod items resolve.)
+Last updated: 2026-07-11 (both original halves committed on `CustomizationPermissionsToggles`; **B7 and the A6 UI fix pass are implemented and validated in the working tree, awaiting developer commit/merge**. Local lint, typecheck, and 217 unit/integration tests green after A6; the previously validated production build + 4 public E2E tests are unaffected by A6's UI-only changes. NOT prod-ready until B7 ships and the remaining pre-prod items resolve.)
 
 ---
 
@@ -34,7 +34,7 @@ Spec: [ImplementationPlan.md](ImplementationPlan.md). Agent A = Claude Opus 4.8 
 | A3 | Studio desktop: header, rail groups, preview pane, checklist, brand group (§7.3, §7.6, §7.7) | Shipped (2026-07-11) — `components/admin/gym-studio/*`; `gym-profile/page.tsx` re-skinned (client), handlers verbatim |
 | A4 | Mobile drawer + focal editor + states/a11y (§7.4, §7.5, §7.10) | Shipped (2026-07-11) — `MobileStudioSheet`, `FocalPointEditor` (drag+keyboard), unsaved-changes guard |
 | A5 | FeaturesGroup (+ 4 teasers) + People & access UI + nav filtering (§7.8, §7.9) | Shipped (2026-07-11) — `AccessClient`, `app/admin/access`, nav filtering via `useAccess`/feature props with safe defaults; §9 A integration tests green |
-| A6 | Review fix pass (spec: `prompts/Opus48-UI-FixPass.md`): pre-017 load/save resilience (HIGH), `/admin/access` client gate (MED), partial-save toast copy, atomic multi-key switch writes, drawer tablist a11y, join member-count badge | Queued |
+| A6 | Review fix pass (spec: `prompts/Opus48-UI-FixPass.md`): three-tier load/save resilience + `studioMetaColumnsAvailable` gate, `/admin/access` client owner gate, honest partial-save toast, atomic multi-key switch writes (`saveOverridesBatch`/`fetchPersonOverrides` + refetch-on-failure), drawer tablist a11y, Join active-members chip | Shipped (2026-07-11, branch `CustomizationPermissionsToggles`, working tree — awaiting developer commit) — tests: `studio-load-fallback`, extended `access-page` + `gym-landing-preview`; lint/typecheck/217 unit green |
 
 ### Agent B — logic & enforcement
 
@@ -62,5 +62,5 @@ Spec: [ImplementationPlan.md](ImplementationPlan.md). Agent A = Claude Opus 4.8 
 2. **`is_published` bugfix sign-off** (decision): Codex correctly withheld it in 016/017 pending approval; public visibility still derives from tagline presence. Approve → it ships with B7's migration; reject → close the item.
 3. **Credentialed E2E on staging** (verification): 8 E2E cases (permissions, feature toggles, member RPC probes — the security regression suite) are skipped without `E2E_*` credentials. Run them once against staging before prod.
 4. **Apply migrations 014–017 (and B7's 018) to the production database in order via Supabase CLI** before deploying the app build.
-5. A6 (UI polish, non-blocking, revised post-backend: `prompts/Opus48-UI-FixPass.md`) — can ship in the same window or after.
+5. A6 (UI polish, non-blocking, revised post-backend: `prompts/Opus48-UI-FixPass.md`) — **done in the working tree, awaiting developer commit**; can ship in the same window or after.
 6. Approve deletion of stale `STREN_GUIDE.md` and `context-history.md` (quarantined in Catalog).

@@ -53,12 +53,14 @@ export function MobileStudioSheet() {
             Done
           </button>
         </div>
-        <div className="flex gap-1.5 overflow-x-auto px-3 pb-2.5">
+        <div role="tablist" aria-label="Preview page" className="flex gap-1.5 overflow-x-auto px-3 pb-2.5">
           {TABS.map((t) => {
             const active = s.previewTab === t.key;
             return (
               <button
                 key={t.key}
+                role="tab"
+                aria-selected={active}
                 type="button"
                 onClick={() => { s.setPreviewTab(t.key); if (t.key !== 'home' && t.key !== 'join') s.setFocalEditing(false); }}
                 className="flex-none rounded-full px-3 py-1.5 text-xs font-semibold"

@@ -209,3 +209,84 @@ export async function saveOverride(
     );
   if (error) throw new Error(error.message);
 }
+
+/**
+ * Apply one Access switch atomically per side effect: a single array `upsert` for
+ * the grant/revoke rows and a single `delete().in(...)` for the keys returning to
+ * their role default. A switch maps to several permission keys (e.g. the money
+ * switch = 2), so the per-key `saveOverride` loop could leave the DB half-flipped
+ * on a mid-loop failure; batching removes that window (ImplementationPlan.md §7.9).
+ */
+export async function saveOverridesBatch(
+  supabase: SupabaseClient,
+  args: {
+    gymId: string;
+    userId: string;
+    grants: { permission: PermissionKey; granted: boolean }[];
+    clears: PermissionKey[];
+  },
+): Promise<void> {
+  const { gymId, userId, grants, clears } = args;
+
+  if (grants.length > 0) {
+    const { data: userData } = await supabase.auth.getUser();
+    const grantedBy = userData?.user?.id ?? null;
+    const now = new Date().toISOString();
+    const { error } = await supabase
+      .from('gym_user_permission_overrides')
+      .upsert(
+        grants.map((g) => ({
+          gym_id: gymId,
+          user_id: userId,
+          permission: g.permission,
+          granted: g.granted,
+          granted_by: grantedBy,
+          updated_at: now,
+        })),
+        { onConflict: 'gym_id,user_id,permission' },
+      );
+    if (error) throw new Error(error.message);
+  }
+
+  if (clears.length > 0) {
+    const { error } = await supabase
+      .from('gym_user_permission_overrides')
+      .delete()
+      .eq('gym_id', gymId)
+      .eq('user_id', userId)
+      .in('permission', clears);
+    if (error) throw new Error(error.message);
+  }
+}
+
+/**
+ * Re-read one person's stored overrides — used to resync the UI to the DB truth
+ * after a batch write fails partway (never guess a half-applied state). Throws on
+ * a real query error so the caller can fall back; missing rows resolve to `[]`.
+ */
+export async function fetchPersonOverrides(
+  supabase: SupabaseClient,
+  gymId: string,
+  userId: string,
+): Promise<{ permission: PermissionKey; granted: boolean }[]> {
+  const { data, error } = await supabase
+    .from('gym_user_permission_overrides')
+    .select('permission, granted')
+    .eq('gym_id', gymId)
+    .eq('user_id', userId);
+  if (error) throw new Error(error.message);
+
+  const out: { permission: PermissionKey; granted: boolean }[] = [];
+  if (Array.isArray(data)) {
+    for (const row of data as { permission?: unknown; granted?: unknown }[]) {
+      if (
+        typeof row.permission === 'string' &&
+        PERMISSION_KEY_SET.has(row.permission) &&
+        typeof row.granted === 'boolean'
+      ) {
+        out.push({ permission: row.permission as PermissionKey, granted: row.granted });
+      }
+    }
+  }
+  return out;
+}

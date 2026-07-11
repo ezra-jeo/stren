@@ -1,25 +1,40 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AccessClient } from '@/components/admin/AccessClient';
+import { accessFromRoleDefaults } from '@/lib/access';
 
-const h = vi.hoisted(() => ({ listAccessPeople: vi.fn(), saveOverride: vi.fn() }));
+const h = vi.hoisted(() => ({
+  listAccessPeople: vi.fn(),
+  saveOverridesBatch: vi.fn(),
+  fetchPersonOverrides: vi.fn(),
+  access: { current: null as ReturnType<typeof accessFromRoleDefaults> | null },
+}));
 
 vi.mock('@/lib/supabase', () => ({ createClient: () => ({}) }));
 vi.mock('@/lib/auth-context', () => ({
   useAuth: () => ({ profile: { name: 'Olivia Owner', email: 'owner@grove.co', gymId: 'gym-1', role: 'owner' } }),
 }));
+// The client owner gate reads `useAccess()`; default it to an owner (roles:manage).
+vi.mock('@/lib/access-context', () => ({ useAccess: () => h.access.current }));
 vi.mock('@/lib/access-data', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@/lib/access-data')>();
-  return { ...actual, listAccessPeople: h.listAccessPeople, saveOverride: h.saveOverride };
+  return {
+    ...actual,
+    listAccessPeople: h.listAccessPeople,
+    saveOverridesBatch: h.saveOverridesBatch,
+    fetchPersonOverrides: h.fetchPersonOverrides,
+  };
 });
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 beforeEach(() => {
+  h.access.current = accessFromRoleDefaults('owner', 'gym-1');
   h.listAccessPeople.mockReset().mockResolvedValue([
     { userId: 'a1', name: 'Adam Admin', email: 'adam@grove.co', role: 'admin', overrides: [] },
     { userId: 's1', name: 'Sam Staff', email: 'sam@grove.co', role: 'staff', overrides: [] },
   ]);
-  h.saveOverride.mockReset().mockResolvedValue(undefined);
+  h.saveOverridesBatch.mockReset().mockResolvedValue(undefined);
+  h.fetchPersonOverrides.mockReset().mockResolvedValue([]);
 });
 
 async function expandAdmin() {
@@ -46,24 +61,44 @@ describe('People & access (§7.9)', () => {
     expect(screen.getByRole('switch', { name: 'Can open & edit the Gym Page studio' })).not.toBeChecked();
   });
 
-  it('flipping a multi-key switch off writes an override for every mapped key', async () => {
+  it('flipping a multi-key switch off writes one atomic batch for every mapped key', async () => {
     await expandAdmin();
     fireEvent.click(await screen.findByRole('switch', { name: 'Can see money numbers (dashboard & reports)' }));
-    await waitFor(() => expect(h.saveOverride).toHaveBeenCalledTimes(2));
-    const perms = h.saveOverride.mock.calls.map(([, args]) => args.permission).sort();
+    await waitFor(() => expect(h.saveOverridesBatch).toHaveBeenCalledTimes(1));
+    const [, args] = h.saveOverridesBatch.mock.calls[0];
+    expect(args.clears).toEqual([]);
+    const perms = args.grants.map((g: { permission: string }) => g.permission).sort();
     expect(perms).toEqual(['dashboard:finance:view', 'reports:finance:view']);
-    for (const [, args] of h.saveOverride.mock.calls) expect(args.granted).toBe(false);
+    for (const g of args.grants) expect(g.granted).toBe(false);
   });
 
-  it('flipping back to the default deletes the override rows (granted null)', async () => {
+  it('flipping back to the default clears the override rows in one batch', async () => {
     await expandAdmin();
     const moneySwitch = await screen.findByRole('switch', { name: 'Can see money numbers (dashboard & reports)' });
-    fireEvent.click(moneySwitch); // off → override rows
-    await waitFor(() => expect(h.saveOverride).toHaveBeenCalledTimes(2));
-    h.saveOverride.mockClear();
-    fireEvent.click(moneySwitch); // back to default → delete rows
-    await waitFor(() => expect(h.saveOverride).toHaveBeenCalledTimes(2));
-    for (const [, args] of h.saveOverride.mock.calls) expect(args.granted).toBeNull();
+    fireEvent.click(moneySwitch); // off → grants batch
+    await waitFor(() => expect(h.saveOverridesBatch).toHaveBeenCalledTimes(1));
+    h.saveOverridesBatch.mockClear();
+    fireEvent.click(moneySwitch); // back to default → clears batch
+    await waitFor(() => expect(h.saveOverridesBatch).toHaveBeenCalledTimes(1));
+    const [, args] = h.saveOverridesBatch.mock.calls[0];
+    expect(args.grants).toEqual([]);
+    expect([...args.clears].sort()).toEqual(['dashboard:finance:view', 'reports:finance:view']);
+  });
+
+  it('resyncs from the DB truth (not the pre-flip state) when a batch write fails', async () => {
+    h.saveOverridesBatch.mockRejectedValueOnce(new Error('half-applied'));
+    // Server half-applied: only one of the two money keys was actually revoked.
+    h.fetchPersonOverrides.mockResolvedValueOnce([{ permission: 'dashboard:finance:view', granted: false }]);
+    await expandAdmin();
+    const moneySwitch = await screen.findByRole('switch', { name: 'Can see money numbers (dashboard & reports)' });
+    expect(moneySwitch).toBeChecked(); // admin default = both finance keys on
+    fireEvent.click(moneySwitch);
+    await waitFor(() => expect(h.fetchPersonOverrides).toHaveBeenCalledTimes(1));
+    // The money switch needs BOTH keys — with one revoked in the DB it stays off,
+    // reflecting the refetched truth rather than a full revert (which would be on).
+    await waitFor(() =>
+      expect(screen.getByRole('switch', { name: 'Can see money numbers (dashboard & reports)' })).not.toBeChecked(),
+    );
   });
 
   it('staff rows are static with a caption and no switches', async () => {
@@ -72,5 +107,14 @@ describe('People & access (§7.9)', () => {
     expect(screen.getByText('Staff can use the kiosk and look up members.')).toBeInTheDocument();
     // Sam's row is not an expandable button.
     expect(screen.getByText('Sam Staff').closest('button')).toBeNull();
+  });
+
+  it('renders the owner-only state for a viewer without roles:manage', async () => {
+    h.access.current = accessFromRoleDefaults('admin', 'gym-1'); // admin lacks roles:manage
+    render(<AccessClient />);
+    expect(screen.getByText('Only the owner can manage people & access.')).toBeInTheDocument();
+    // No team list / switches leak through the courtesy gate.
+    expect(screen.queryByText('Your team')).not.toBeInTheDocument();
+    expect(h.listAccessPeople).not.toHaveBeenCalled();
   });
 });

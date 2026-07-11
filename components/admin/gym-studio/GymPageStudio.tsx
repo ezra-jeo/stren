@@ -47,6 +47,16 @@ const CLEANUP_REMOVE_TIMEOUT_MS = 30000;
 const REVALIDATE_TIMEOUT_MS = 8000;
 const GYM_PROFILE_LOAD_TIMEOUT_MS = 10000;
 
+// Load selects, widest → narrowest. Tier (b) keeps is_published + secondary_color
+// (so a published gym never regresses to "Hidden" when the DB is behind the app),
+// dropping only the migration-017 Studio-meta columns.
+const GYM_SELECT_FULL =
+  'id, name, code, is_published, tagline, description, brand_color, secondary_color, logo_url, cover_url, logo_path, cover_path, address, phone, operating_hours, amenities, social_links, team_members, pricing_packages, map_embed_url, directions, cover_focal, section_visibility';
+const GYM_SELECT_WITHOUT_STUDIO_META =
+  'id, name, code, is_published, tagline, description, brand_color, secondary_color, logo_url, cover_url, logo_path, cover_path, address, phone, operating_hours, amenities, social_links, team_members, pricing_packages, map_embed_url, directions';
+const GYM_SELECT_LEGACY =
+  'id, name, code, tagline, description, brand_color, logo_url, cover_url, logo_path, cover_path, address, phone, operating_hours, amenities, social_links, team_members, pricing_packages, map_embed_url, directions';
+
 type HoursState = Record<(typeof DAYS)[number], string>;
 type SocialState = { facebook: string; instagram: string; website: string };
 type TeamMemberForm = { name: string; role: string; bio: string; photo_url: string };
@@ -163,6 +173,9 @@ function useStudioState(props: GymPageStudioProps) {
   const coverInputRef = useRef<HTMLInputElement | null>(null);
 
   const [isLoading, setIsLoading] = useState(!props.initialGym);
+  // Whether the migration-017 Studio-meta columns exist. Flipped false only when a
+  // load has to fall back past the full select — gates the save payload (Fix 1).
+  const [studioMetaColumnsAvailable, setStudioMetaColumnsAvailable] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
   const [isUploadingCover, setIsUploadingCover] = useState(false);
@@ -298,41 +311,37 @@ function useStudioState(props: GymPageStudioProps) {
     async (id: string) => {
       setIsLoading(true);
       try {
-        const primary = await retryOnBenignLock(() =>
-          withTimeout(
-            supabase
-              .from('gyms')
-              .select(
-                'id, name, code, is_published, tagline, description, brand_color, secondary_color, logo_url, cover_url, logo_path, cover_path, address, phone, operating_hours, amenities, social_links, team_members, pricing_packages, map_embed_url, directions, cover_focal, section_visibility',
-              )
-              .eq('id', id)
-              .maybeSingle(),
-            GYM_PROFILE_LOAD_TIMEOUT_MS,
-            'Gym profile load timed out.',
-          ),
-        );
-
-        let data = primary.data as GymProfileRow | null;
-
-        if (primary.error) {
-          const fallback = await retryOnBenignLock(() =>
+        const selectGym = (columns: string, timeoutMessage: string) =>
+          retryOnBenignLock(() =>
             withTimeout(
-              supabase
-                .from('gyms')
-                .select(
-                  'id, name, code, tagline, description, brand_color, logo_url, cover_url, logo_path, cover_path, address, phone, operating_hours, amenities, social_links, team_members, pricing_packages, map_embed_url, directions',
-                )
-                .eq('id', id)
-                .maybeSingle(),
+              supabase.from('gyms').select(columns).eq('id', id).maybeSingle(),
               GYM_PROFILE_LOAD_TIMEOUT_MS,
-              'Gym profile fallback load timed out.',
+              timeoutMessage,
             ),
           );
-          if (fallback.error || !fallback.data) {
-            toast.error('Unable to load gym profile.');
-            return;
+
+        // Tier (a): full select including the migration-017 Studio-meta columns.
+        const primary = await selectGym(GYM_SELECT_FULL, 'Gym profile load timed out.');
+        let data = primary.data as GymProfileRow | null;
+        let metaColumnsAvailable = true;
+
+        if (primary.error) {
+          // Tier (b): DB is behind the app (e.g. 017 rolled back). Retry without the
+          // two Studio-meta columns but KEEP is_published + secondary_color.
+          const withoutMeta = await selectGym(GYM_SELECT_WITHOUT_STUDIO_META, 'Gym profile fallback load timed out.');
+          if (!withoutMeta.error && withoutMeta.data) {
+            metaColumnsAvailable = false;
+            data = withoutMeta.data as unknown as GymProfileRow;
+          } else {
+            // Tier (c): legacy fallback (also predates is_published/secondary_color).
+            const legacy = await selectGym(GYM_SELECT_LEGACY, 'Gym profile fallback load timed out.');
+            if (legacy.error || !legacy.data) {
+              toast.error('Unable to load gym profile.');
+              return;
+            }
+            metaColumnsAvailable = false;
+            data = legacy.data as unknown as GymProfileRow;
           }
-          data = fallback.data as GymProfileRow;
         }
 
         if (!data) {
@@ -340,6 +349,7 @@ function useStudioState(props: GymPageStudioProps) {
           return;
         }
 
+        setStudioMetaColumnsAvailable(metaColumnsAvailable);
         applyRow(data);
 
         if (data.logo_path) {
@@ -877,10 +887,13 @@ function useStudioState(props: GymPageStudioProps) {
               : null,
           map_embed_url: mapEmbedUrl.trim() || null,
           directions: directions.trim() || null,
-          // New Studio metadata (requires migration 017 — TODO(logic) dependency).
-          cover_focal: coverFocal,
-          section_visibility: sectionVisibility,
       };
+      // New Studio metadata columns (migration 017). Only sent when a load proved
+      // they exist, so a DB that is behind the app still saves the rest of the page.
+      if (studioMetaColumnsAvailable) {
+        gymUpdate.cover_focal = coverFocal;
+        gymUpdate.section_visibility = sectionVisibility;
+      }
       const saveOperation = supabase.from('gyms').update(gymUpdate as never).eq('id', gymId);
 
       const { error } = await withTimeout(saveOperation, SAVE_TIMEOUT_MS, 'Save request timed out. Please try again.');
@@ -908,7 +921,11 @@ function useStudioState(props: GymPageStudioProps) {
       } else if (!gymOk && !flagsOk) {
         toast.error('Save failed — please try again.');
       } else if (!gymOk) {
-        toast.error("Your feature settings saved, but the page content didn't — try again.");
+        toast.error(
+          shouldSaveFlags
+            ? "Your feature settings saved, but the page content didn't — try again."
+            : 'Failed to save your page content — try again.',
+        );
       } else {
         toast.error("Your page content saved, but feature settings didn't — try again.");
       }

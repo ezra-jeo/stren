@@ -88,4 +88,12 @@ describe('GymLandingPreview — subpage views', () => {
     expect(screen.getByText('This page is hidden')).toBeInTheDocument();
     expect(screen.getByText(/won't see Pricing in the menu/i)).toBeInTheDocument();
   });
+
+  it('shows the active-members chip on Join only when the count is positive', () => {
+    const { rerender } = render(<GymLandingPreview gym={baseGym} view="join" interactive={false} />);
+    expect(screen.getByText('214 active members')).toBeInTheDocument();
+    // Hidden at zero so the Studio preview never reads "0 active members".
+    rerender(<GymLandingPreview gym={{ ...baseGym, memberCount: 0 }} view="join" interactive={false} />);
+    expect(screen.queryByText(/active members/i)).not.toBeInTheDocument();
+  });
 });

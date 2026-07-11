@@ -1,19 +1,22 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ChevronDown, ShieldCheck, Loader2 } from 'lucide-react';
+import { ChevronDown, ShieldCheck, Lock, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
+import { useAccess } from '@/lib/access-context';
 import { createClient } from '@/lib/supabase';
 import {
   ACCESS_SWITCHES,
   resolvePermissions,
   roleHasPermission,
   type AccessSwitch,
+  type PermissionKey,
 } from '@/lib/permissions';
 import {
   listAccessPeople,
-  saveOverride,
+  saveOverridesBatch,
+  fetchPersonOverrides,
   type AccessPerson,
 } from '@/lib/access-data';
 
@@ -24,8 +27,10 @@ import {
  */
 export function AccessClient() {
   const { profile } = useAuth();
+  const access = useAccess();
   const supabase = useMemo(() => createClient(), []);
   const gymId = profile?.gymId ?? null;
+  const canManageAccess = access.permissions.has('roles:manage');
 
   const [people, setPeople] = useState<AccessPerson[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,7 +38,7 @@ export function AccessClient() {
   const [savingKey, setSavingKey] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!gymId) {
+    if (!gymId || !canManageAccess) {
       setLoading(false);
       return;
     }
@@ -43,7 +48,7 @@ export function AccessClient() {
       .catch(() => { /* degrade to empty */ })
       .finally(() => { if (active) setLoading(false); });
     return () => { active = false; };
-  }, [gymId, supabase]);
+  }, [gymId, supabase, canManageAccess]);
 
   const admins = people.filter((p) => p.role === 'admin');
   const staff = people.filter((p) => p.role === 'staff');
@@ -59,19 +64,22 @@ export function AccessClient() {
     const next = !switchOn(person, sw);
     const prevOverrides = person.overrides;
 
-    const ops: { permission: (typeof sw.permissions)[number]; granted: boolean | null }[] = [];
+    // Split the switch's keys into one grant/revoke batch + one back-to-default
+    // clear batch, applied atomically so a mid-flip failure can't half-flip the DB.
+    const grants: { permission: PermissionKey; granted: boolean }[] = [];
+    const clears: PermissionKey[] = [];
     const nextOverrides = [...prevOverrides];
     for (const key of sw.permissions) {
       const isDefault = roleHasPermission(person.role, key);
       const granted = next === isDefault ? null : next; // back to default ⇒ delete the row
-      ops.push({ permission: key, granted });
       const idx = nextOverrides.findIndex((o) => o.permission === key);
       if (granted === null) {
+        clears.push(key);
         if (idx >= 0) nextOverrides.splice(idx, 1);
-      } else if (idx >= 0) {
-        nextOverrides[idx] = { permission: key, granted };
       } else {
-        nextOverrides.push({ permission: key, granted });
+        grants.push({ permission: key, granted });
+        if (idx >= 0) nextOverrides[idx] = { permission: key, granted };
+        else nextOverrides.push({ permission: key, granted });
       }
     }
 
@@ -79,15 +87,43 @@ export function AccessClient() {
     setPeople((ps) => ps.map((p) => (p.userId === person.userId ? { ...p, overrides: nextOverrides } : p)));
 
     try {
-      for (const op of ops) {
-        await saveOverride(supabase, { gymId, userId: person.userId, permission: op.permission, granted: op.granted });
-      }
+      await saveOverridesBatch(supabase, { gymId, userId: person.userId, grants, clears });
     } catch {
-      setPeople((ps) => ps.map((p) => (p.userId === person.userId ? { ...p, overrides: prevOverrides } : p)));
+      // A batch can partially apply server-side — resync to the DB truth rather
+      // than assuming the pre-flip state; only guess (revert) if the refetch fails.
+      try {
+        const fresh = await fetchPersonOverrides(supabase, gymId, person.userId);
+        setPeople((ps) => ps.map((p) => (p.userId === person.userId ? { ...p, overrides: fresh } : p)));
+      } catch {
+        setPeople((ps) => ps.map((p) => (p.userId === person.userId ? { ...p, overrides: prevOverrides } : p)));
+      }
       toast.error('Could not update access — please try again.');
     } finally {
       setSavingKey(null);
     }
+  }
+
+  // Client courtesy layer over the server's `requirePermission('roles:manage')`
+  // guard — defends the direct-render path (and tests) when only the owner may
+  // manage people & access.
+  if (!canManageAccess) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}>
+            People &amp; access
+          </h1>
+        </div>
+        <section className="rounded-xl border p-10 text-center" style={{ backgroundColor: 'var(--color-white)', borderColor: 'var(--color-surface)' }}>
+          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full" style={{ backgroundColor: 'var(--color-background)' }}>
+            <Lock size={22} style={{ color: 'var(--color-text-muted)' }} />
+          </div>
+          <p className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+            Only the owner can manage people &amp; access.
+          </p>
+        </section>
+      </div>
+    );
   }
 
   return (

@@ -8,6 +8,22 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Gym Page Studio — Agent A UI fix pass (unit A6)
+
+Non-blocking polish over the 1.2.0 UI surfaces after the backend (Agent B) landed. UI only; no schema, middleware, API, or server-gate changes.
+
+#### Fixed
+- **Studio load resilience** (`components/admin/gym-studio/GymPageStudio.tsx`) — the load now falls back in three tiers: full select → a retry that drops only the migration-017 `cover_focal`/`section_visibility` columns but keeps `is_published`/`secondary_color` → the legacy select. A published gym no longer regresses to "Hidden" when the DB is behind the app, and the save payload sends the two Studio-meta columns only when a load proved they exist (`studioMetaColumnsAvailable`).
+- **Honest partial-save toast** (`GymPageStudio.tsx`) — when the gym write fails and no feature flags were dirty, the toast now says "Failed to save your page content — try again." instead of falsely claiming feature settings saved. Genuine two-write cases keep their per-half messages.
+- **Atomic Access switch writes** (`components/admin/AccessClient.tsx`, `lib/access-data.ts`) — a multi-key switch (e.g. money numbers = 2 keys) now applies as one `saveOverridesBatch` (array `upsert` for grants/revokes + one `delete().in(...)` for back-to-default keys) instead of a sequential per-key loop; on failure the row resyncs from the DB via `fetchPersonOverrides` rather than assuming the pre-flip state.
+
+#### Added
+- **Client owner gate** (`AccessClient.tsx`) — a courtesy layer over the server's `requirePermission('roles:manage')`: viewers without `roles:manage` see "Only the owner can manage people & access." (defends the direct-render path and tests).
+
+#### Changed
+- **A11y / parity** — the mobile preview drawer tab strip (`MobileStudioSheet.tsx`) gains `role="tablist"`/`role="tab"`/`aria-selected` to match the desktop toolbar; `GymLandingPreview` `JoinBody` renders the "N active members" chip when `memberCount > 0` (hidden at 0).
+- **Tests** — added `studio-load-fallback` (tier-b load + save payload); extended `access-page` (batched writes, refetch-on-failure, owner gate) and `gym-landing-preview` (Join members chip).
+
 ## [1.2.0] — 2026-07-11
 
 ### Gym Page Studio + Permissions & Feature Toggles — Agent A (UI)
