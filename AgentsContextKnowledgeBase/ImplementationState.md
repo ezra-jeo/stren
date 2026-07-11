@@ -2,7 +2,7 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-11 (both original halves committed on `CustomizationPermissionsToggles`; **B7 and the A6 UI fix pass are implemented and validated in the working tree, awaiting developer commit/merge**. Local lint, typecheck, and 217 unit/integration tests green after A6; the previously validated production build + 4 public E2E tests are unaffected by A6's UI-only changes. NOT prod-ready until B7 ships and the remaining pre-prod items resolve.)
+Last updated: 2026-07-11 (all four workstream commits on `CustomizationPermissionsToggles`: Opus UI `272d876`, Codex backend `e031d89`, B7 fix `dc7e9b4`, A6 fix `673b108`. **Fable re-review of both fix commits: passed** — migration 018 verified, all six A6 fixes verified, local gate green (lint, typecheck, 217 tests, build). **Code is prod-ready**; remaining pre-prod items are decisions/ops, not code — see checklist below.)
 
 ---
 
@@ -34,7 +34,7 @@ Spec: [ImplementationPlan.md](ImplementationPlan.md). Agent A = Claude Opus 4.8 
 | A3 | Studio desktop: header, rail groups, preview pane, checklist, brand group (§7.3, §7.6, §7.7) | Shipped (2026-07-11) — `components/admin/gym-studio/*`; `gym-profile/page.tsx` re-skinned (client), handlers verbatim |
 | A4 | Mobile drawer + focal editor + states/a11y (§7.4, §7.5, §7.10) | Shipped (2026-07-11) — `MobileStudioSheet`, `FocalPointEditor` (drag+keyboard), unsaved-changes guard |
 | A5 | FeaturesGroup (+ 4 teasers) + People & access UI + nav filtering (§7.8, §7.9) | Shipped (2026-07-11) — `AccessClient`, `app/admin/access`, nav filtering via `useAccess`/feature props with safe defaults; §9 A integration tests green |
-| A6 | Review fix pass (spec: `prompts/Opus48-UI-FixPass.md`): three-tier load/save resilience + `studioMetaColumnsAvailable` gate, `/admin/access` client owner gate, honest partial-save toast, atomic multi-key switch writes (`saveOverridesBatch`/`fetchPersonOverrides` + refetch-on-failure), drawer tablist a11y, Join active-members chip | Shipped (2026-07-11, branch `CustomizationPermissionsToggles`, working tree — awaiting developer commit) — tests: `studio-load-fallback`, extended `access-page` + `gym-landing-preview`; lint/typecheck/217 unit green |
+| A6 | Review fix pass (spec: `prompts/Opus48-UI-FixPass.md`): three-tier load/save resilience + `studioMetaColumnsAvailable` gate, `/admin/access` client owner gate, honest partial-save toast, atomic multi-key switch writes (`saveOverridesBatch`/`fetchPersonOverrides` + refetch-on-failure), drawer tablist a11y, Join active-members chip | Shipped (2026-07-11, commit `673b108`) — Fable-verified all six fixes; tests: `studio-load-fallback`, extended `access-page` + `gym-landing-preview` |
 
 ### Agent B — logic & enforcement
 
@@ -47,7 +47,7 @@ Spec: [ImplementationPlan.md](ImplementationPlan.md). Agent A = Claude Opus 4.8 
 | B4 | Migration 016: feature toggles, `get_gym_by_code` rework incl. `is_published` bugfix (**needs user sign-off**), leaderboard/kiosk gates (§5) | In progress (Agent B — feature enforcement implemented; `is_published` correction intentionally withheld pending approval; awaiting PR/merge) |
 | B5 | Server enforcement wiring: middleware map, API hardening, page gates, kiosk-off screen, announcements page verify/fix, engagement hooks, member-home fix (§6) | In progress (Agent B — implemented; fail-closed/bearer/kiosk audit fixes and tests green; awaiting PR/merge) |
 | B6 | `gym-profile/page.tsx` server conversion — **strictly after A3–A5 merge** | In progress (Agent B — server wrapper completed after A3–A5 landed on branch; awaiting PR/merge) |
-| B7 | **BLOCKING review fix** (spec: `prompts/Codex-Backend-FixPass.md`): migration 014's guards break the service-role cron — `process_daily_notifications` → `create_member_notification`/`can_send_member_notification` RAISE on NULL `auth.uid()`, so daily expiry/inactivity notifications crash. New migration must allow the service-role context | In progress (Agent B — migration 018 implemented; real service-role cron created expiry + inactivity rows, denial cases and idempotency validated; exact `test:ci` green; awaiting developer commit/merge) |
+| B7 | **Review fix** (spec: `prompts/Codex-Backend-FixPass.md`): migration 018 restores the service-role cron path broken by 014's guards, keeping target-scope checks for service callers and all non-service guards verbatim | Shipped (2026-07-11, commit `dc7e9b4`) — Fable-verified; `is_published` correctly left untouched (still awaiting sign-off) |
 
 ### Joint
 
@@ -58,9 +58,9 @@ Spec: [ImplementationPlan.md](ImplementationPlan.md). Agent A = Claude Opus 4.8 
 
 ## Open items needing the user (pre-prod checklist)
 
-1. **B7 must ship** (blocking): migration 018 and its regression test are implemented and validated in the working tree; a developer must commit/merge and deploy them before production.
-2. **`is_published` bugfix sign-off** (decision): Codex correctly withheld it in 016/017 pending approval; public visibility still derives from tagline presence. Approve → it ships with B7's migration; reject → close the item.
-3. **Credentialed E2E on staging** (verification): 8 E2E cases (permissions, feature toggles, member RPC probes — the security regression suite) are skipped without `E2E_*` credentials. Run them once against staging before prod.
-4. **Apply migrations 014–017 (and B7's 018) to the production database in order via Supabase CLI** before deploying the app build.
-5. A6 (UI polish, non-blocking, revised post-backend: `prompts/Opus48-UI-FixPass.md`) — **done in the working tree, awaiting developer commit**; can ship in the same window or after.
-6. Approve deletion of stale `STREN_GUIDE.md` and `context-history.md` (quarantined in Catalog).
+~~1. B7~~ ✅ Shipped (`dc7e9b4`). ~~5. A6~~ ✅ Shipped (`673b108`).
+
+1. **`is_published` decision** (product, not blocking if consciously deferred): public visibility still derives from tagline presence, not the real `gyms.is_published` column — an owner who unpublishes but keeps a tagline stays publicly visible. Approve the fix → one small migration (019, one-line change in `get_gym_by_code`); defer → document acceptance here and close.
+2. **Credentialed E2E on staging** (strongly recommended): 8 E2E cases (permissions, feature toggles, member RPC probes — the security regression suite) have never executed. Set `E2E_*` credentials against staging and run once before prod.
+3. **Release mechanics** (repo convention: branch → `qa` → manual sign-off → `main`): merge `CustomizationPermissionsToggles` → `qa`; apply migrations **014 → 015 → 016 → 017 → 018 in order** to the production database via Supabase CLI; deploy the app build immediately after, one release window.
+4. Approve deletion of stale `STREN_GUIDE.md` and `context-history.md` (quarantined in Catalog).
