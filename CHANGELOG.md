@@ -30,7 +30,7 @@ Frozen contracts + all React surfaces for the workstream. Backend enforcement (A
 ### Gym Page Studio + Permissions & Feature Toggles — Agent B (logic/enforcement)
 
 #### Added
-- **Migrations 014–017** — notification RPC hardening; role defaults and per-user permission overrides; feature settings and effective access helpers; Gym Page Studio focal-point and section-visibility columns. All four were validated and reapplied idempotently against an isolated PostgreSQL schema.
+- **Migrations 014–018** — notification RPC hardening; role defaults and per-user permission overrides; feature settings and effective access helpers; Gym Page Studio focal-point and section-visibility columns; and a service-context repair for the daily notification processor. Migration 018 was reapplied idempotently and exercised through the real expiry/inactivity processor chain in an isolated PostgreSQL schema.
 - **Layered enforcement** — fail-closed server permission helpers, middleware permission/feature routing, API permission and same-gym checks, server page gates, member/public feature gates, and database RLS/RPC truth-layer checks.
 - **B-owned regression coverage** — permission/feature SQL contracts, payment characterization, notification/avatar/cache hardening, bearer-scoped API authorization, fail-closed access, engagement hooks, kiosk-off polling, finance omission, and environment-gated owner/member E2E + direct member RPC probes.
 
@@ -41,10 +41,11 @@ Frozen contracts + all React surfaces for the workstream. Backend enforcement (A
 - **Public Supabase clients** are created lazily so server module evaluation and production builds do not require credentials until a data call is made.
 
 #### Security
-- `process_daily_notifications()` is service-role only; notification/streak helper RPCs validate caller identity and gym scope; avatar URLs must use the configured Supabase Storage origin.
+- `process_daily_notifications()` remains service-role only; its notification helpers now recognize service-role JWT context without widening grants, while authenticated callers still require identity, manager, and gym/target scope checks. Notification/streak helper RPCs otherwise retain their caller validation; avatar URLs must use the configured Supabase Storage origin.
 - Bearer-only admin API requests now carry the verified token into all subsequent RLS/RPC authorization queries, and server access failures deny rather than restore role defaults.
 
 #### Fixed
+- The daily notification cron no longer fails on its first member when service-role requests have a NULL `auth.uid()`; isolated validation created both a 7-day expiry reminder and an inactivity nudge while anonymous, member, cross-gym manager, and invalid service target calls remained denied.
 - Next 16 Promise-based `searchParams` handling on `/` and `/landing` no longer stalls E2E navigation.
 - The pending `get_gym_by_code()` visibility correction is **not included**: migrations 016/017 intentionally retain tagline-derived visibility until explicit product-owner approval.
 

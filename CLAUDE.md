@@ -11,6 +11,7 @@ Project context, mission, plans, and live status do **not** live in this file �
 1. Read `AgentsContextKnowledgeBase/Catalog.md` — it indexes every document, the reading order, and your update obligations.
 2. Check `AgentsContextKnowledgeBase/ImplementationState.md` before starting work; **update it (plus `CHANGELOG.md`) in the same PR that ships your work** — a PR without those updates is not done.
 3. `CONTEXT.md` (repo root) is the vocabulary; `docs/adr/` records why load-bearing decisions were made.
+4. **Agents never commit or push.** No `git commit`, `git push`, `git merge`, `git rebase`, tags, or any history-modifying command — ever, even if asked to "finish up". Leave all changes in the working tree and report what changed; **developers perform every commit and push exclusively.** Where any doc says "in the same PR/commit", it means: prepare the changes together in the working tree so the developer commits them as one unit.
 
 These rules apply to **every** agent (Claude, Codex/GPT, or otherwise — `AGENTS.md` routes non-Claude agents here too).
 

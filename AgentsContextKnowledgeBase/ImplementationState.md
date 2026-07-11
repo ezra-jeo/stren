@@ -2,7 +2,7 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-11 (Agent A UI half implemented and **reviewed by Fable — passed with 6 fix items → unit A6**; Agent B logic/enforcement implemented and locally validated on `CustomizationPermissionsToggles`, awaiting PR/merge; both one-shot prompts packaged in `prompts/`).
+Last updated: 2026-07-11 (both original halves committed on `CustomizationPermissionsToggles`; **B7 is implemented and validated in the working tree, awaiting developer commit/merge**. Full local CI green: lint, typecheck, 212 unit/integration tests, production build, and 4 public E2E tests. NOT prod-ready until B7 ships and the remaining pre-prod items resolve.)
 
 ---
 
@@ -47,15 +47,20 @@ Spec: [ImplementationPlan.md](ImplementationPlan.md). Agent A = Claude Opus 4.8 
 | B4 | Migration 016: feature toggles, `get_gym_by_code` rework incl. `is_published` bugfix (**needs user sign-off**), leaderboard/kiosk gates (§5) | In progress (Agent B — feature enforcement implemented; `is_published` correction intentionally withheld pending approval; awaiting PR/merge) |
 | B5 | Server enforcement wiring: middleware map, API hardening, page gates, kiosk-off screen, announcements page verify/fix, engagement hooks, member-home fix (§6) | In progress (Agent B — implemented; fail-closed/bearer/kiosk audit fixes and tests green; awaiting PR/merge) |
 | B6 | `gym-profile/page.tsx` server conversion — **strictly after A3–A5 merge** | In progress (Agent B — server wrapper completed after A3–A5 landed on branch; awaiting PR/merge) |
+| B7 | **BLOCKING review fix** (spec: `prompts/Codex-Backend-FixPass.md`): migration 014's guards break the service-role cron — `process_daily_notifications` → `create_member_notification`/`can_send_member_notification` RAISE on NULL `auth.uid()`, so daily expiry/inactivity notifications crash. New migration must allow the service-role context | In progress (Agent B — migration 018 implemented; real service-role cron created expiry + inactivity rows, denial cases and idempotency validated; exact `test:ci` green; awaiting developer commit/merge) |
 
 ### Joint
 
 | Unit | Scope | Status |
 |---|---|---|
-| J1 | Full `npm run test:ci` green on the combined branch; §10 definition of done walked | In progress (exact `npm run test:ci` green: lint/typecheck, 211 unit/integration tests, production build, and 4 public E2E tests; 8 credentialed E2E cases skipped because credentials are unavailable) |
+| J1 | Full `npm run test:ci` green on the combined branch; §10 definition of done walked | In progress (exact `npm run test:ci` green after B7: lint/typecheck, 212 unit/integration tests, production build, and 4 public E2E tests; 8 credentialed E2E cases skipped because credentials are unavailable) |
 | J2 | `CLAUDE.md` phase row, `CHANGELOG.md` entry, version bump | In progress (`v1.2.0` + changelog prepared; no CLAUDE phase-status row exists to update—plan prompt is inconsistent with the canonical status location) |
 
-## Open items needing the user
+## Open items needing the user (pre-prod checklist)
 
-- Migration 016 `is_published` bugfix sign-off (changes public visibility for gyms relying on the buggy tagline-derived behavior).
-- Approve deletion of stale `STREN_GUIDE.md` and `context-history.md` (quarantined in Catalog).
+1. **B7 must ship** (blocking): migration 018 and its regression test are implemented and validated in the working tree; a developer must commit/merge and deploy them before production.
+2. **`is_published` bugfix sign-off** (decision): Codex correctly withheld it in 016/017 pending approval; public visibility still derives from tagline presence. Approve → it ships with B7's migration; reject → close the item.
+3. **Credentialed E2E on staging** (verification): 8 E2E cases (permissions, feature toggles, member RPC probes — the security regression suite) are skipped without `E2E_*` credentials. Run them once against staging before prod.
+4. **Apply migrations 014–017 (and B7's 018) to the production database in order via Supabase CLI** before deploying the app build.
+5. A6 (UI polish, non-blocking, revised post-backend: `prompts/Opus48-UI-FixPass.md`) — can ship in the same window or after.
+6. Approve deletion of stale `STREN_GUIDE.md` and `context-history.md` (quarantined in Catalog).

@@ -70,4 +70,5 @@ These are obligations, not suggestions. A PR that violates them is not done.
 3. **Every merged PR updates `ImplementationState.md` and `CHANGELOG.md`** in that same PR.
 4. **Found a stale doc?** Move it to the Stale table (same commit). Delete only with explicit user approval.
 5. **Renames/moves:** update every reference (grep for the old path) and the catalog row in the same commit.
+5a. **Agents never commit or push — developers do, exclusively.** No agent runs `git commit`/`git push`/`git merge`/`git rebase` or rewrites history. "Same commit/PR" obligations in these rules mean: stage the related changes together in the working tree so the developer can commit them as one unit.
 6. **When a workstream completes**, its plan stays in place marked "✅ Completed <date>" in its header, `ImplementationState.md` records the final state, and the next workstream gets a new plan file (e.g. `ImplementationPlan-<name>.md`) plus a catalog row — the newest plan is always the "active" one named in this catalog.
