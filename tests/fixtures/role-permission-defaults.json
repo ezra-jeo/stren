@@ -1,0 +1,44 @@
+{
+  "owner": [
+    "dashboard:view",
+    "dashboard:finance:view",
+    "reports:attendance:view",
+    "reports:finance:view",
+    "members:view",
+    "members:manage",
+    "members:payment_history:view",
+    "payments:view",
+    "payments:create",
+    "plans:manage",
+    "promos:manage",
+    "announcements:manage",
+    "gym_page:view",
+    "gym_page:edit",
+    "gym_page:publish",
+    "features:manage",
+    "roles:manage",
+    "kiosk:use",
+    "cache:revalidate"
+  ],
+  "admin": [
+    "dashboard:view",
+    "dashboard:finance:view",
+    "reports:attendance:view",
+    "reports:finance:view",
+    "members:view",
+    "members:manage",
+    "members:payment_history:view",
+    "payments:view",
+    "payments:create",
+    "plans:manage",
+    "promos:manage",
+    "announcements:manage",
+    "kiosk:use",
+    "cache:revalidate"
+  ],
+  "staff": [
+    "members:view",
+    "kiosk:use"
+  ],
+  "member": []
+}

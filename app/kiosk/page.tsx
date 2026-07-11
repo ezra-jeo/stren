@@ -100,6 +100,17 @@ function isKioskCheckoutResult(value: unknown): value is KioskCheckoutResult {
   )
 }
 
+export function KioskDisabledState() {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
+      <h1 className="text-3xl font-bold">Check-ins are turned off</h1>
+      <p className="mt-3 max-w-md text-sm text-white/60">
+        The owner has disabled kiosk check-ins for this gym.
+      </p>
+    </div>
+  )
+}
+
 export default function KioskPage() {
   const supabase = useMemo(() => createClient(), [])
   const [mode, setMode] = useState<KioskMode>("qr")
@@ -123,6 +134,7 @@ export default function KioskPage() {
   const [isSearching, setIsSearching] = useState(false)
   const [actionPendingByMember, setActionPendingByMember] = useState<Record<string, "checkin" | "checkout">>({})
   const [isLoadingCheckedIn, setIsLoadingCheckedIn] = useState(false)
+  const [kioskEnabled, setKioskEnabled] = useState<boolean | null>(null)
   const scannerRef = useRef<Html5QrcodeType | null>(null)
   const isStartingScannerRef = useRef(false)
   const isScannerActiveRef = useRef(false)
@@ -131,6 +143,17 @@ export default function KioskPage() {
   const refreshQueuedRef = useRef(false)
 
   useEffect(() => {
+    void refreshKioskAvailability()
+    const availabilityInterval = setInterval(refreshKioskAvailability, 30000)
+
+    return () => {
+      clearInterval(availabilityInterval)
+    }
+  }, [supabase])
+
+  useEffect(() => {
+    if (kioskEnabled !== true) return
+
     loadCheckedIn()
     const interval = setInterval(loadCheckedIn, 60000)
 
@@ -147,7 +170,20 @@ export default function KioskPage() {
       clearInterval(interval)
       void supabase.removeChannel(channel)
     }
-  }, [supabase])
+  }, [supabase, kioskEnabled])
+
+  async function refreshKioskAvailability() {
+    const { data, error } = await supabase.rpc('get_my_access')
+    if (error || !isJsonObject(data)) {
+      setKioskEnabled(false)
+      void stopScanner()
+      return
+    }
+    const features = isJsonObject(data.features) ? data.features : null
+    const enabled = features?.kiosk_checkin !== false
+    setKioskEnabled(enabled)
+    if (!enabled) void stopScanner()
+  }
 
   async function loadCheckedIn() {
     if (isRefreshingCheckedInRef.current) {
@@ -299,6 +335,10 @@ export default function KioskPage() {
   }
 
   useEffect(() => {
+    if (!kioskEnabled) {
+      void stopScanner()
+      return () => { void stopScanner() }
+    }
     if (mode === "qr") {
       const timer = setTimeout(() => startScanner(), 100)
       return () => {
@@ -309,7 +349,7 @@ export default function KioskPage() {
       void stopScanner()
     }
     return () => { void stopScanner() }
-  }, [mode, startScanner])
+  }, [mode, startScanner, kioskEnabled])
 
   useEffect(() => {
     const onVisibilityChange = () => {
@@ -318,7 +358,7 @@ export default function KioskPage() {
         return
       }
 
-      if (mode === "qr") {
+      if (mode === "qr" && kioskEnabled) {
         void startScanner()
       }
     }
@@ -327,7 +367,7 @@ export default function KioskPage() {
     return () => {
       document.removeEventListener("visibilitychange", onVisibilityChange)
     }
-  }, [mode, startScanner])
+  }, [mode, startScanner, kioskEnabled])
 
   async function handleQrScan(qrCode: string) {
     const { data, error } = await withTimeout(
@@ -519,6 +559,8 @@ export default function KioskPage() {
     if (status === "none" || status === "pending") return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
     return "bg-red-500/20 text-red-400 border-red-500/30"
   }
+
+  if (kioskEnabled !== true) return <KioskDisabledState />
 
   return (
     <div className="flex flex-1 flex-col items-center gap-10 px-6 py-12">

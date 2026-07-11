@@ -39,13 +39,13 @@ interface MethodBreakdown {
 export interface ReportsData {
   activeCount: number
   expiredCount: number
-  monthRevenue: number
+  monthRevenue?: number
   avgDailyVisits: string
   attendanceData: { date: string; visits: number }[]
-  revenueData: { date: string; revenue: number }[]
+  revenueData?: { date: string; revenue: number }[]
   peakHours: PeakHour[]
-  revenueByDayOfMonth: RevenueByDom[]
-  methodBreakdown: MethodBreakdown
+  revenueByDayOfMonth?: RevenueByDom[]
+  methodBreakdown?: MethodBreakdown
 }
 
 function StatCard({
@@ -77,7 +77,17 @@ function StatCard({
 }
 
 export function AdminReportsClient({ data }: { data: ReportsData }) {
-  const { activeCount, expiredCount, monthRevenue, avgDailyVisits, attendanceData, revenueData, peakHours, revenueByDayOfMonth, methodBreakdown } = data
+  const {
+    activeCount,
+    expiredCount,
+    monthRevenue,
+    avgDailyVisits,
+    attendanceData,
+    revenueData = [],
+    peakHours,
+    revenueByDayOfMonth = [],
+    methodBreakdown,
+  } = data
 
   return (
     <div className="space-y-6" style={{ backgroundColor: A.bg }}>
@@ -101,7 +111,7 @@ export function AdminReportsClient({ data }: { data: ReportsData }) {
         <StatCard
           icon={<DollarSign className="h-5 w-5" />}
           label="Month Revenue"
-          value={`₱${monthRevenue.toLocaleString()}`}
+          value={monthRevenue == null ? '—' : `₱${monthRevenue.toLocaleString()}`}
           iconBg="rgba(42,157,143,0.15)"
           iconColor="#2A9D8F"
         />
@@ -171,10 +181,12 @@ export function AdminReportsClient({ data }: { data: ReportsData }) {
                   className="text-xs px-2 py-0.5 rounded-full"
                   style={{ backgroundColor: 'var(--admin-active-bg)', color: 'var(--admin-active-text)', border: '1px solid var(--admin-active-border)' }}
                 >
-                  {methodBreakdown.cashCount} payments
+                  {methodBreakdown ? `${methodBreakdown.cashCount} payments` : '—'}
                 </span>
               </div>
-              <p className="mt-1 text-lg font-bold" style={{ color: A.text }}>{`₱${methodBreakdown.cashTotal.toLocaleString()}`}</p>
+              <p className="mt-1 text-lg font-bold" style={{ color: A.text }}>
+                {methodBreakdown ? `₱${methodBreakdown.cashTotal.toLocaleString()}` : '—'}
+              </p>
             </div>
             <div className="rounded-xl p-3" style={{ backgroundColor: A.surface2, border: `1px solid ${A.border}` }}>
               <div className="flex items-center justify-between">
@@ -183,10 +195,12 @@ export function AdminReportsClient({ data }: { data: ReportsData }) {
                   className="text-xs px-2 py-0.5 rounded-full"
                   style={{ backgroundColor: 'rgba(42,157,143,0.15)', color: '#2A9D8F', border: '1px solid rgba(42,157,143,0.28)' }}
                 >
-                  {methodBreakdown.gcashCount} payments
+                  {methodBreakdown ? `${methodBreakdown.gcashCount} payments` : '—'}
                 </span>
               </div>
-              <p className="mt-1 text-lg font-bold" style={{ color: A.text }}>{`₱${methodBreakdown.gcashTotal.toLocaleString()}`}</p>
+              <p className="mt-1 text-lg font-bold" style={{ color: A.text }}>
+                {methodBreakdown ? `₱${methodBreakdown.gcashTotal.toLocaleString()}` : '—'}
+              </p>
             </div>
           </div>
         </ACard>

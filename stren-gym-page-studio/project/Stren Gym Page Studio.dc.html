@@ -1,0 +1,1145 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<meta name="design_doc_mode" content="canvas">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:#E7DFD6;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased;color:#1a1a1a}
+  .sec-label{font:600 12px 'Inter',sans-serif;letter-spacing:.14em;text-transform:uppercase;color:#9a8f82}
+  .sec-sub{font:400 13px 'Inter',sans-serif;color:#b1a698}
+  .id-badge{font:600 11px ui-monospace,Menlo,monospace;color:#fff;padding:3px 8px;border-radius:5px;text-decoration:none}
+  input,textarea,button,select{font-family:inherit}
+  .fld:focus{outline:2px solid rgba(212,149,106,.55);outline-offset:0;border-color:#D4956A !important}
+  .cr-scroll::-webkit-scrollbar{width:10px}
+  .cr-scroll::-webkit-scrollbar-thumb{background:#ddd3c7;border-radius:8px;border:2px solid transparent;background-clip:content-box}
+  .cr-scroll::-webkit-scrollbar-track{background:transparent}
+  .pv-scroll::-webkit-scrollbar{width:8px;height:8px}
+  .pv-scroll::-webkit-scrollbar-thumb{background:rgba(0,0,0,.18);border-radius:8px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @keyframes drawerUp{from{transform:translateY(102%)}to{transform:translateY(0)}}
+  @keyframes fadeIn{from{opacity:0}to{opacity:1}}
+</style>
+</helmet>
+
+<section style="padding:52px 56px 26px;display:flex;flex-direction:column;gap:16px">
+  <div style="display:flex;align-items:center;gap:11px">
+    <a class="id-badge" href="#1a" style="background:#2f7d5b">1a</a>
+    <span class="sec-label">Gym Page Studio · Desktop — owner view</span>
+    <span class="sec-sub">Live two-pane editor. Type, recolor, and drag the focal point — the preview updates in real time.</span>
+  </div>
+
+  <div id="1a" style="width:1440px;height:936px;background:#F6F1EA;border-radius:18px;overflow:hidden;box-shadow:0 40px 90px -40px rgba(58,42,30,.5),0 2px 0 rgba(255,255,255,.6) inset;display:flex;scroll-margin-top:20px;border:1px solid #d8cdbf">
+
+    <!-- ADMIN SIDEBAR (recreated Stren chrome) -->
+    <aside style="width:248px;flex:none;background:#2B2B2B;border-right:1px solid #3D3D3D;display:flex;flex-direction:column;padding:22px 16px">
+      <div style="display:flex;align-items:center;gap:11px;margin-bottom:26px;padding:0 4px">
+        <div style="width:38px;height:38px;border-radius:999px;background:#D4956A;display:flex;align-items:center;justify-content:center;font:800 17px 'Syne',sans-serif;color:#fff;flex:none">G</div>
+        <div style="min-width:0">
+          <div style="font:700 15px 'Syne',sans-serif;color:#E7B187;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">Grove Fitness</div>
+          <div style="font-size:11px;color:#8A8A8A">Owner Panel</div>
+        </div>
+      </div>
+      <nav style="display:flex;flex-direction:column;gap:2px;flex:1">
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px;color:#8A8A8A;font-size:13.5px;font-weight:500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Dashboard</div>
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px;color:#8A8A8A;font-size:13.5px;font-weight:500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>Members</div>
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px;color:#8A8A8A;font-size:13.5px;font-weight:500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>Payments</div>
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px;color:#8A8A8A;font-size:13.5px;font-weight:500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M16 2v4M8 2v4"/><rect x="3" y="6" width="18" height="15" rx="2"/><path d="M3 10h18"/></svg>Plans</div>
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px;color:#8A8A8A;font-size:13.5px;font-weight:500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20.59 13.41 13.42 20.6a2 2 0 0 1-2.83 0L3 13V3h10z"/><circle cx="7.5" cy="7.5" r="1.2" fill="currentColor"/></svg>Promos</div>
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px;color:#E7B187;background:rgba(212,149,106,.14);font-size:13.5px;font-weight:600"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20"/></svg>Gym Page</div>
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px;color:#8A8A8A;font-size:13.5px;font-weight:500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 9l-5 5-3-3-4 4"/></svg>Reports</div>
+        <div style="display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:8px;color:#8A8A8A;font-size:13.5px;font-weight:500"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg>Kiosk</div>
+      </nav>
+      <div style="border-top:1px solid #3D3D3D;padding-top:14px;display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px">
+          <div style="min-width:0">
+            <div style="font-size:12.5px;font-weight:500;color:#C4C4C4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">owner@grovefitness.co</div>
+            <div style="font-size:11px;color:#8A8A8A">Owner</div>
+          </div>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A8A8A" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <div style="display:flex;align-items:center;gap:9px;justify-content:center;background:#E8695E;color:#fff;border-radius:8px;padding:9px;font-size:13px;font-weight:600"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>Logout</div>
+      </div>
+    </aside>
+
+    <!-- CONTENT -->
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column">
+
+      <!-- Getting-started banner -->
+      <sc-if value="{{ showBanner }}" hint-placeholder-val="{{ true }}">
+        <div style="margin:20px 24px 0;background:linear-gradient(100deg,#fbf3ea,#f7efe6);border:1px solid #ecd9c4;border-radius:14px;padding:15px 18px;display:flex;align-items:center;gap:18px">
+          <div style="width:40px;height:40px;border-radius:11px;background:#D4956A;display:flex;align-items:center;justify-content:center;flex:none"><svg width="21" height="21" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2l2.4 5.2 5.6.6-4.2 3.9 1.2 5.6L12 20.3 6.9 22.9 8 17.7 3.8 13.8l5.6-.6z"/></svg></div>
+          <div style="flex:1;min-width:0">
+            <div style="font:700 15px 'Syne',sans-serif;color:#1a1a1a;margin-bottom:8px">Finish your gym page · <span style="color:#B47A45">{{ progressText }}</span></div>
+            <div style="display:flex;flex-wrap:wrap;gap:7px">
+              <sc-for list="{{ checklist }}" as="c" hint-placeholder-count="5">
+                <button onClick="{{ onChecklistJump }}" data-k="{{ c.key }}" style="{{ c.chipStyle }}">
+                  <span style="{{ c.dotStyle }}"></span>{{ c.label }}
+                </button>
+              </sc-for>
+            </div>
+          </div>
+          <div style="width:52px;height:52px;flex:none;position:relative">
+            <div style="{{ ringStyle }}"></div>
+            <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 13px 'Syne',sans-serif;color:#8a6a4a">{{ progressPct }}</div>
+          </div>
+          <button onClick="{{ onDismissBanner }}" title="Dismiss" style="width:30px;height:30px;flex:none;border:none;background:transparent;border-radius:8px;cursor:pointer;color:#b79b7f;display:flex;align-items:center;justify-content:center"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+        </div>
+      </sc-if>
+
+      <!-- Studio header -->
+      <div style="padding:18px 24px 16px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #ece3d9">
+        <div style="min-width:0">
+          <div style="display:flex;align-items:center;gap:10px">
+            <h1 style="margin:0;font:800 23px 'Syne',sans-serif;color:#1a1a1a">Gym Page</h1>
+            <span style="font:500 11.5px ui-monospace,Menlo,monospace;color:#9a8a78;background:#efe7dd;padding:3px 8px;border-radius:6px">grove-fitness</span>
+            <span style="{{ hdr.statusStyle }}"><span style="{{ hdr.statusDot }}"></span>{{ hdr.statusText }}</span>
+          </div>
+          <p style="margin:5px 0 0;font-size:13px;color:#8a8073">Guided edits on a polished Stren page — you choose the content, we keep the layout sharp.</p>
+        </div>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:14px">
+          <span style="{{ hdr.dirtyStyle }}">{{ hdr.dirtyText }}</span>
+          <a href="#" onClick="{{ onNoop }}" style="display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:600;color:#6a6157;text-decoration:none">View public page <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3"/></svg></a>
+          <button onClick="{{ onSave }}" style="{{ hdr.saveStyle }}">{{ hdr.saveText }}</button>
+          <button onClick="{{ onTogglePublish }}" style="{{ hdr.publishStyle }}">{{ hdr.publishText }}</button>
+        </div>
+      </div>
+
+      <!-- TWO-PANE -->
+      <div style="flex:1;min-height:0;display:flex">
+
+        <!-- LEFT CONTROL RAIL -->
+        <div class="cr-scroll" style="width:404px;flex:none;overflow-y:auto;padding:18px 20px 40px;display:flex;flex-direction:column;gap:14px;border-right:1px solid #ece3d9">
+
+          <!-- Essentials -->
+          <div style="background:#fff;border:1px solid #EBE3DA;border-radius:14px;overflow:hidden">
+            <button onClick="{{ onToggleEssentials }}" style="width:100%;display:flex;align-items:center;gap:11px;padding:15px 16px;background:transparent;border:none;cursor:pointer;text-align:left">
+              <span style="width:30px;height:30px;border-radius:8px;background:#f4ece2;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B47A45" stroke-width="2" stroke-linecap="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></span>
+              <span style="flex:1"><span style="display:block;font:700 14.5px 'Syne',sans-serif;color:#1a1a1a">Essentials</span><span style="font-size:12px;color:#9a8f82">Name shown, tagline &amp; blurb</span></span>
+              <svg style="{{ chevEssentials }}" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b0a596" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <sc-if value="{{ openEssentials }}" hint-placeholder-val="{{ true }}">
+              <div style="padding:0 16px 17px;display:flex;flex-direction:column;gap:15px">
+                <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 13px;background:#faf6f1;border:1px solid #efe6db;border-radius:10px">
+                  <div><div style="font-size:13px;font-weight:600;color:#1a1a1a">Public visibility</div><div style="font-size:11.5px;color:#9a8f82">A tagline is required to publish.</div></div>
+                  <button onClick="{{ onTogglePublish }}" style="{{ visPillStyle }}">{{ visPillText }}</button>
+                </div>
+                <div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px"><label style="font-size:12px;font-weight:600;color:#6a6157">Tagline</label><span style="font-size:11px;color:{{ taglineCountColor }}">{{ taglineCount }}</span></div>
+                  <input class="fld" value="{{ g.tagline }}" onInput="{{ onTagline }}" maxlength="120" placeholder="Your gym's one-liner" style="width:100%;border:1px solid #e2d8cc;border-radius:9px;padding:10px 12px;font-size:13.5px;color:#1a1a1a;background:#fff">
+                </div>
+                <div>
+                  <label style="display:block;font-size:12px;font-weight:600;color:#6a6157;margin-bottom:6px">Short description</label>
+                  <textarea class="fld" onInput="{{ onDescription }}" rows="3" placeholder="What makes your gym special" style="width:100%;border:1px solid #e2d8cc;border-radius:9px;padding:10px 12px;font-size:13.5px;color:#1a1a1a;background:#fff;resize:none;line-height:1.5">{{ g.description }}</textarea>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- Photos -->
+          <div style="background:#fff;border:1px solid #EBE3DA;border-radius:14px;overflow:hidden">
+            <button onClick="{{ onTogglePhotos }}" style="width:100%;display:flex;align-items:center;gap:11px;padding:15px 16px;background:transparent;border:none;cursor:pointer;text-align:left">
+              <span style="width:30px;height:30px;border-radius:8px;background:#f4ece2;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B47A45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.6"/><path d="m21 15-5-5L5 21"/></svg></span>
+              <span style="flex:1"><span style="display:block;font:700 14.5px 'Syne',sans-serif;color:#1a1a1a">Photos</span><span style="font-size:12px;color:#9a8f82">Cover, logo &amp; focal point</span></span>
+              <span style="font-size:10.5px;font-weight:700;letter-spacing:.04em;color:#B47A45;background:#f6ece1;padding:3px 7px;border-radius:6px;margin-right:8px">START HERE</span>
+              <svg style="{{ chevPhotos }}" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b0a596" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <sc-if value="{{ openPhotos }}" hint-placeholder-val="{{ true }}">
+              <div style="padding:0 16px 17px;display:flex;flex-direction:column;gap:16px">
+                <!-- Cover -->
+                <div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><label style="font-size:12px;font-weight:600;color:#6a6157">Cover photo</label><sc-if value="{{ coverPresent }}" hint-placeholder-val="{{ true }}"><button onClick="{{ onRemoveCover }}" style="font-size:11.5px;font-weight:600;color:#c26a5f;background:none;border:none;cursor:pointer">Remove</button></sc-if></div>
+                  <div style="{{ coverThumbStyle }}">
+                    <sc-if value="{{ coverPresent }}" hint-placeholder-val="{{ true }}">
+                      <div style="position:absolute;inset:0;background:linear-gradient(to top,rgba(0,0,0,.55),transparent 55%)"></div>
+                      <button onClick="{{ onAdjustFocal }}" style="{{ adjustFocalStyle }}"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/></svg>{{ adjustFocalText }}</button>
+                    </sc-if>
+                    <sc-if value="{{ coverEmpty }}" hint-placeholder-val="{{ true }}">
+                      <div style="position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;color:#a89a89"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15l-5-5L5 21"/><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.6"/></svg><span style="font-size:12px;font-weight:600">Add a cover photo</span></div>
+                    </sc-if>
+                  </div>
+                  <div style="margin-top:9px;display:flex;align-items:center;gap:8px">
+                    <span style="font-size:11px;color:#9a8f82;margin-right:2px">Try:</span>
+                    <sc-for list="{{ coverScenes }}" as="s" hint-placeholder-count="3">
+                      <button onClick="{{ onPickCover }}" data-i="{{ s.i }}" title="{{ s.name }}" style="{{ s.swatchStyle }}"></button>
+                    </sc-for>
+                    <button onClick="{{ onUploadCover }}" style="margin-left:auto;display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;color:#6a6157;background:#f4ece2;border:1px solid #e6dccf;border-radius:8px;padding:6px 10px;cursor:pointer"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>Upload</button>
+                  </div>
+                  <p style="margin:9px 0 0;font-size:11.5px;color:#9a8f82;line-height:1.45">Fills the hero on desktop &amp; mobile. Drag the <b style="color:#6a6157">focal point</b> on the preview so faces stay clear of the text.</p>
+                </div>
+                <!-- Logo -->
+                <div style="border-top:1px solid #f1e9df;padding-top:15px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px"><label style="font-size:12px;font-weight:600;color:#6a6157">Logo</label><sc-if value="{{ logoPresent }}" hint-placeholder-val="{{ true }}"><button onClick="{{ onRemoveLogo }}" style="font-size:11.5px;font-weight:600;color:#c26a5f;background:none;border:none;cursor:pointer">Remove</button></sc-if></div>
+                  <div style="display:flex;align-items:center;gap:13px">
+                    <div style="width:60px;height:60px;flex:none;border-radius:14px;background:#faf6f1;border:1px solid #eee4d8;display:flex;align-items:center;justify-content:center;overflow:hidden">{{ logoThumbNode }}</div>
+                    <div style="flex:1">
+                      <div style="display:flex;gap:7px;margin-bottom:6px">
+                        <button onClick="{{ onCycleLogo }}" style="font-size:11.5px;font-weight:600;color:#6a6157;background:#f4ece2;border:1px solid #e6dccf;border-radius:8px;padding:6px 11px;cursor:pointer">{{ logoBtnText }}</button>
+                        <sc-if value="{{ logoPresent }}" hint-placeholder-val="{{ true }}"><button onClick="{{ onCycleLogo }}" style="font-size:11.5px;font-weight:600;color:#6a6157;background:#fff;border:1px solid #e6dccf;border-radius:8px;padding:6px 11px;cursor:pointer">Try another</button></sc-if>
+                      </div>
+                      <p style="margin:0;font-size:11.5px;color:#9a8f82;line-height:1.4">Shows in the nav, hero &amp; signup. A square mark reads best.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- Brand style -->
+          <div style="background:#fff;border:1px solid #EBE3DA;border-radius:14px;overflow:hidden">
+            <button onClick="{{ onToggleBrand }}" style="width:100%;display:flex;align-items:center;gap:11px;padding:15px 16px;background:transparent;border:none;cursor:pointer;text-align:left">
+              <span style="width:30px;height:30px;border-radius:8px;background:#f4ece2;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B47A45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="13.5" cy="6.5" r="2.5"/><circle cx="17.5" cy="13" r="2.5"/><circle cx="8.5" cy="7.5" r="2.5"/><circle cx="6.5" cy="14" r="2.5"/><path d="M12 22a10 10 0 1 1 0-20 8 8 0 0 1 0 16h-1.5a1.5 1.5 0 0 0 0 3z"/></svg></span>
+              <span style="flex:1"><span style="display:block;font:700 14.5px 'Syne',sans-serif;color:#1a1a1a">Brand style</span><span style="font-size:12px;color:#9a8f82">Colors, no hex required</span></span>
+              <span style="{{ brandSwatchPreview }}"></span>
+              <svg style="{{ chevBrand }}" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b0a596" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <sc-if value="{{ openBrand }}" hint-placeholder-val="{{ true }}">
+              <div style="padding:0 16px 17px;display:flex;flex-direction:column;gap:16px">
+                <div>
+                  <div style="font-size:12px;font-weight:600;color:#6a6157;margin-bottom:9px">Pick a palette</div>
+                  <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+                    <sc-for list="{{ presets }}" as="p" hint-placeholder-count="4">
+                      <button onClick="{{ onPickPreset }}" data-i="{{ p.i }}" style="{{ p.style }}">
+                        <span style="display:flex;gap:0"><span style="width:20px;height:20px;border-radius:6px 0 0 6px;background:{{ p.primary }}"></span><span style="width:20px;height:20px;border-radius:0 6px 6px 0;background:{{ p.secondary }}"></span></span>
+                        <span style="font-size:12px;font-weight:600;color:#3a342d">{{ p.name }}</span>
+                        <sc-if value="{{ p.selected }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#2f7d5b" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" style="margin-left:auto"><path d="M20 6 9 17l-5-5"/></svg></sc-if>
+                      </button>
+                    </sc-for>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size:12px;font-weight:600;color:#6a6157;margin-bottom:9px">Fine-tune the main color</div>
+                  <div style="display:flex;gap:7px">
+                    <sc-for list="{{ primaryRamp }}" as="r" hint-placeholder-count="5">
+                      <button onClick="{{ onPickPrimary }}" data-hex="{{ r.hex }}" title="{{ r.hex }}" style="{{ r.style }}"></button>
+                    </sc-for>
+                  </div>
+                </div>
+                <div style="{{ contrastStyle }}">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px">{{ contrastIcon }}</svg>
+                  <span style="font-size:12px;line-height:1.45">{{ contrastText }}</span>
+                </div>
+                <button onClick="{{ onToggleCustom }}" style="align-self:flex-start;font-size:11.5px;font-weight:600;color:#9a8f82;background:none;border:none;cursor:pointer;padding:0">{{ customToggleText }}</button>
+                <sc-if value="{{ showCustom }}" hint-placeholder-val="{{ false }}">
+                  <div style="display:flex;gap:10px">
+                    <div style="flex:1"><label style="display:block;font-size:11px;color:#9a8f82;margin-bottom:4px">Main</label><input class="fld" value="{{ g.primary }}" onInput="{{ onPrimaryHex }}" style="width:100%;border:1px solid #e2d8cc;border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace"></div>
+                    <div style="flex:1"><label style="display:block;font-size:11px;color:#9a8f82;margin-bottom:4px">Deep</label><input class="fld" value="{{ g.secondary }}" onInput="{{ onSecondaryHex }}" style="width:100%;border:1px solid #e2d8cc;border-radius:8px;padding:8px 10px;font-size:12.5px;font-family:ui-monospace,Menlo,monospace"></div>
+                  </div>
+                </sc-if>
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- Sections -->
+          <div style="background:#fff;border:1px solid #EBE3DA;border-radius:14px;overflow:hidden">
+            <button onClick="{{ onToggleSections }}" style="width:100%;display:flex;align-items:center;gap:11px;padding:15px 16px;background:transparent;border:none;cursor:pointer;text-align:left">
+              <span style="width:30px;height:30px;border-radius:8px;background:#f4ece2;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B47A45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="7" rx="1.5"/><rect x="3" y="14" width="18" height="7" rx="1.5"/></svg></span>
+              <span style="flex:1"><span style="display:block;font:700 14.5px 'Syne',sans-serif;color:#1a1a1a">Home sections</span><span style="font-size:12px;color:#9a8f82">Amenities, hours, contact</span></span>
+              <svg style="{{ chevSections }}" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b0a596" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <sc-if value="{{ openSections }}" hint-placeholder-val="{{ true }}">
+              <div style="padding:0 16px 17px;display:flex;flex-direction:column;gap:13px">
+                <!-- Amenities -->
+                <div style="border:1px solid #f0e8de;border-radius:11px;padding:12px 13px">
+                  <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px;font-weight:600;color:#1a1a1a">Amenities</span><button onClick="{{ onToggleAmenities }}" style="{{ amenVisStyle }}">{{ amenVisText }}</button></div>
+                  <sc-if value="{{ g.amenitiesVisible }}" hint-placeholder-val="{{ true }}">
+                    <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
+                      <sc-for list="{{ g.amenities }}" as="a" hint-placeholder-count="6">
+                        <span style="display:inline-flex;align-items:center;gap:5px;background:#f4ece2;color:#8a6a4a;font-size:11.5px;font-weight:600;padding:5px 9px;border-radius:999px">{{ a }}<button onClick="{{ onRemoveAmenity }}" data-a="{{ a }}" style="background:none;border:none;cursor:pointer;color:#bfa588;padding:0;display:flex"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></span>
+                      </sc-for>
+                    </div>
+                    <div style="display:flex;gap:7px;margin-top:9px">
+                      <input class="fld" value="{{ amenityDraft }}" onInput="{{ onAmenityDraft }}" onKeydown="{{ onAmenityKey }}" placeholder="Add amenity" style="flex:1;border:1px solid #e2d8cc;border-radius:8px;padding:7px 10px;font-size:12.5px;background:#fff">
+                      <button onClick="{{ onAddAmenity }}" style="background:#D4956A;color:#fff;border:none;border-radius:8px;padding:0 13px;font-size:12.5px;font-weight:600;cursor:pointer">Add</button>
+                    </div>
+                  </sc-if>
+                </div>
+                <!-- Hours -->
+                <div style="border:1px solid #f0e8de;border-radius:11px;padding:12px 13px">
+                  <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px;font-weight:600;color:#1a1a1a">Opening hours</span><button onClick="{{ onToggleHours }}" style="{{ hoursVisStyle }}">{{ hoursVisText }}</button></div>
+                  <sc-if value="{{ g.hoursVisible }}" hint-placeholder-val="{{ true }}">
+                    <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px">
+                      <sc-for list="{{ hoursList }}" as="h" hint-placeholder-count="7">
+                        <div style="display:grid;grid-template-columns:78px 1fr;align-items:center;gap:8px"><span style="font-size:12px;color:#8a8073">{{ h.day }}</span><input class="fld" value="{{ h.value }}" onInput="{{ onHoursInput }}" data-day="{{ h.day }}" placeholder="Closed" style="border:1px solid #e2d8cc;border-radius:7px;padding:6px 9px;font-size:12px;background:#fff"></div>
+                      </sc-for>
+                    </div>
+                  </sc-if>
+                </div>
+                <!-- Contact -->
+                <div style="border:1px solid #f0e8de;border-radius:11px;padding:12px 13px">
+                  <div style="display:flex;align-items:center;justify-content:space-between"><span style="font-size:13px;font-weight:600;color:#1a1a1a">Contact &amp; social</span><button onClick="{{ onToggleContact }}" style="{{ contactVisStyle }}">{{ contactVisText }}</button></div>
+                  <sc-if value="{{ g.contactVisible }}" hint-placeholder-val="{{ true }}">
+                    <div style="margin-top:10px;display:flex;flex-direction:column;gap:8px">
+                      <input class="fld" value="{{ g.address }}" onInput="{{ onAddress }}" placeholder="Address" style="border:1px solid #e2d8cc;border-radius:8px;padding:8px 10px;font-size:12.5px;background:#fff">
+                      <input class="fld" value="{{ g.phone }}" onInput="{{ onPhone }}" placeholder="Phone" style="border:1px solid #e2d8cc;border-radius:8px;padding:8px 10px;font-size:12.5px;background:#fff">
+                      <div style="display:flex;gap:7px">
+                        <input class="fld" value="{{ g.instagram }}" onInput="{{ onInstagram }}" placeholder="Instagram" style="flex:1;min-width:0;border:1px solid #e2d8cc;border-radius:8px;padding:8px 10px;font-size:12.5px;background:#fff">
+                        <input class="fld" value="{{ g.website }}" onInput="{{ onWebsite }}" placeholder="Website" style="flex:1;min-width:0;border:1px solid #e2d8cc;border-radius:8px;padding:8px 10px;font-size:12.5px;background:#fff">
+                      </div>
+                    </div>
+                  </sc-if>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+
+          <!-- Subpages -->
+          <div style="background:#fff;border:1px solid #EBE3DA;border-radius:14px;overflow:hidden">
+            <button onClick="{{ onToggleSubpages }}" style="width:100%;display:flex;align-items:center;gap:11px;padding:15px 16px;background:transparent;border:none;cursor:pointer;text-align:left">
+              <span style="width:30px;height:30px;border-radius:8px;background:#f4ece2;display:flex;align-items:center;justify-content:center;flex:none"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B47A45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v6h6"/></svg></span>
+              <span style="flex:1"><span style="display:block;font:700 14.5px 'Syne',sans-serif;color:#1a1a1a">Subpages</span><span style="font-size:12px;color:#9a8f82">Team, pricing, location</span></span>
+              <svg style="{{ chevSubpages }}" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="#b0a596" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+            </button>
+            <sc-if value="{{ openSubpages }}" hint-placeholder-val="{{ true }}">
+              <div style="padding:0 16px 17px;display:flex;flex-direction:column;gap:13px">
+                <div style="border:1px solid #f0e8de;border-radius:11px;padding:12px 13px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px"><span style="font-size:13px;font-weight:600;color:#1a1a1a">Team <span style="font-size:10.5px;font-weight:600;color:#8a9f8f;background:#eef4ef;padding:2px 7px;border-radius:5px;margin-left:4px">Contact page</span></span><button onClick="{{ onJumpContact }}" style="font-size:11px;font-weight:600;color:#B47A45;background:none;border:none;cursor:pointer">Preview →</button></div>
+                  <div style="display:flex;flex-direction:column;gap:7px">
+                    <sc-for list="{{ g.team }}" as="m" hint-placeholder-count="3">
+                      <div style="display:flex;align-items:center;gap:9px"><span style="width:28px;height:28px;border-radius:999px;background:#f0e6da;color:#8a6a4a;font:700 12px 'Syne',sans-serif;display:flex;align-items:center;justify-content:center;flex:none">{{ m.initial }}</span><span style="flex:1;min-width:0"><span style="display:block;font-size:12.5px;font-weight:600;color:#1a1a1a;line-height:1.2">{{ m.name }}</span><span style="font-size:11px;color:#9a8f82">{{ m.role }}</span></span><button onClick="{{ onRemoveTeam }}" data-i="{{ m.i }}" style="background:none;border:none;cursor:pointer;color:#c9b39c;padding:4px"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button></div>
+                    </sc-for>
+                  </div>
+                  <button onClick="{{ onAddTeam }}" style="margin-top:9px;width:100%;border:1px dashed #dfd3c4;background:#fbf7f2;border-radius:8px;padding:8px;font-size:12px;font-weight:600;color:#8a6a4a;cursor:pointer">+ Add member</button>
+                </div>
+                <div style="border:1px solid #f0e8de;border-radius:11px;padding:12px 13px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px"><span style="font-size:13px;font-weight:600;color:#1a1a1a">Pricing <span style="font-size:10.5px;font-weight:600;color:#8a9f8f;background:#eef4ef;padding:2px 7px;border-radius:5px;margin-left:4px">Pricing page</span></span><button onClick="{{ onJumpPricing }}" style="font-size:11px;font-weight:600;color:#B47A45;background:none;border:none;cursor:pointer">Preview →</button></div>
+                  <div style="display:flex;flex-direction:column;gap:6px">
+                    <sc-for list="{{ g.pricing }}" as="p" hint-placeholder-count="3">
+                      <div style="display:flex;align-items:center;gap:9px;padding:7px 9px;background:#faf6f1;border-radius:8px"><span style="flex:1;min-width:0"><span style="font-size:12.5px;font-weight:600;color:#1a1a1a">{{ p.name }}</span><sc-if value="{{ p.is_featured }}" hint-placeholder-val="{{ false }}"><span style="font-size:9.5px;font-weight:700;color:#B47A45;margin-left:6px">POPULAR</span></sc-if></span><span style="font-size:12.5px;font-weight:700;color:#8a6a4a">{{ p.price }}</span></div>
+                    </sc-for>
+                  </div>
+                  <button onClick="{{ onAddPricing }}" style="margin-top:9px;width:100%;border:1px dashed #dfd3c4;background:#fbf7f2;border-radius:8px;padding:8px;font-size:12px;font-weight:600;color:#8a6a4a;cursor:pointer">+ Add package</button>
+                </div>
+                <div style="border:1px solid #f0e8de;border-radius:11px;padding:12px 13px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px"><span style="font-size:13px;font-weight:600;color:#1a1a1a">Location <span style="font-size:10.5px;font-weight:600;color:#8a9f8f;background:#eef4ef;padding:2px 7px;border-radius:5px;margin-left:4px">Locate page</span></span><button onClick="{{ onJumpLocate }}" style="font-size:11px;font-weight:600;color:#B47A45;background:none;border:none;cursor:pointer">Preview →</button></div>
+                  <input class="fld" value="{{ g.mapEmbedUrl }}" onInput="{{ onMapEmbed }}" placeholder="Google Maps embed URL" style="width:100%;border:1px solid #e2d8cc;border-radius:8px;padding:8px 10px;font-size:12px;background:#fff;margin-bottom:8px">
+                  <textarea class="fld" onInput="{{ onDirections }}" rows="2" placeholder="Landmarks &amp; directions" style="width:100%;border:1px solid #e2d8cc;border-radius:8px;padding:8px 10px;font-size:12px;background:#fff;resize:none;line-height:1.45">{{ g.directions }}</textarea>
+                </div>
+              </div>
+            </sc-if>
+          </div>
+
+          <p style="font-size:11px;color:#b1a698;text-align:center;line-height:1.5;margin:4px 8px 0">Layout, fonts &amp; spacing are handled by Stren — you focus on the content.</p>
+        </div>
+
+        <!-- RIGHT PREVIEW PANE -->
+        <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:#e4ddd4">
+          <!-- toolbar -->
+          <div style="padding:13px 18px;display:flex;align-items:center;gap:12px;background:#F6F1EA;border-bottom:1px solid #ece3d9">
+            <div style="display:flex;gap:3px;background:#eae1d6;padding:3px;border-radius:10px">
+              <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+                <button onClick="{{ onPickTab }}" data-tab="{{ t.key }}" style="{{ t.style }}">{{ t.label }}</button>
+              </sc-for>
+            </div>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:10px">
+              <button onClick="{{ onToggleSafe }}" style="{{ safeStyle }}" title="Toggle safe-area guide"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5" width="18" height="14" rx="2" stroke-dasharray="3 3"/></svg>Safe area</button>
+              <div style="display:flex;gap:3px;background:#eae1d6;padding:3px;border-radius:9px">
+                <button onClick="{{ onDeviceDesktop }}" style="{{ devDesktopStyle }}" title="Desktop"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/></svg></button>
+                <button onClick="{{ onDeviceMobile }}" style="{{ devMobileStyle }}" title="Mobile"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="2" width="12" height="20" rx="2.5"/><path d="M11 18h2"/></svg></button>
+              </div>
+            </div>
+          </div>
+          <!-- stage -->
+          <div class="pv-scroll" style="flex:1;min-height:0;overflow:auto;padding:22px;display:flex;justify-content:center;align-items:flex-start">
+            {{ previewNode }}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</section>
+
+
+<section style="padding:26px 56px;display:flex;flex-direction:column;gap:16px">
+  <div style="display:flex;align-items:center;gap:11px">
+    <a class="id-badge" href="#1b" style="background:#2f7d5b">1b</a>
+    <span class="sec-label">Gym Page Studio · Mobile — owner view</span>
+    <span class="sec-sub">A different shape for small screens: controls stack full-width, and a sticky <b style="color:#8a7f72">Preview</b> button lifts the live page as a drawer. Same data as 1a.</span>
+  </div>
+
+  <div id="1b" style="display:flex;gap:44px;align-items:flex-start;flex-wrap:wrap;scroll-margin-top:20px">
+
+    <!-- PHONE 1 — Edit -->
+    <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+      <div style="width:320px;flex:none;border-radius:38px;background:#1a1a1a;padding:10px;box-shadow:0 40px 80px -34px rgba(58,42,30,.55)">
+        <div style="position:relative;border-radius:30px;overflow:hidden;background:#F6F1EA;height:660px;display:flex;flex-direction:column">
+          <!-- charcoal app bar -->
+          <div style="background:#2B2B2B;padding:14px 16px;display:flex;align-items:center;gap:10px;flex:none">
+            <div style="width:30px;height:30px;border-radius:999px;background:#D4956A;display:flex;align-items:center;justify-content:center;font:800 14px 'Syne',sans-serif;color:#fff">G</div>
+            <div style="flex:1;min-width:0"><div style="font:700 13px 'Syne',sans-serif;color:#E7B187;line-height:1.1">Grove Fitness</div><div style="font-size:10px;color:#8A8A8A">Owner Panel</div></div>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#8A8A8A" stroke-width="2" stroke-linecap="round"><path d="M3 12h18M3 6h18M3 18h18"/></svg>
+          </div>
+          <!-- content -->
+          <div class="cr-scroll" style="flex:1;min-height:0;overflow-y:auto;padding:14px 13px 84px;display:flex;flex-direction:column;gap:11px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <h1 style="margin:0;font:800 19px 'Syne',sans-serif;color:#1a1a1a">Gym Page</h1>
+              <span style="{{ hdr.statusStyle }}"><span style="{{ hdr.statusDot }}"></span>{{ hdr.statusText }}</span>
+            </div>
+            <!-- compact banner -->
+            <div style="background:linear-gradient(100deg,#fbf3ea,#f7efe6);border:1px solid #ecd9c4;border-radius:12px;padding:11px 12px;display:flex;align-items:center;gap:11px">
+              <div style="width:34px;height:34px;flex:none;position:relative"><div style="{{ ringStyle }}"></div><div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font:700 10px 'Syne',sans-serif;color:#8a6a4a">{{ progressPct }}</div></div>
+              <div style="flex:1;min-width:0"><div style="font:700 12.5px 'Syne',sans-serif;color:#1a1a1a">Finish your gym page</div><div style="font-size:11px;color:#B47A45">{{ progressText }}</div></div>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#c4a98d" stroke-width="2.2" stroke-linecap="round"><path d="M9 6l6 6-6 6"/></svg>
+            </div>
+            <!-- Essentials open -->
+            <div style="background:#fff;border:1px solid #EBE3DA;border-radius:13px;padding:13px">
+              <div style="display:flex;align-items:center;gap:9px;margin-bottom:11px"><span style="width:26px;height:26px;border-radius:7px;background:#f4ece2;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B47A45" stroke-width="2" stroke-linecap="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></span><span style="flex:1;font:700 13.5px 'Syne',sans-serif">Essentials</span><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b0a596" stroke-width="2.2" stroke-linecap="round" style="transform:rotate(180deg)"><path d="M6 9l6 6 6-6"/></svg></div>
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px"><label style="font-size:11px;font-weight:600;color:#6a6157">Tagline</label><span style="font-size:10px;color:{{ taglineCountColor }}">{{ taglineCount }}</span></div>
+              <input class="fld" value="{{ g.tagline }}" onInput="{{ onTagline }}" maxlength="120" style="width:100%;border:1px solid #e2d8cc;border-radius:8px;padding:9px 11px;font-size:13px;background:#fff">
+            </div>
+            <!-- Photos row -->
+            <div style="background:#fff;border:1px solid #EBE3DA;border-radius:13px;padding:13px;display:flex;align-items:center;gap:11px">
+              <div style="width:56px;height:40px;flex:none;border-radius:9px;{{ coverThumbInline }}"></div>
+              <div style="flex:1;min-width:0"><div style="font:700 13px 'Syne',sans-serif">Photos</div><div style="font-size:11px;color:#9a8f82">Cover set · focal point ready</div></div>
+              <span style="font-size:9.5px;font-weight:700;color:#B47A45;background:#f6ece1;padding:3px 6px;border-radius:5px">START</span>
+            </div>
+            <!-- Brand row -->
+            <div style="background:#fff;border:1px solid #EBE3DA;border-radius:13px;padding:13px;display:flex;align-items:center;gap:11px">
+              <span style="width:26px;height:26px;border-radius:7px;background:#f4ece2;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B47A45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22a10 10 0 1 1 0-20 8 8 0 0 1 0 16h-1.5a1.5 1.5 0 0 0 0 3z"/><circle cx="8.5" cy="8.5" r="1.4"/><circle cx="15.5" cy="7.5" r="1.4"/><circle cx="17.5" cy="13" r="1.4"/></svg></span>
+              <span style="flex:1;font:700 13px 'Syne',sans-serif">Brand style</span>
+              <span style="{{ brandSwatchPreview }}"></span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b0a596" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <!-- Sections row -->
+            <div style="background:#fff;border:1px solid #EBE3DA;border-radius:13px;padding:13px;display:flex;align-items:center;gap:11px">
+              <span style="width:26px;height:26px;border-radius:7px;background:#f4ece2;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B47A45" stroke-width="2" stroke-linecap="round"><rect x="3" y="3" width="18" height="7" rx="1.5"/><rect x="3" y="14" width="18" height="7" rx="1.5"/></svg></span>
+              <span style="flex:1;font:700 13px 'Syne',sans-serif">Home sections</span>
+              <span style="font-size:11px;color:#9a8f82">3 shown</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b0a596" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+            <!-- Subpages row -->
+            <div style="background:#fff;border:1px solid #EBE3DA;border-radius:13px;padding:13px;display:flex;align-items:center;gap:11px">
+              <span style="width:26px;height:26px;border-radius:7px;background:#f4ece2;display:flex;align-items:center;justify-content:center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#B47A45" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h11l5 5v11a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z"/><path d="M14 4v6h6"/></svg></span>
+              <span style="flex:1;font:700 13px 'Syne',sans-serif">Subpages</span>
+              <span style="font-size:11px;color:#9a8f82">Team · Pricing · Map</span>
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#b0a596" stroke-width="2.2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>
+            </div>
+          </div>
+          <!-- sticky bottom bar -->
+          <div style="position:absolute;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #ece3d9;padding:11px 13px;display:flex;gap:9px;align-items:center">
+            <button onClick="{{ onOpenDrawer }}" style="flex:1;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:#D4956A;color:#fff;border:none;border-radius:11px;padding:13px;font:700 14px 'Inter',sans-serif;cursor:pointer"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z"/><circle cx="12" cy="12" r="3"/></svg>Preview my page</button>
+            <button onClick="{{ onSave }}" style="width:46px;height:46px;flex:none;border:1px solid #e6dccf;background:#faf6f1;border-radius:11px;cursor:pointer;color:#8a6a4a;display:flex;align-items:center;justify-content:center"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><path d="M17 21v-8H7v8M7 3v5h8"/></svg></button>
+          </div>
+          <!-- drawer -->
+          <sc-if value="{{ drawerOpen }}" hint-placeholder-val="{{ false }}">
+            <div style="position:absolute;inset:0;background:rgba(20,16,12,.5);z-index:20;animation:fadeIn .2s ease"></div>
+            <div style="position:absolute;left:0;right:0;bottom:0;height:90%;background:#e4ddd4;border-radius:20px 20px 0 0;z-index:21;display:flex;flex-direction:column;animation:drawerUp .28s cubic-bezier(.2,.8,.2,1);overflow:hidden">
+              <div style="display:flex;justify-content:center;padding:8px"><span style="width:38px;height:4px;border-radius:999px;background:#c9bdae"></span></div>
+              <div style="display:flex;align-items:center;gap:8px;padding:2px 14px 10px">
+                <span style="font:700 14px 'Syne',sans-serif;color:#1a1a1a">Live preview</span>
+                <span style="font-size:10px;color:#9a8f82;background:#efe7dd;padding:3px 8px;border-radius:6px">as members see it</span>
+                <button onClick="{{ onCloseDrawer }}" style="margin-left:auto;border:none;background:#1a1a1a;color:#fff;font:700 12px 'Inter',sans-serif;padding:7px 15px;border-radius:999px;cursor:pointer">Done</button>
+              </div>
+              <div style="display:flex;gap:5px;padding:0 12px 10px;overflow-x:auto">
+                <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+                  <button onClick="{{ onPickTab }}" data-tab="{{ t.key }}" style="{{ t.mobileStyle }}">{{ t.label }}</button>
+                </sc-for>
+              </div>
+              <div style="flex:1;min-height:0;margin:0 12px 12px;border-radius:16px;overflow:hidden;position:relative;background:#fff;box-shadow:0 10px 30px -12px rgba(40,28,18,.4)">{{ rawMobilePreview }}</div>
+            </div>
+          </sc-if>
+        </div>
+      </div>
+      <span style="font-size:12px;color:#9a8f82;font-weight:600">Edit — stacked controls + sticky Preview</span>
+    </div>
+
+    <!-- PHONE 2 — Drawer open (documented state) -->
+    <div style="display:flex;flex-direction:column;gap:12px;align-items:center">
+      <div style="width:320px;flex:none;border-radius:38px;background:#1a1a1a;padding:10px;box-shadow:0 40px 80px -34px rgba(58,42,30,.55)">
+        <div style="position:relative;border-radius:30px;overflow:hidden;background:#2b2b2b;height:660px">
+          <div style="position:absolute;inset:0;background:rgba(20,16,12,.55)"></div>
+          <div style="position:absolute;left:0;right:0;bottom:0;height:92%;background:#e4ddd4;border-radius:20px 20px 0 0;display:flex;flex-direction:column;overflow:hidden">
+            <div style="display:flex;justify-content:center;padding:9px"><span style="width:40px;height:4px;border-radius:999px;background:#c9bdae"></span></div>
+            <div style="display:flex;align-items:center;gap:8px;padding:2px 14px 10px">
+              <span style="font:700 14px 'Syne',sans-serif;color:#1a1a1a">Live preview</span>
+              <span style="font-size:10px;color:#9a8f82;background:#efe7dd;padding:3px 8px;border-radius:6px">as members see it</span>
+              <button onClick="{{ onCloseDrawer }}" style="margin-left:auto;border:none;background:#1a1a1a;color:#fff;font:700 12px 'Inter',sans-serif;padding:7px 15px;border-radius:999px;cursor:pointer">Done</button>
+            </div>
+            <div style="display:flex;gap:5px;padding:0 12px 10px;overflow-x:auto">
+              <sc-for list="{{ tabs }}" as="t" hint-placeholder-count="5">
+                <button onClick="{{ onPickTab }}" data-tab="{{ t.key }}" style="{{ t.mobileStyle }}">{{ t.label }}</button>
+              </sc-for>
+            </div>
+            <div style="flex:1;min-height:0;margin:0 12px 12px;border-radius:16px;overflow:hidden;position:relative;background:#fff;box-shadow:0 10px 30px -12px rgba(40,28,18,.4)">{{ rawMobilePreview }}</div>
+          </div>
+        </div>
+      </div>
+      <span style="font-size:12px;color:#9a8f82;font-weight:600">Preview drawer — tabs switch views, Done returns to edit</span>
+    </div>
+
+    <!-- annotations -->
+    <div style="max-width:280px;display:flex;flex-direction:column;gap:14px;padding-top:8px">
+      <div style="background:#fff;border:1px solid #EBE3DA;border-radius:12px;padding:14px 15px">
+        <div style="font:700 13px 'Syne',sans-serif;color:#1a1a1a;margin-bottom:5px">Why a drawer, not a new page</div>
+        <p style="margin:0;font-size:12.5px;color:#6a6157;line-height:1.55">Preview becomes the core loop: edit → tap <b>Preview my page</b> → see the real page → <b>Done</b> back to the same scroll spot. No context lost, no separate tab.</p>
+      </div>
+      <div style="background:#fff;border:1px solid #EBE3DA;border-radius:12px;padding:14px 15px">
+        <div style="font:700 13px 'Syne',sans-serif;color:#1a1a1a;margin-bottom:5px">One data model</div>
+        <p style="margin:0;font-size:12.5px;color:#6a6157;line-height:1.55">Type in the tagline here and it updates <a href="#1a" style="color:#B47A45;font-weight:600;text-decoration:none">1a</a> too — desktop and mobile are one component, two layouts.</p>
+      </div>
+      <div style="background:#f4ece2;border:1px solid #e6dccf;border-radius:12px;padding:14px 15px">
+        <div style="font:700 12px 'Inter',sans-serif;color:#8a6a4a;margin-bottom:4px">Try it</div>
+        <p style="margin:0;font-size:12.5px;color:#8a6a4a;line-height:1.5">Tap <b>Preview my page</b> on the left phone.</p>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<section style="padding:26px 56px 72px;display:flex;flex-direction:column;gap:16px">
+  <div style="display:flex;align-items:center;gap:11px">
+    <a class="id-badge" href="#1c" style="background:#2f7d5b">1c</a>
+    <span class="sec-label">Build spec — implementation handoff</span>
+    <span class="sec-sub">Exactly what to build, which files change, and the guardrails. Everything here is reflected live in <a href="#1a" style="color:#8a7f72;font-weight:600">1a</a>/<a href="#1b" style="color:#8a7f72;font-weight:600">1b</a>.</span>
+  </div>
+
+  <div id="1c" style="width:1080px;background:#fff;border:1px solid #EBE3DA;border-radius:18px;overflow:hidden;box-shadow:0 30px 70px -40px rgba(58,42,30,.4);scroll-margin-top:20px">
+    <div style="padding:26px 34px;border-bottom:1px solid #f0e8de;background:linear-gradient(100deg,#fbf7f2,#f6efe7)">
+      <h2 style="margin:0;font:800 26px 'Syne',sans-serif;color:#1a1a1a">Gym Page Studio</h2>
+      <p style="margin:8px 0 0;font-size:14px;color:#6a6157;line-height:1.6;max-width:760px">Replace the single long form in <code style="font:600 12.5px ui-monospace,Menlo,monospace;background:#efe7dd;padding:2px 6px;border-radius:5px">app/admin/gym-profile/page.tsx</code> with a guided, preview-first studio. The public layout stays predefined — owners make guided choices only (photos, logo, colors, copy, section visibility, publish). Keep every upload / compress / hash / storage / save path exactly as it is; this is a UI change around that logic.</p>
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0">
+
+      <!-- Component structure -->
+      <div style="padding:24px 30px;border-right:1px solid #f0e8de;border-bottom:1px solid #f0e8de">
+        <div style="font:700 12px 'Inter',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#B47A45;margin-bottom:14px">Component structure</div>
+        <pre style="margin:0;font:500 12px/1.75 ui-monospace,Menlo,monospace;color:#3a342d;white-space:pre-wrap">GymPageStudio            <span style="color:#a89a89">// client island, owns state + save</span>
+├─ GettingStartedBanner  <span style="color:#a89a89">// dismissible checklist</span>
+├─ StudioHeader          <span style="color:#a89a89">// status · save · publish</span>
+├─ ControlRail           <span style="color:#a89a89">// desktop left / mobile stack</span>
+│  ├─ EssentialsGroup
+│  ├─ PhotosGroup
+│  │  ├─ CoverField
+│  │  └─ LogoField
+│  ├─ BrandStyleGroup
+│  │  ├─ PaletteSwatches
+│  │  └─ ContrastMeter
+│  ├─ SectionsGroup      <span style="color:#a89a89">// amenities·hours·contact</span>
+│  └─ SubpagesGroup      <span style="color:#a89a89">// team·pricing·map</span>
+├─ PreviewPane
+│  ├─ PreviewToolbar     <span style="color:#a89a89">// tabs · device · safe-area</span>
+│  ├─ DeviceFrame
+│  ├─ FocalPointEditor   <span style="color:#a89a89">// overlay on hero</span>
+│  └─ <b style="color:#2f7d5b">GymLandingPreview</b>   <span style="color:#a89a89">// shared ↓</span>
+└─ MobileStudioSheet     <span style="color:#a89a89">// preview drawer</span></pre>
+      </div>
+
+      <!-- The key refactor -->
+      <div style="padding:24px 30px;border-bottom:1px solid #f0e8de">
+        <div style="font:700 12px 'Inter',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#B47A45;margin-bottom:14px">The one refactor that unlocks it</div>
+        <p style="margin:0 0 12px;font-size:13.5px;color:#4a443c;line-height:1.6">Extract the presentational body of <code style="font:600 12px ui-monospace,Menlo,monospace;background:#f2eae1;padding:1px 5px;border-radius:4px">GymLandingPage</code> (currently defined inside <code style="font:600 12px ui-monospace,Menlo,monospace;background:#f2eae1;padding:1px 5px;border-radius:4px">app/gym/[code]/page.tsx</code>) into a prop-driven component:</p>
+        <div style="background:#faf6f1;border:1px solid #efe6db;border-radius:10px;padding:14px 16px;font:500 12px/1.7 ui-monospace,Menlo,monospace;color:#3a342d">components/gym/<b style="color:#2f7d5b">GymLandingPreview.tsx</b>
+<span style="color:#a89a89">  props: { gym, view, device, focal,</span>
+<span style="color:#a89a89">          safeArea?, interactive? }</span>
+<span style="color:#a89a89">  view: 'home'|'join'|'contact'</span>
+<span style="color:#a89a89">      |'pricing'|'locate'</span></div>
+        <ul style="margin:12px 0 0;padding-left:18px;font-size:13px;color:#4a443c;line-height:1.65">
+          <li>The <b>public page</b> renders it at <code style="font:600 11.5px ui-monospace,Menlo,monospace">device</code> from viewport, <code style="font:600 11.5px ui-monospace,Menlo,monospace">interactive=false</code>.</li>
+          <li>The <b>studio preview</b> renders the same component per tab, driven by unsaved state — so what owners see is genuinely the public output, not a mock.</li>
+          <li>Reuse the same pattern for the Contact / Pricing / Locate bodies (one component keyed by <code style="font:600 11.5px ui-monospace,Menlo,monospace">view</code>, or three thin siblings).</li>
+        </ul>
+      </div>
+
+      <!-- Files to change -->
+      <div style="padding:24px 30px;border-right:1px solid #f0e8de;border-bottom:1px solid #f0e8de;grid-column:1 / -1">
+        <div style="font:700 12px 'Inter',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#B47A45;margin-bottom:14px">Files to change</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px 26px">
+          <div style="display:flex;gap:10px"><span style="font-size:10px;font-weight:700;color:#3f9d63;background:rgba(98,192,138,.14);padding:2px 7px;border-radius:5px;height:fit-content;flex:none;margin-top:2px">EDIT</span><div><code style="font:600 12px ui-monospace,Menlo,monospace;color:#1a1a1a">app/admin/gym-profile/page.tsx</code><p style="margin:2px 0 0;font-size:12px;color:#8a8073;line-height:1.5">Swap the form JSX for <code style="font-size:11px">&lt;GymPageStudio/&gt;</code>. Keep all state, upload, compress, blobHash, cleanup &amp; save handlers.</p></div></div>
+          <div style="display:flex;gap:10px"><span style="font-size:10px;font-weight:700;color:#B47A45;background:#f6ece1;padding:2px 7px;border-radius:5px;height:fit-content;flex:none;margin-top:2px">NEW</span><div><code style="font:600 12px ui-monospace,Menlo,monospace;color:#1a1a1a">components/admin/gym-studio/*</code><p style="margin:2px 0 0;font-size:12px;color:#8a8073;line-height:1.5">The tree above. Presentational; receives values + setters as props.</p></div></div>
+          <div style="display:flex;gap:10px"><span style="font-size:10px;font-weight:700;color:#B47A45;background:#f6ece1;padding:2px 7px;border-radius:5px;height:fit-content;flex:none;margin-top:2px">NEW</span><div><code style="font:600 12px ui-monospace,Menlo,monospace;color:#1a1a1a">components/gym/GymLandingPreview.tsx</code><p style="margin:2px 0 0;font-size:12px;color:#8a8073;line-height:1.5">Extracted from the public page (see left).</p></div></div>
+          <div style="display:flex;gap:10px"><span style="font-size:10px;font-weight:700;color:#3f9d63;background:rgba(98,192,138,.14);padding:2px 7px;border-radius:5px;height:fit-content;flex:none;margin-top:2px">EDIT</span><div><code style="font:600 12px ui-monospace,Menlo,monospace;color:#1a1a1a">app/gym/[code]/page.tsx</code><p style="margin:2px 0 0;font-size:12px;color:#8a8073;line-height:1.5">Render <code style="font-size:11px">&lt;GymLandingPreview/&gt;</code>; apply <code style="font-size:11px">object-position</code> from focal. Same for contact/pricing/locate pages.</p></div></div>
+          <div style="display:flex;gap:10px"><span style="font-size:10px;font-weight:700;color:#3f9d63;background:rgba(98,192,138,.14);padding:2px 7px;border-radius:5px;height:fit-content;flex:none;margin-top:2px">EDIT</span><div><code style="font:600 12px ui-monospace,Menlo,monospace;color:#1a1a1a">lib/brand-color.ts</code><p style="margin:2px 0 0;font-size:12px;color:#8a8073;line-height:1.5">Add <code style="font-size:11px">contrastRatio()</code> &amp; <code style="font-size:11px">generatePalette(base)</code> (ramp + suggested pairings). <code style="font-size:11px">brandColorVars</code> stays.</p></div></div>
+          <div style="display:flex;gap:10px"><span style="font-size:10px;font-weight:700;color:#B47A45;background:#f6ece1;padding:2px 7px;border-radius:5px;height:fit-content;flex:none;margin-top:2px">MIGRATION</span><div><code style="font:600 12px ui-monospace,Menlo,monospace;color:#1a1a1a">supabase/migrations/NNN_gym_cover_focal.sql</code><p style="margin:2px 0 0;font-size:12px;color:#8a8073;line-height:1.5">Add <code style="font-size:11px">cover_focal jsonb default '{"x":50,"y":50}'</code>; surface in <code style="font-size:11px">get_gym_by_code</code>; update <code style="font-size:11px">lib/database.types.ts</code>.</p></div></div>
+        </div>
+      </div>
+
+      <!-- States -->
+      <div style="padding:24px 30px;border-right:1px solid #f0e8de;border-bottom:1px solid #f0e8de">
+        <div style="font:700 12px 'Inter',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#B47A45;margin-bottom:12px">UI states to handle</div>
+        <ul style="margin:0;padding-left:18px;font-size:13px;color:#4a443c;line-height:1.7">
+          <li><b>Empty</b> — no cover / logo / tagline → dashed add-affordance + checklist nudge</li>
+          <li><b>Uploading</b> — spinner on the field, Save disabled (existing flag)</li>
+          <li><b>Dirty → Saving → Saved</b> — header reflects each; autosave optional</li>
+          <li><b>Published vs Hidden</b> — publish gated on tagline (existing rule)</li>
+          <li><b>Low contrast</b> — warn + suggest a deeper shade</li>
+          <li><b>Section hidden</b> — toggle removes it from the live preview</li>
+          <li><b>Focal editing</b> — drag dot; arrow keys nudge 1%</li>
+          <li><b>Drawer open/closed</b> (mobile)</li>
+        </ul>
+      </div>
+
+      <!-- Responsive + a11y -->
+      <div style="padding:24px 30px;border-bottom:1px solid #f0e8de">
+        <div style="font:700 12px 'Inter',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#B47A45;margin-bottom:12px">Responsive &amp; accessibility</div>
+        <ul style="margin:0;padding-left:18px;font-size:13px;color:#4a443c;line-height:1.7">
+          <li><b>≥1024px</b> — two-pane (rail + sticky preview), layout <a href="#1a" style="color:#B47A45;font-weight:600;text-decoration:none">1a</a></li>
+          <li><b>&lt;1024px</b> — stacked controls + sticky Preview drawer, layout <a href="#1b" style="color:#B47A45;font-weight:600;text-decoration:none">1b</a></li>
+          <li>All toggles are real <code style="font-size:11px">role="switch"</code> buttons with labels</li>
+          <li>Focal point keyboard-operable; announces X/Y %</li>
+          <li>Safe-area guide guarantees hero text never overlaps busy photo regions</li>
+          <li>Colors ship only when contrast passes; alt text from gym name</li>
+        </ul>
+      </div>
+
+      <!-- Guardrails + tests -->
+      <div style="padding:24px 30px;grid-column:1 / -1;background:#faf7f3">
+        <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:30px">
+          <div>
+            <div style="font:700 12px 'Inter',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#c26a5f;margin-bottom:12px">Guardrails — do NOT add</div>
+            <p style="margin:0;font-size:13px;color:#4a443c;line-height:1.7">No freeform canvas, drag-to-reorder, font/spacing controls, arbitrary section ordering, or nav/checkout editing. Owners can't break the layout — that's the point. This is Notion / Wix-ADI confidence, not a website builder. Preserve the Supabase media-path flow (hashed filenames, versioned cleanup) verbatim.</p>
+          </div>
+          <div>
+            <div style="font:700 12px 'Inter',sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#B47A45;margin-bottom:12px">Tests</div>
+            <ul style="margin:0;padding-left:18px;font-size:13px;color:#4a443c;line-height:1.7">
+              <li>Extend <code style="font-size:11px">tests/e2e/admin-gym-preview.spec.ts</code>: studio loads, tabs switch, publish gated on tagline</li>
+              <li>Unit: <code style="font-size:11px">contrastRatio</code>, focal clamp/normalize, <code style="font-size:11px">generatePalette</code></li>
+            </ul>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <p style="max-width:1080px;font-size:12.5px;color:#b1a698;line-height:1.6;margin:4px 0 0">Prototype note: cover photos here are generated placeholders so focal-point cropping is visible offline; in production the owner's uploaded image flows through the existing compress/hash pipeline unchanged.</p>
+</section>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = {
+    bannerDismissed: false,
+    open: { essentials: true, photos: true, brand: false, sections: false, subpages: false },
+    previewTab: 'home',
+    previewDevice: 'desktop',
+    showSafeArea: true,
+    focalEditing: false,
+    dirty: false,
+    saving: false,
+    saved: true,
+    showCustom: false,
+    drawerOpen: false,
+    coverIndex: 0,
+    coverPresent: true,
+    logoStyle: 1,
+    amenityDraft: '',
+    gym: {
+      name: 'Grove Fitness',
+      code: 'grove-fitness',
+      tagline: 'Strength, community, and a room that feels good to train in.',
+      description: 'Grove is a boutique strength & conditioning studio in Northcote. Small classes, unhurried coaching, and a light-filled room that makes showing up the easy part.',
+      primary: '#2F7D5B',
+      secondary: '#24302B',
+      seedPrimary: '#2F7D5B',
+      seedSecondary: '#24302B',
+      focal: { x: 62, y: 38 },
+      amenities: ['Free weights', 'Squat racks', 'Cardio deck', 'Sauna', 'Recovery lounge', 'Group classes'],
+      amenitiesVisible: true,
+      hours: { Monday: '5:00 AM – 10:00 PM', Tuesday: '5:00 AM – 10:00 PM', Wednesday: '5:00 AM – 10:00 PM', Thursday: '5:00 AM – 10:00 PM', Friday: '5:00 AM – 9:00 PM', Saturday: '7:00 AM – 6:00 PM', Sunday: '8:00 AM – 4:00 PM' },
+      hoursVisible: true,
+      address: '48 Ruckers Lane, Northcote VIC',
+      phone: '(03) 9482 1130',
+      instagram: '@grovefitness',
+      website: 'grovefitness.co',
+      contactVisible: true,
+      memberCount: 214,
+      team: [
+        { name: 'Maya Ellis', role: 'Head Coach', bio: 'Strength & conditioning, 12 years. Believes good form beats heavy ego.' },
+        { name: 'Theo Nguyen', role: 'Mobility Coach', bio: 'Ex-physio. Keeps you moving well for the long run.' },
+        { name: 'Priya Raman', role: 'Community Lead', bio: 'Runs the socials, the challenges, and the coffee.' },
+      ],
+      pricing: [
+        { name: 'Off-Peak', price: '$29', duration: 'per week', features: ['Access 6am–4pm weekdays', 'All group classes', 'Free intro session'], is_featured: false },
+        { name: 'Full Access', price: '$39', duration: 'per week', features: ['24/7 gym access', 'Unlimited classes', 'Recovery lounge & sauna', 'Bring a friend Fridays'], is_featured: true },
+        { name: 'Annual', price: '$1,490', duration: 'per year', features: ['Everything in Full Access', '2 months free', 'Priority class booking'], is_featured: false },
+      ],
+      mapEmbedUrl: '',
+      directions: "Two minutes from Northcote station — head up Ruckers Lane, we're the roller door with the green sign. Street parking on High St after 6pm.",
+      published: true,
+    },
+  };
+
+  COVER_SCENES = [
+    { name: 'Warm floods', bg: 'radial-gradient(120% 82% at 72% 20%, rgba(255,216,150,.9), rgba(255,196,120,0) 46%), radial-gradient(95% 75% at 18% 92%, rgba(28,20,15,.92), rgba(28,20,15,0) 55%), linear-gradient(135deg,#7a5237 0%,#3d2b20 55%,#241a13 100%)' },
+    { name: 'Cool morning', bg: 'radial-gradient(120% 80% at 24% 18%, rgba(196,224,255,.85), rgba(196,224,255,0) 48%), radial-gradient(92% 82% at 84% 92%, rgba(10,16,28,.94), rgba(10,16,28,0) 55%), linear-gradient(140deg,#41597a 0%,#22324a 55%,#131c29 100%)' },
+    { name: 'Green calm', bg: 'radial-gradient(120% 80% at 60% 22%, rgba(214,240,214,.85), rgba(214,240,214,0) 50%), radial-gradient(100% 82% at 16% 94%, rgba(14,26,20,.92), rgba(14,26,20,0) 55%), linear-gradient(135deg,#4d6f58 0%,#2b4234 55%,#18261e 100%)' },
+  ];
+
+  // ---------- color helpers ----------
+  _clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+  _hexToRgb(hex) { const h = (hex || '#000').replace('#', ''); const n = h.length === 3 ? h.split('').map(c => c + c).join('') : h; return [parseInt(n.slice(0, 2), 16) || 0, parseInt(n.slice(2, 4), 16) || 0, parseInt(n.slice(4, 6), 16) || 0]; }
+  _rgbToHex(r, g, b) { const t = x => this._clamp(Math.round(x), 0, 255).toString(16).padStart(2, '0'); return '#' + t(r) + t(g) + t(b); }
+  _shade(hex, pct) { const [r, g, b] = this._hexToRgb(hex); if (pct >= 0) { return this._rgbToHex(r + (255 - r) * pct, g + (255 - g) * pct, b + (255 - b) * pct); } const f = 1 + pct; return this._rgbToHex(r * f, g * f, b * f); }
+  _alpha(hex, a) { const [r, g, b] = this._hexToRgb(hex); return `rgba(${r},${g},${b},${a})`; }
+  _lum(hex) { const c = this._hexToRgb(hex).map(v => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; }
+  _contrast(a, b) { const l1 = this._lum(a), l2 = this._lum(b); return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05); }
+  _ramp(hex) { return [this._shade(hex, 0.34), this._shade(hex, 0.16), hex, this._shade(hex, -0.18), this._shade(hex, -0.36)]; }
+  _eq(a, b) { return (a || '').toLowerCase() === (b || '').toLowerCase(); }
+
+  // ---------- mutation ----------
+  _setGym(patch) { this.setState(s => ({ gym: { ...s.gym, ...patch }, dirty: true, saved: false })); }
+  _dirty(extra) { this.setState({ dirty: true, saved: false, ...(extra || {}) }); }
+
+  // ---------- handlers ----------
+  onNoop = (e) => { if (e && e.preventDefault) e.preventDefault(); };
+  onDismissBanner = () => this.setState({ bannerDismissed: true });
+  onToggleEssentials = () => this.setState(s => ({ open: { ...s.open, essentials: !s.open.essentials } }));
+  onTogglePhotos = () => this.setState(s => ({ open: { ...s.open, photos: !s.open.photos } }));
+  onToggleBrand = () => this.setState(s => ({ open: { ...s.open, brand: !s.open.brand } }));
+  onToggleSections = () => this.setState(s => ({ open: { ...s.open, sections: !s.open.sections } }));
+  onToggleSubpages = () => this.setState(s => ({ open: { ...s.open, subpages: !s.open.subpages } }));
+
+  onTagline = (e) => this._setGym({ tagline: e.target.value });
+  onDescription = (e) => this._setGym({ description: e.target.value });
+  onTogglePublish = () => {
+    const g = this.state.gym;
+    if (!g.published && !g.tagline.trim()) return;
+    this.setState(s => ({ gym: { ...s.gym, published: !s.gym.published }, dirty: true, saved: false }));
+  };
+
+  onPickCover = (e) => { const i = parseInt(e.currentTarget.dataset.i, 10); this.setState(s => ({ coverIndex: i, coverPresent: true, dirty: true, saved: false })); };
+  onUploadCover = (e) => { const i = ((this.state.coverIndex + 1) % this.COVER_SCENES.length); this.setState(s => ({ coverIndex: i, coverPresent: true, dirty: true, saved: false })); };
+  onRemoveCover = () => this.setState({ coverPresent: false, dirty: true, saved: false, focalEditing: false });
+  onAdjustFocal = () => this.setState(s => ({ focalEditing: !s.focalEditing, previewTab: 'home' }));
+  onDoneFocal = () => this.setState({ focalEditing: false });
+  onCycleLogo = () => this.setState(s => ({ logoStyle: (s.logoStyle + 1) % 3, dirty: true, saved: false }));
+  onRemoveLogo = () => this.setState({ logoStyle: -1, dirty: true, saved: false });
+
+  onPickPreset = (e) => { const i = parseInt(e.currentTarget.dataset.i, 10); const p = this._presets()[i]; this._setGym({ primary: p.primary, secondary: p.secondary, seedPrimary: p.primary, seedSecondary: p.secondary }); };
+  onPickPrimary = (e) => { this._setGym({ primary: e.currentTarget.dataset.hex }); };
+  onToggleCustom = () => this.setState(s => ({ showCustom: !s.showCustom }));
+  onPrimaryHex = (e) => this._setGym({ primary: e.target.value });
+  onSecondaryHex = (e) => this._setGym({ secondary: e.target.value });
+
+  onToggleAmenities = () => this._setGym({ amenitiesVisible: !this.state.gym.amenitiesVisible });
+  onToggleHours = () => this._setGym({ hoursVisible: !this.state.gym.hoursVisible });
+  onToggleContact = () => this._setGym({ contactVisible: !this.state.gym.contactVisible });
+  onAmenityDraft = (e) => this.setState({ amenityDraft: e.target.value });
+  onAmenityKey = (e) => { if (e.key === 'Enter') { e.preventDefault(); this.onAddAmenity(); } };
+  onAddAmenity = () => { const v = this.state.amenityDraft.trim(); if (!v || this.state.gym.amenities.includes(v)) { this.setState({ amenityDraft: '' }); return; } this.setState(s => ({ gym: { ...s.gym, amenities: [...s.gym.amenities, v] }, amenityDraft: '', dirty: true, saved: false })); };
+  onRemoveAmenity = (e) => { const a = e.currentTarget.dataset.a; this._setGym({ amenities: this.state.gym.amenities.filter(x => x !== a) }); };
+  onHoursInput = (e) => { const day = e.target.dataset.day; this._setGym({ hours: { ...this.state.gym.hours, [day]: e.target.value } }); };
+  onAddress = (e) => this._setGym({ address: e.target.value });
+  onPhone = (e) => this._setGym({ phone: e.target.value });
+  onInstagram = (e) => this._setGym({ instagram: e.target.value });
+  onWebsite = (e) => this._setGym({ website: e.target.value });
+  onMapEmbed = (e) => this._setGym({ mapEmbedUrl: e.target.value });
+  onDirections = (e) => this._setGym({ directions: e.target.value });
+
+  onAddTeam = () => this._setGym({ team: [...this.state.gym.team, { name: 'New coach', role: 'Coach', bio: '' }] });
+  onRemoveTeam = (e) => { const i = parseInt(e.currentTarget.dataset.i, 10); this._setGym({ team: this.state.gym.team.filter((_, idx) => idx !== i) }); };
+  onAddPricing = () => this._setGym({ pricing: [...this.state.gym.pricing, { name: 'New package', price: '$0', duration: 'per week', features: [], is_featured: false }] });
+
+  onPickTab = (e) => this.setState({ previewTab: e.currentTarget.dataset.tab, focalEditing: false });
+  onDeviceDesktop = () => this.setState({ previewDevice: 'desktop' });
+  onDeviceMobile = () => this.setState({ previewDevice: 'mobile' });
+  onToggleSafe = () => this.setState(s => ({ showSafeArea: !s.showSafeArea }));
+  onChecklistJump = (e) => {
+    const k = e.currentTarget.dataset.k;
+    const map = { cover: 'photos', logo: 'photos', tagline: 'essentials', contact: 'sections', cta: 'essentials' };
+    const grp = map[k] || 'essentials';
+    this.setState(s => ({ open: { ...s.open, [grp]: true } }));
+  };
+  onJumpContact = () => this.setState({ previewTab: 'contact' });
+  onJumpPricing = () => this.setState({ previewTab: 'pricing' });
+  onJumpLocate = () => this.setState({ previewTab: 'locate' });
+  onOpenDrawer = () => this.setState({ drawerOpen: true });
+  onCloseDrawer = () => this.setState({ drawerOpen: false });
+
+  onSave = () => {
+    if (!this.state.dirty || this.state.saving) return;
+    this.setState({ saving: true });
+    clearTimeout(this._saveT);
+    this._saveT = setTimeout(() => this.setState({ saving: false, dirty: false, saved: true }), 900);
+  };
+
+  // ---------- focal drag ----------
+  _updateFocal(e) {
+    const el = this._heroEl; if (!el) return;
+    const r = el.getBoundingClientRect();
+    const x = this._clamp(((e.clientX - r.left) / r.width) * 100, 0, 100);
+    const y = this._clamp(((e.clientY - r.top) / r.height) * 100, 0, 100);
+    this._setGym({ focal: { x: Math.round(x), y: Math.round(y) } });
+  }
+  _onHeroDown = (e) => { this._heroEl = e.currentTarget; try { e.currentTarget.setPointerCapture(e.pointerId); } catch (x) {} this.setState({ focalDragging: true }); this._updateFocal(e); };
+  _onHeroMove = (e) => { if (this.state.focalDragging) this._updateFocal(e); };
+  _onHeroUp = (e) => { this.setState({ focalDragging: false }); };
+
+  _presets() {
+    return [
+      { name: 'Grove', primary: '#2F7D5B', secondary: '#24302B' },
+      { name: 'Terracotta', primary: '#C1653F', secondary: '#2B211C' },
+      { name: 'Ocean', primary: '#2C6E8F', secondary: '#1B2932' },
+      { name: 'Ember', primary: '#B0473C', secondary: '#2A1E1C' },
+    ];
+  }
+
+  _checklistDefs() {
+    const g = this.state.gym;
+    return [
+      { key: 'cover', label: 'Cover photo', done: this.state.coverPresent },
+      { key: 'logo', label: 'Logo', done: this.state.logoStyle >= 0 },
+      { key: 'tagline', label: 'Tagline', done: g.tagline.trim().length > 0 },
+      { key: 'contact', label: 'Contact info', done: !!(g.address.trim() || g.phone.trim()) },
+      { key: 'cta', label: 'Join button', done: true },
+    ];
+  }
+
+  // ---------- logo mark ----------
+  _logoMark(size) {
+    const g = this.state.gym; const h = React.createElement; const s = this.state.logoStyle;
+    if (s < 0) return null;
+    const fs = Math.round(size * 0.42);
+    if (s === 0) return h('div', { style: { width: size, height: size, borderRadius: Math.round(size * 0.28), background: g.primary, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', font: `800 ${fs}px 'Syne',sans-serif` } }, 'G');
+    if (s === 1) return h('div', { style: { width: size, height: size, borderRadius: 999, background: g.secondary, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', font: `800 ${Math.round(size * 0.34)}px 'Syne',sans-serif`, letterSpacing: '-.02em' } }, 'GF');
+    return h('div', { style: { width: size, height: size, borderRadius: 999, border: `${Math.max(2, size * 0.06)}px solid ${g.primary}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: g.primary, font: `800 ${fs}px 'Syne',sans-serif` } }, 'G');
+  }
+
+  // ---------- svg icon ----------
+  _icon(name, size, stroke) {
+    const h = React.createElement; const P = { mapPin: ['M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 1 1 18 0z', 'circle:12,10,3'], phone: ['M22 16.9v3a2 2 0 0 1-2.2 2 19.8 19.8 0 0 1-8.6-3.1 19.5 19.5 0 0 1-6-6A19.8 19.8 0 0 1 2.1 4.2 2 2 0 0 1 4.1 2h3a2 2 0 0 1 2 1.7c.1 1 .4 1.9.7 2.8a2 2 0 0 1-.5 2.1L8.1 9.9a16 16 0 0 0 6 6l1.3-1.3a2 2 0 0 1 2.1-.4c.9.3 1.8.6 2.8.7a2 2 0 0 1 1.8 2z'], globe: ['M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z', 'M2 12h20', 'M12 2a15 15 0 0 1 0 20 15 15 0 0 1 0-20z'], instagram: ['rect:2,2,20,20,5', 'circle:12,12,4', 'M17.5 6.5h.01'], facebook: ['M18 2h-3a5 5 0 0 0-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 0 1 1-1h3z'], check: ['M20 6 9 17l-5-5'], arrow: ['M5 12h14', 'M13 5l7 7-7 7'] };
+    const parts = P[name] || []; const kids = parts.map((p, i) => {
+      if (p.startsWith('circle:')) { const [cx, cy, r] = p.slice(7).split(','); return h('circle', { key: i, cx, cy, r }); }
+      if (p.startsWith('rect:')) { const [x, y, w, hh, rx] = p.slice(5).split(','); return h('rect', { key: i, x, y, width: w, height: hh, rx }); }
+      return h('path', { key: i, d: p });
+    });
+    return h('svg', { width: size, height: size, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: stroke || 2, strokeLinecap: 'round', strokeLinejoin: 'round' }, kids);
+  }
+
+  // ---------- preview building blocks ----------
+  _coverStyle(extra) {
+    const g = this.state.gym;
+    if (!this.state.coverPresent) return { background: `linear-gradient(140deg, ${g.secondary}, ${this._shade(g.primary, -0.15)}, ${g.primary})`, ...(extra || {}) };
+    return { backgroundImage: this.COVER_SCENES[this.state.coverIndex].bg, backgroundSize: '185%', backgroundPosition: `${g.focal.x}% ${g.focal.y}%`, backgroundRepeat: 'no-repeat', ...(extra || {}) };
+  }
+
+  _focalOverlay(device) {
+    if (!['home', 'join'].includes(this.state.previewTab)) return null;
+    if (!this.state.coverPresent) return null;
+    const h = React.createElement; const g = this.state.gym;
+    const editing = this.state.focalEditing;
+    const showSafe = this.state.showSafeArea || editing;
+    const kids = [];
+    // interaction layer
+    kids.push(h('div', {
+      key: 'lay',
+      onPointerDown: this._onHeroDown, onPointerMove: this._onHeroMove, onPointerUp: this._onHeroUp,
+      style: { position: 'absolute', inset: 0, zIndex: editing ? 40 : 6, cursor: editing ? 'crosshair' : 'default', touchAction: 'none', background: editing ? 'rgba(0,0,0,.18)' : 'transparent' },
+    }));
+    if (showSafe) {
+      const safe = device === 'mobile'
+        ? { left: '8%', right: '8%', bottom: '6%', top: '46%' }
+        : { left: '4%', right: '46%', bottom: '10%', top: '34%' };
+      kids.push(h('div', { key: 'safe', style: { position: 'absolute', ...safe, border: '1.5px dashed rgba(255,255,255,.85)', borderRadius: 10, zIndex: editing ? 41 : 7, pointerEvents: 'none', boxShadow: '0 0 0 100vmax rgba(0,0,0,0)' } },
+        h('span', { style: { position: 'absolute', top: -9, left: 8, background: 'rgba(0,0,0,.6)', color: '#fff', font: "600 9px 'Inter',sans-serif", letterSpacing: '.08em', textTransform: 'uppercase', padding: '2px 6px', borderRadius: 4 } }, 'Text sits here')));
+    }
+    // focal dot
+    kids.push(h('div', { key: 'dot', style: { position: 'absolute', left: `${g.focal.x}%`, top: `${g.focal.y}%`, transform: 'translate(-50%,-50%)', zIndex: editing ? 42 : 8, pointerEvents: 'none', transition: this.state.focalDragging ? 'none' : 'left .12s,top .12s' } },
+      h('div', { style: { width: 26, height: 26, borderRadius: 999, border: '2.5px solid #fff', boxShadow: '0 0 0 2px rgba(0,0,0,.35), 0 2px 8px rgba(0,0,0,.4)', display: 'flex', alignItems: 'center', justifyContent: 'center' } },
+        h('div', { style: { width: 6, height: 6, borderRadius: 999, background: '#fff' } }))));
+    if (editing) {
+      kids.push(h('div', { key: 'cap', style: { position: 'absolute', left: '50%', top: 14, transform: 'translateX(-50%)', zIndex: 43, display: 'flex', gap: 10, alignItems: 'center', background: 'rgba(20,16,12,.82)', backdropFilter: 'blur(6px)', color: '#fff', padding: '7px 8px 7px 14px', borderRadius: 999, font: "500 12px 'Inter',sans-serif", whiteSpace: 'nowrap' } },
+        'Drag to set the focal point',
+        h('button', { onClick: this.onDoneFocal, style: { border: 'none', background: '#fff', color: '#1a1a1a', font: "700 12px 'Inter',sans-serif", padding: '5px 12px', borderRadius: 999, cursor: 'pointer' } }, 'Done')));
+    }
+    return kids;
+  }
+
+  _btn(label, kind, primary, secondary, full) {
+    const h = React.createElement;
+    const base = { display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '13px 26px', borderRadius: 12, font: "700 13px 'Inter',sans-serif", letterSpacing: '.12em', textTransform: 'uppercase', cursor: 'pointer', border: 'none', width: full ? '100%' : 'auto' };
+    if (kind === 'solid') return h('div', { style: { ...base, background: primary, color: '#fff' } }, label);
+    return h('div', { style: { ...base, background: 'rgba(0,0,0,.24)', color: '#fff', border: '1px solid rgba(255,255,255,.45)' } }, label);
+  }
+
+  _eyebrow(text, color) { return React.createElement('p', { style: { margin: 0, font: "700 11px 'Inter',sans-serif", letterSpacing: '.22em', textTransform: 'uppercase', color } }, text); }
+
+  _topNav(g) {
+    const h = React.createElement;
+    return h('div', { style: { position: 'sticky', top: 0, zIndex: 20, background: 'linear-gradient(to bottom, rgba(0,0,0,.55), rgba(0,0,0,.18))', borderBottom: '1px solid rgba(255,255,255,.1)', display: 'flex', alignItems: 'center', gap: 12, padding: '11px 20px' } },
+      h('span', { style: { font: "500 11px 'Inter',sans-serif", letterSpacing: '.16em', textTransform: 'uppercase', color: 'rgba(255,255,255,.9)', flex: 'none' } }, g.name),
+      h('div', { style: { marginLeft: 'auto', display: 'flex', gap: 4 } }, ['Home', 'Contact', 'Pricing', 'Locate Us'].map(l => h('span', { key: l, style: { font: "500 12px 'Inter',sans-serif", color: 'rgba(255,255,255,.72)', padding: '6px 11px', borderRadius: 999 } }, l))),
+      h('div', { style: { background: g.secondary, color: '#fff', font: "700 12px 'Inter',sans-serif", padding: '7px 16px', borderRadius: 999 } }, 'Join'));
+  }
+
+  // ---------- HOME ----------
+  _renderHome(device) {
+    const h = React.createElement; const g = this.state.gym; const P = g.primary, S = g.secondary, PD = this._shade(P, -0.15);
+    if (device === 'mobile') {
+      return h('div', { style: { position: 'relative', minHeight: 720, display: 'flex', flexDirection: 'column', overflow: 'hidden', color: '#fff' } },
+        h('div', { ref: el => this._heroEl = el, style: { position: 'absolute', inset: 0, ...this._coverStyle() } }),
+        h('div', { style: { position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,.28) 0%, rgba(0,0,0,.15) 40%, rgba(0,0,0,.78) 78%, rgba(0,0,0,.94) 100%)' } }),
+        this._focalOverlay('mobile'),
+        h('div', { style: { position: 'relative', zIndex: 10, display: 'flex', justifyContent: 'center', paddingTop: 46 } }, this._logoMark(58) || h('div', { style: { width: 58, height: 58, borderRadius: 18, background: P, display: 'flex', alignItems: 'center', justifyContent: 'center', font: "800 26px 'Syne',sans-serif" } }, g.name.charAt(0))),
+        h('div', { style: { position: 'relative', zIndex: 10, flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '0 26px' } },
+          this._eyebrow('Personal Training', 'rgba(255,255,255,.85)'),
+          h('h1', { style: { margin: '10px 0 0', font: "800 40px 'Syne',sans-serif", lineHeight: 1.02 } }, g.name),
+          g.tagline ? h('p', { style: { margin: '14px 0 0', font: "400 16px 'Inter',sans-serif", color: 'rgba(255,255,255,.82)', maxWidth: 280, lineHeight: 1.5 } }, g.tagline) : null),
+        h('div', { style: { position: 'relative', zIndex: 10, padding: '0 24px 40px', display: 'flex', flexDirection: 'column', gap: 12 } },
+          this._btn('Create Account', 'solid', P, S, true),
+          this._btn('Log In', 'ghost', P, S, true),
+          h('div', { style: { textAlign: 'center', font: "500 12px 'Inter',sans-serif", color: 'rgba(255,255,255,.7)', marginTop: 4 } }, 'Back to Stren')));
+    }
+    // desktop
+    return h('div', { style: { background: '#fff', color: '#1a1a1a' } },
+      this._topNav(g),
+      h('header', { style: { position: 'relative', minHeight: 540, overflow: 'hidden', marginTop: -49 } },
+        h('div', { ref: el => this._heroEl = el, style: { position: 'absolute', inset: 0, ...this._coverStyle() } }),
+        h('div', { style: { position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0), rgba(0,0,0,.66))' } }),
+        this._focalOverlay('desktop'),
+        h('div', { style: { position: 'relative', zIndex: 10, minHeight: 540, display: 'flex', alignItems: 'flex-end', pointerEvents: 'none' } },
+          h('div', { style: { padding: '0 52px 60px', maxWidth: 720 } },
+            this._logoMark(56) ? h('div', { style: { marginBottom: 20 } }, this._logoMark(56)) : null,
+            h('h1', { style: { margin: 0, font: "800 62px 'Syne',sans-serif", color: '#fff', lineHeight: 0.98, letterSpacing: '-.01em' } }, g.name),
+            g.tagline ? h('p', { style: { margin: '14px 0 0', font: "400 21px 'Inter',sans-serif", color: 'rgba(255,255,255,.82)', maxWidth: 520 } }, g.tagline) : null,
+            h('div', { style: { marginTop: 30, display: 'flex', gap: 12 } }, this._btn('Join ' + g.name, 'solid', P, S), this._btn('Login', 'ghost', P, S))))),
+      // About
+      g.description ? h('section', { style: { padding: '64px 52px' } },
+        h('div', { style: { display: 'grid', gridTemplateColumns: g.contactVisible ? '1.6fr 1fr' : '1fr', gap: 40, maxWidth: 940 } },
+          h('div', {}, this._eyebrow('About', P), h('h2', { style: { margin: '14px 0 0', font: "700 34px 'Syne',sans-serif" } }, 'Our Story'), h('p', { style: { margin: '18px 0 0', font: "400 17px 'Inter',sans-serif", lineHeight: 1.65, color: '#595959' } }, g.description)),
+          g.contactVisible ? h('div', {}, this._eyebrow('Contact', P), h('div', { style: { marginTop: 18, display: 'flex', flexDirection: 'column', gap: 15 } },
+            g.address ? h('div', { style: { display: 'flex', gap: 11, color: P } }, this._icon('mapPin', 18), h('span', { style: { font: "400 14px 'Inter',sans-serif", color: '#595959', lineHeight: 1.5 } }, g.address)) : null,
+            g.phone ? h('div', { style: { display: 'flex', gap: 11, color: P } }, this._icon('phone', 18), h('span', { style: { font: "400 14px 'Inter',sans-serif", color: '#595959' } }, g.phone)) : null)) : null)) : null,
+      // Amenities
+      (g.amenitiesVisible && g.amenities.length) ? h('section', { style: { padding: '58px 52px', background: '#faf7f3' } },
+        this._eyebrow('What We Offer', P), h('h2', { style: { margin: '14px 0 0', font: "700 34px 'Syne',sans-serif" } }, 'Amenities'),
+        h('div', { style: { marginTop: 30, display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12 } }, g.amenities.map(a => h('div', { key: a, style: { background: '#fff', border: '1px solid #eee4d8', borderRadius: 16, padding: 18 } }, h('div', { style: { width: 10, height: 10, borderRadius: 3, background: P } }), h('p', { style: { margin: '12px 0 0', font: "600 14px 'Inter',sans-serif" } }, a))))) : null,
+      // Hours
+      g.hoursVisible ? h('section', { style: { padding: '58px 52px' } },
+        this._eyebrow('Hours', P), h('h2', { style: { margin: '14px 0 0', font: "700 34px 'Syne',sans-serif" } }, 'Open Every Day'),
+        h('div', { style: { marginTop: 30, display: 'grid', gridTemplateColumns: 'repeat(7,1fr)', gap: 10 } }, ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => { const v = g.hours[d] || 'Closed'; const closed = v === 'Closed'; return h('div', { key: d, style: { border: '1px solid #eee4d8', borderRadius: 14, padding: '16px 8px', textAlign: 'center', opacity: closed ? 0.5 : 1 } }, h('p', { style: { margin: 0, font: "500 10px 'Inter',sans-serif", letterSpacing: '.14em', textTransform: 'uppercase', color: '#8f8f8f' } }, d.slice(0, 3)), h('p', { style: { margin: '6px 0 0', font: "600 12px 'Inter',sans-serif", color: '#1a1a1a' } }, v)); }))) : null,
+      // CTA
+      h('section', { style: { padding: '76px 52px', textAlign: 'center', background: `linear-gradient(130deg, ${S}, ${P})` } },
+        h('h2', { style: { margin: 0, font: "800 42px 'Syne',sans-serif", color: '#fff' } }, 'Ready to start?'),
+        h('p', { style: { margin: '12px 0 0', font: "400 18px 'Inter',sans-serif", color: 'rgba(255,255,255,.82)' } }, 'Join ' + g.name + ' today.'),
+        h('div', { style: { marginTop: 30, display: 'flex', gap: 12, justifyContent: 'center' } }, this._btn('Join ' + g.name, 'solid', '#ffffff', S), this._btn('Login', 'ghost', P, S))));
+  }
+
+  _wrapFrameContent(node) { return node; }
+
+  // ---------- JOIN ----------
+  _renderJoin(device) {
+    const h = React.createElement; const g = this.state.gym; const P = g.primary, S = g.secondary, PD = this._shade(P, -0.15);
+    const cover = h('div', { style: { position: 'relative', overflow: 'hidden', minHeight: device === 'mobile' ? 300 : 560, flex: device === 'mobile' ? 'none' : 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', color: '#fff' } },
+      h('div', { ref: el => this._heroEl = el, style: { position: 'absolute', inset: 0, ...this._coverStyle() } }),
+      h('div', { style: { position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,.32), rgba(0,0,0,.82))' } }),
+      this._focalOverlay(device),
+      h('div', { style: { position: 'relative', zIndex: 10, padding: device === 'mobile' ? 24 : 44, pointerEvents: 'none' } },
+        h('span', { style: { display: 'inline-flex', alignSelf: 'flex-start', border: '1px solid rgba(255,255,255,.25)', background: 'rgba(255,255,255,.12)', color: 'rgba(255,255,255,.9)', font: "700 10px 'Inter',sans-serif", letterSpacing: '.2em', textTransform: 'uppercase', padding: '6px 12px', borderRadius: 999, marginBottom: 16 } }, '← Back to Stren'),
+        this._logoMark(device === 'mobile' ? 52 : 72) ? h('div', { style: { marginBottom: 16 } }, this._logoMark(device === 'mobile' ? 52 : 72)) : null,
+        h('h1', { style: { margin: 0, font: `800 ${device === 'mobile' ? 30 : 46}px 'Syne',sans-serif`, lineHeight: 1.05 } }, g.name),
+        g.tagline ? h('p', { style: { margin: '10px 0 0', font: "400 15px 'Inter',sans-serif", color: 'rgba(255,255,255,.82)', maxWidth: 340, lineHeight: 1.5 } }, g.tagline) : null,
+        h('span', { style: { display: 'inline-flex', marginTop: 16, background: 'rgba(255,255,255,.2)', color: '#fff', font: "500 12px 'Inter',sans-serif", padding: '6px 13px', borderRadius: 999 } }, g.memberCount + ' active members')));
+    const field = (label, ph, type) => h('div', {},
+      h('label', { style: { display: 'block', font: "700 11px 'Inter',sans-serif", letterSpacing: '.14em', textTransform: 'uppercase', color: '#595959', marginBottom: 7 } }, label),
+      h('div', { style: { height: 48, borderRadius: 10, border: '1.5px solid #d6d6d6', background: '#fff', display: 'flex', alignItems: 'center', padding: '0 14px', font: "400 14px 'Inter',sans-serif", color: '#9a9a9a' } }, ph));
+    const form = h('div', { style: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: device === 'mobile' ? '28px 24px' : '44px', background: '#fbf9f7' } },
+      h('div', { style: { width: '100%', maxWidth: 380 } },
+        this._eyebrow('New Member', S),
+        h('h2', { style: { margin: '4px 0 0', font: "800 30px 'Syne',sans-serif", color: S } }, 'Join ' + g.name),
+        h('p', { style: { margin: '10px 0 0', font: "400 14px 'Inter',sans-serif", color: '#595959', lineHeight: 1.5 } }, 'Create your member account and start using your gym access right away.'),
+        h('div', { style: { marginTop: 24, display: 'flex', flexDirection: 'column', gap: 16 } },
+          field('Full Name', 'Juan Dela Cruz'), field('Email', 'you@example.com'), field('Password', '••••••••'),
+          h('div', { style: { height: 48, borderRadius: 10, background: P, color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', font: "700 13px 'Inter',sans-serif", letterSpacing: '.14em', textTransform: 'uppercase' } }, 'Create Account')),
+        h('p', { style: { margin: '20px 0 0', textAlign: 'center', font: "400 13px 'Inter',sans-serif", color: '#595959' } }, 'Already have an account? ', h('span', { style: { color: P, fontWeight: 700 } }, 'Log in'))));
+    return h('div', { style: { display: 'flex', flexDirection: device === 'mobile' ? 'column' : 'row', minHeight: 560, background: '#fbf9f7' } }, cover, form);
+  }
+
+  // ---------- CONTACT ----------
+  _renderContact(device) {
+    const h = React.createElement; const g = this.state.gym; const P = g.primary, PD = this._shade(P, -0.15);
+    const cols = device === 'mobile' ? '1fr' : 'repeat(3,1fr)';
+    const card = (title, body) => h('div', { style: { border: '1px solid #eee4d8', borderRadius: 16, padding: 20 } }, this._eyebrow(title, '#8f8f8f'), h('div', { style: { marginTop: 8, font: "600 14px 'Inter',sans-serif", color: '#1a1a1a', lineHeight: 1.5 } }, body));
+    return h('div', { style: { background: '#fff' } },
+      h('section', { style: { padding: device === 'mobile' ? '56px 26px' : '80px 52px', background: `linear-gradient(135deg, ${P}, ${PD})` } }, this._eyebrow('Get in touch', 'rgba(255,255,255,.6)'), h('h1', { style: { margin: '10px 0 0', font: `800 ${device === 'mobile' ? 40 : 54}px 'Syne',sans-serif`, color: '#fff' } }, 'Contact Us')),
+      g.contactVisible ? h('section', { style: { padding: device === 'mobile' ? '40px 26px' : '56px 52px' } }, h('div', { style: { display: 'grid', gridTemplateColumns: cols, gap: 16, maxWidth: 900 } }, g.phone ? card('Phone', g.phone) : null, g.address ? card('Address', g.address) : null, card('Follow Us', (g.instagram || '@yourgym') + '  ·  ' + (g.website || 'website')))) : null,
+      g.team.length ? h('section', { style: { padding: device === 'mobile' ? '40px 26px' : '58px 52px', background: '#faf7f3' } },
+        this._eyebrow('Our People', P), h('h2', { style: { margin: '14px 0 0', font: "700 32px 'Syne',sans-serif" } }, 'Meet the Team'),
+        h('div', { style: { marginTop: 28, display: 'grid', gridTemplateColumns: device === 'mobile' ? '1fr' : 'repeat(3,1fr)', gap: 18 } }, g.team.map((m, i) => h('div', { key: i, style: { background: '#fff', border: '1px solid #eee4d8', borderRadius: 16, overflow: 'hidden' } },
+          h('div', { style: { height: 150, background: this._alpha(P, 0.12), display: 'flex', alignItems: 'center', justifyContent: 'center', font: "800 40px 'Syne',sans-serif", color: P } }, (m.name || '?').charAt(0)),
+          h('div', { style: { padding: 18 } }, h('p', { style: { margin: 0, font: "700 15px 'Inter',sans-serif" } }, m.name), h('p', { style: { margin: '3px 0 0', font: "500 13px 'Inter',sans-serif", color: P } }, m.role), m.bio ? h('p', { style: { margin: '10px 0 0', font: "400 13px 'Inter',sans-serif", color: '#595959', lineHeight: 1.55 } }, m.bio) : null))))) : null,
+      h('section', { style: { padding: '56px 52px', textAlign: 'center', background: P } }, h('h2', { style: { margin: 0, font: "800 30px 'Syne',sans-serif", color: '#fff' } }, 'Ready to join?'), h('div', { style: { marginTop: 20, display: 'inline-flex', background: '#fff', color: P, font: "700 13px 'Inter',sans-serif", padding: '13px 28px', borderRadius: 999 } }, 'Join ' + g.name)));
+  }
+
+  // ---------- PRICING ----------
+  _renderPricing(device) {
+    const h = React.createElement; const g = this.state.gym; const P = g.primary, PD = this._shade(P, -0.15);
+    return h('div', { style: { background: '#fff' } },
+      h('section', { style: { padding: device === 'mobile' ? '56px 26px' : '80px 52px', background: `linear-gradient(135deg, ${P}, ${PD})` } }, this._eyebrow('Membership options', 'rgba(255,255,255,.6)'), h('h1', { style: { margin: '10px 0 0', font: `800 ${device === 'mobile' ? 40 : 54}px 'Syne',sans-serif`, color: '#fff' } }, 'Pricing')),
+      h('section', { style: { padding: device === 'mobile' ? '40px 26px' : '58px 52px', background: '#faf7f3' } },
+        h('div', { style: { display: 'grid', gridTemplateColumns: device === 'mobile' ? '1fr' : 'repeat(3,1fr)', gap: 18, maxWidth: 940 } }, g.pricing.map((p, i) => h('div', { key: i, style: { background: '#fff', borderRadius: 16, border: p.is_featured ? `2px solid ${P}` : '1px solid #eee4d8', overflow: 'hidden', display: 'flex', flexDirection: 'column' } },
+          p.is_featured ? h('div', { style: { background: P, color: '#fff', textAlign: 'center', font: "700 10px 'Inter',sans-serif", letterSpacing: '.14em', textTransform: 'uppercase', padding: '7px' } }, 'Most Popular') : null,
+          h('div', { style: { padding: 22, display: 'flex', flexDirection: 'column', flex: 1 } },
+            h('p', { style: { margin: 0, font: "600 10px 'Inter',sans-serif", letterSpacing: '.14em', textTransform: 'uppercase', color: '#8f8f8f' } }, p.duration),
+            h('h3', { style: { margin: '8px 0 0', font: "700 20px 'Syne',sans-serif" } }, p.name),
+            h('p', { style: { margin: '10px 0 0', font: "800 32px 'Syne',sans-serif", color: P } }, p.price),
+            h('div', { style: { marginTop: 18, display: 'flex', flexDirection: 'column', gap: 10, flex: 1 } }, p.features.map((f, j) => h('div', { key: j, style: { display: 'flex', gap: 9, alignItems: 'flex-start', color: P } }, this._icon('check', 16, 3), h('span', { style: { font: "400 13px 'Inter',sans-serif", color: '#595959' } }, f)))),
+            h('div', { style: { marginTop: 22, textAlign: 'center', borderRadius: 999, padding: '12px', font: "700 13px 'Inter',sans-serif", background: p.is_featured ? P : this._alpha(P, 0.12), color: p.is_featured ? '#fff' : P } }, 'Get Started')))))));
+  }
+
+  // ---------- LOCATE ----------
+  _renderLocate(device) {
+    const h = React.createElement; const g = this.state.gym; const P = g.primary, PD = this._shade(P, -0.15);
+    return h('div', { style: { background: '#fff' } },
+      h('section', { style: { padding: device === 'mobile' ? '56px 26px' : '80px 52px', background: `linear-gradient(135deg, ${P}, ${PD})` } }, this._eyebrow('Find us', 'rgba(255,255,255,.6)'), h('h1', { style: { margin: '10px 0 0', font: `800 ${device === 'mobile' ? 40 : 54}px 'Syne',sans-serif`, color: '#fff' } }, 'Locate Us'), g.address ? h('p', { style: { margin: '14px 0 0', display: 'flex', gap: 8, alignItems: 'center', color: 'rgba(255,255,255,.85)', font: "400 15px 'Inter',sans-serif" } }, this._icon('mapPin', 16), g.address) : null),
+      h('section', { style: { padding: device === 'mobile' ? '40px 26px' : '58px 52px' } },
+        this._eyebrow('Map', P), h('h2', { style: { margin: '14px 0 0', font: "700 30px 'Syne',sans-serif" } }, 'We are here'),
+        h('div', { style: { marginTop: 22, height: 300, borderRadius: 16, border: '1px solid #eee4d8', background: 'repeating-linear-gradient(45deg,#f3ede5,#f3ede5 12px,#efe7dd 12px,#efe7dd 24px)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8, color: '#a89a89' } }, this._icon('mapPin', 26), h('span', { style: { font: "600 12px ui-monospace,Menlo,monospace", letterSpacing: '.08em' } }, g.mapEmbedUrl ? 'MAP EMBED' : 'ADD A GOOGLE MAPS EMBED URL'))),
+      g.directions ? h('section', { style: { padding: device === 'mobile' ? '0 26px 44px' : '0 52px 58px', background: '#fff' } }, h('div', { style: { background: '#faf7f3', borderRadius: 16, padding: 24, maxWidth: 720 } }, this._eyebrow('How to get here', P), h('h2', { style: { margin: '12px 0 0', font: "700 22px 'Syne',sans-serif" } }, 'Landmarks & Directions'), h('p', { style: { margin: '12px 0 0', font: "400 15px 'Inter',sans-serif", color: '#595959', lineHeight: 1.6, whiteSpace: 'pre-wrap' } }, g.directions))) : null);
+  }
+
+  _renderPage(device) {
+    const t = this.state.previewTab;
+    if (t === 'join') return this._renderJoin(device);
+    if (t === 'contact') return this._renderContact(device);
+    if (t === 'pricing') return this._renderPricing(device);
+    if (t === 'locate') return this._renderLocate(device);
+    return this._renderHome(device);
+  }
+
+  // Full framed preview (browser or phone) for a device
+  _framedPreview(device) {
+    const h = React.createElement;
+    const page = this._renderPage(device);
+    if (device === 'mobile') {
+      return h('div', { style: { width: 320, flex: 'none', borderRadius: 34, background: '#1a1a1a', padding: 9, boxShadow: '0 30px 60px -22px rgba(40,28,18,.55)' } },
+        h('div', { style: { borderRadius: 26, overflow: 'hidden', background: '#fff', height: 660, position: 'relative' } },
+          h('div', { className: 'pv-scroll', style: { position: 'absolute', inset: 0, overflowY: 'auto' } }, page)));
+    }
+    return h('div', { style: { width: '100%', maxWidth: 940, borderRadius: 14, overflow: 'hidden', background: '#fff', boxShadow: '0 30px 60px -30px rgba(40,28,18,.5)', border: '1px solid #d8cdbf' } },
+      h('div', { style: { height: 38, background: '#efe7dd', borderBottom: '1px solid #e2d8cc', display: 'flex', alignItems: 'center', gap: 7, padding: '0 14px' } },
+        h('span', { style: { width: 10, height: 10, borderRadius: 999, background: '#e6b0a6' } }), h('span', { style: { width: 10, height: 10, borderRadius: 999, background: '#e8d3a6' } }), h('span', { style: { width: 10, height: 10, borderRadius: 999, background: '#b8dcb0' } }),
+        h('div', { style: { marginLeft: 12, flex: 1, height: 22, background: '#fff', borderRadius: 6, display: 'flex', alignItems: 'center', padding: '0 10px', font: "500 11px 'Inter',sans-serif", color: '#9a8f82' } }, 'grovefitness.co/gym/grove-fitness')),
+      h('div', { className: 'pv-scroll', style: { height: 620, overflowY: 'auto' } }, page));
+  }
+
+  renderVals() {
+    const s = this.state; const g = s.gym; const h = React.createElement;
+    const P = g.primary, S = g.secondary;
+    // checklist
+    const defs = this._checklistDefs();
+    const doneCount = defs.filter(d => d.done).length;
+    const chipStyleFor = d => ({ display: 'inline-flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', font: "600 11.5px 'Inter',sans-serif", padding: '5px 10px 5px 8px', borderRadius: 999, background: d.done ? 'rgba(98,168,120,.16)' : '#fff', color: d.done ? '#3f7d5b' : '#8a7f72', boxShadow: d.done ? 'none' : 'inset 0 0 0 1px #ecd9c4' });
+    const dotStyleFor = d => ({ width: 12, height: 12, borderRadius: 999, flex: 'none', display: 'inline-block', background: d.done ? '#4f9d6f' : 'transparent', boxShadow: d.done ? 'none' : 'inset 0 0 0 1.5px #cdb79e' });
+    const checklist = defs.map(d => ({ key: d.key, label: d.label, done: d.done, chipStyle: chipStyleFor(d), dotStyle: dotStyleFor(d) }));
+    const pct = Math.round((doneCount / defs.length) * 100);
+    const ringStyle = { position: 'absolute', inset: 0, borderRadius: 999, background: `conic-gradient(#D4956A ${pct * 3.6}deg, #efe1d2 0)` , WebkitMask: 'radial-gradient(circle, transparent 60%, #000 61%)', mask: 'radial-gradient(circle, transparent 60%, #000 61%)' };
+
+    // header
+    const live = g.published;
+    const hdr = {
+      statusText: live ? 'Live' : 'Hidden',
+      statusStyle: { display: 'inline-flex', alignItems: 'center', gap: 6, font: "700 11px 'Inter',sans-serif", padding: '4px 10px', borderRadius: 999, background: live ? 'rgba(98,192,138,.14)' : 'rgba(240,180,41,.16)', color: live ? '#3f9d63' : '#b98514' },
+      statusDot: { width: 7, height: 7, borderRadius: 999, background: live ? '#4f9d6f' : '#e0a83a', display: 'inline-block' },
+      dirtyText: s.saving ? 'Saving…' : (s.dirty ? 'Unsaved changes' : 'All changes saved'),
+      dirtyStyle: { font: "500 12.5px 'Inter',sans-serif", color: s.dirty && !s.saving ? '#b98514' : '#9a8f82', display: 'inline-flex', alignItems: 'center', gap: 6 },
+      saveText: s.saving ? 'Saving…' : 'Save changes',
+      saveStyle: { border: 'none', cursor: s.dirty ? 'pointer' : 'default', font: "700 13px 'Inter',sans-serif", padding: '9px 16px', borderRadius: 10, background: s.dirty ? '#D4956A' : '#eadfd2', color: s.dirty ? '#fff' : '#b6a891', opacity: s.saving ? 0.7 : 1 },
+      publishText: live ? 'Unpublish' : 'Publish',
+      publishStyle: { border: live ? '1px solid #d8cdbf' : 'none', cursor: 'pointer', font: "700 13px 'Inter',sans-serif", padding: '9px 16px', borderRadius: 10, background: live ? '#fff' : '#4f9d6f', color: live ? '#6a6157' : '#fff' },
+    };
+
+    // photos
+    const coverThumbStyle = { position: 'relative', height: 118, borderRadius: 12, overflow: 'hidden', border: '1px solid #eee4d8', ...(s.coverPresent ? this._coverStyle() : { background: '#faf6f1' }) };
+    const coverScenes = this.COVER_SCENES.map((sc, i) => ({ i, name: sc.name, swatchStyle: { width: 30, height: 22, borderRadius: 7, cursor: 'pointer', backgroundImage: sc.bg, backgroundSize: '150%', backgroundPosition: '50% 40%', border: (s.coverPresent && s.coverIndex === i) ? '2px solid #D4956A' : '2px solid transparent', boxShadow: (s.coverPresent && s.coverIndex === i) ? '0 0 0 1px #D4956A' : 'inset 0 0 0 1px rgba(0,0,0,.12)' } }));
+    const adjustFocalStyle = { position: 'absolute', right: 8, bottom: 8, zIndex: 3, display: 'inline-flex', alignItems: 'center', gap: 5, border: 'none', cursor: 'pointer', font: "700 11px 'Inter',sans-serif", padding: '6px 10px', borderRadius: 8, background: s.focalEditing ? '#D4956A' : 'rgba(20,16,12,.7)', color: '#fff', backdropFilter: 'blur(4px)' };
+
+    // brand
+    const presetsRaw = this._presets();
+    const presets = presetsRaw.map((p, i) => ({ i, name: p.name, primary: p.primary, secondary: p.secondary, selected: this._eq(p.primary, g.primary) && this._eq(p.secondary, g.secondary), style: { display: 'flex', alignItems: 'center', gap: 9, cursor: 'pointer', textAlign: 'left', padding: '9px 11px', borderRadius: 10, background: '#fff', border: (this._eq(p.primary, g.primary) && this._eq(p.secondary, g.secondary)) ? '1.5px solid #2f7d5b' : '1px solid #e6dccf' } }));
+    const primaryRamp = this._ramp(g.seedPrimary).map(hex => ({ hex, style: { flex: 1, height: 34, borderRadius: 8, cursor: 'pointer', background: hex, border: this._eq(hex, g.primary) ? '2.5px solid #1a1a1a' : '2px solid transparent', boxShadow: this._eq(hex, g.primary) ? '0 0 0 1px #fff inset' : 'inset 0 0 0 1px rgba(0,0,0,.08)' } }));
+    const cr = this._contrast('#ffffff', P);
+    let contrastText, tone, iconName;
+    if (cr >= 4.5) { contrastText = 'Great contrast — white button text is easy to read on your color.'; tone = 'ok'; }
+    else if (cr >= 3) { contrastText = 'Readable — white button text works on your color.'; tone = 'ok'; }
+    else { contrastText = 'Low contrast — white text is hard to read. Pick a deeper shade below.'; tone = 'warn'; }
+    const contrastStyle = { display: 'flex', gap: 9, alignItems: 'flex-start', padding: '11px 13px', borderRadius: 10, background: tone === 'ok' ? 'rgba(98,168,120,.12)' : 'rgba(240,180,41,.14)', color: tone === 'ok' ? '#3f7d5b' : '#a9791a' };
+    const contrastIcon = tone === 'ok' ? h('path', { d: 'M20 6 9 17l-5-5' }) : [h('path', { key: 1, d: 'M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z' }), h('path', { key: 2, d: 'M12 9v4M12 17h.01' })];
+
+    // sections toggles
+    const pill = (on) => ({ border: 'none', cursor: 'pointer', font: "700 11px 'Inter',sans-serif", padding: '4px 12px', borderRadius: 999, background: on ? 'rgba(98,168,120,.16)' : '#efe7dd', color: on ? '#3f7d5b' : '#9a8f82' });
+    const hoursList = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'].map(d => ({ day: d, value: g.hours[d] || '' }));
+
+    // tabs + device
+    const TABS = [['home', 'Home'], ['join', 'Join'], ['contact', 'Contact'], ['pricing', 'Pricing'], ['locate', 'Locate']];
+    const tabStyle = (key) => ({ border: 'none', cursor: 'pointer', font: "600 12.5px 'Inter',sans-serif", padding: '7px 13px', borderRadius: 8, background: s.previewTab === key ? '#fff' : 'transparent', color: s.previewTab === key ? '#1a1a1a' : '#8a7f72', boxShadow: s.previewTab === key ? '0 1px 3px rgba(0,0,0,.12)' : 'none' });
+    const tabMobileStyle = (key) => ({ flex: 'none', border: 'none', cursor: 'pointer', font: "600 12px 'Inter',sans-serif", padding: '7px 13px', borderRadius: 999, background: s.previewTab === key ? '#1a1a1a' : '#efe7dd', color: s.previewTab === key ? '#fff' : '#8a7f72' });
+    const tabs = TABS.map(([key, label]) => ({ key, label, style: tabStyle(key), mobileStyle: tabMobileStyle(key) }));
+    const coverThumbInline = s.coverPresent
+      ? `background-image:${this.COVER_SCENES[s.coverIndex].bg};background-size:185%;background-position:${g.focal.x}% ${g.focal.y}%;background-repeat:no-repeat`
+      : `background:#faf6f1;border:1px solid #eee4d8`;
+    const devStyle = (on) => ({ border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '6px 10px', borderRadius: 7, background: on ? '#fff' : 'transparent', color: on ? '#1a1a1a' : '#8a7f72', boxShadow: on ? '0 1px 2px rgba(0,0,0,.1)' : 'none' });
+    const safeStyle = { display: 'inline-flex', alignItems: 'center', gap: 6, border: 'none', cursor: 'pointer', font: "600 12px 'Inter',sans-serif", padding: '7px 11px', borderRadius: 9, background: s.showSafeArea ? 'rgba(212,149,106,.16)' : '#eae1d6', color: s.showSafeArea ? '#B47A45' : '#8a7f72' };
+
+    const chev = (open) => ({ transition: 'transform .2s', transform: open ? 'rotate(180deg)' : 'none' });
+
+    return {
+      g: {
+        name: g.name, code: g.code, tagline: g.tagline, description: g.description, primary: g.primary, secondary: g.secondary,
+        amenities: g.amenities, amenitiesVisible: g.amenitiesVisible, hoursVisible: g.hoursVisible, contactVisible: g.contactVisible,
+        address: g.address, phone: g.phone, instagram: g.instagram, website: g.website, mapEmbedUrl: g.mapEmbedUrl, directions: g.directions,
+        team: g.team.map((m, i) => ({ i, name: m.name, role: m.role, initial: (m.name || '?').charAt(0) })),
+        pricing: g.pricing.map((p, i) => ({ i, name: p.name, price: p.price, is_featured: p.is_featured })),
+      },
+      // banner
+      showBanner: !s.bannerDismissed,
+      checklist, progressText: doneCount + ' of ' + defs.length + ' essentials done', progressPct: pct + '%', ringStyle,
+      onDismissBanner: this.onDismissBanner, onChecklistJump: this.onChecklistJump,
+      // header
+      hdr, onSave: this.onSave, onTogglePublish: this.onTogglePublish, onNoop: this.onNoop,
+      // groups open + chevrons
+      openEssentials: s.open.essentials, openPhotos: s.open.photos, openBrand: s.open.brand, openSections: s.open.sections, openSubpages: s.open.subpages,
+      chevEssentials: chev(s.open.essentials), chevPhotos: chev(s.open.photos), chevBrand: chev(s.open.brand), chevSections: chev(s.open.sections), chevSubpages: chev(s.open.subpages),
+      onToggleEssentials: this.onToggleEssentials, onTogglePhotos: this.onTogglePhotos, onToggleBrand: this.onToggleBrand, onToggleSections: this.onToggleSections, onToggleSubpages: this.onToggleSubpages,
+      // essentials
+      visPillStyle: pill(live), visPillText: live ? 'Published' : 'Hidden',
+      onTagline: this.onTagline, onDescription: this.onDescription,
+      taglineCount: g.tagline.length + '/120', taglineCountColor: g.tagline.trim() ? '#9a8f82' : '#c26a5f',
+      // photos
+      coverPresent: s.coverPresent, coverEmpty: !s.coverPresent, coverThumbStyle, coverThumbInline, coverScenes,
+      onPickCover: this.onPickCover, onUploadCover: this.onUploadCover, onRemoveCover: this.onRemoveCover,
+      onAdjustFocal: this.onAdjustFocal, adjustFocalStyle, adjustFocalText: s.focalEditing ? 'Done' : 'Focal point',
+      logoThumbNode: this._logoMark(44) || h('span', { style: { font: "600 10px 'Inter',sans-serif", color: '#b1a698' } }, 'None'),
+      logoPresent: s.logoStyle >= 0, logoBtnText: s.logoStyle >= 0 ? 'Replace' : 'Add logo', onCycleLogo: this.onCycleLogo, onRemoveLogo: this.onRemoveLogo,
+      // brand
+      presets, primaryRamp, contrastStyle, contrastText, contrastIcon,
+      brandSwatchPreview: { width: 34, height: 18, borderRadius: 6, marginRight: 8, background: `linear-gradient(90deg, ${P} 50%, ${S} 50%)`, boxShadow: 'inset 0 0 0 1px rgba(0,0,0,.1)' },
+      onPickPreset: this.onPickPreset, onPickPrimary: this.onPickPrimary,
+      showCustom: s.showCustom, customToggleText: s.showCustom ? 'Hide custom color' : 'Advanced: custom color', onToggleCustom: this.onToggleCustom, onPrimaryHex: this.onPrimaryHex, onSecondaryHex: this.onSecondaryHex,
+      // sections
+      amenVisStyle: pill(g.amenitiesVisible), amenVisText: g.amenitiesVisible ? 'Shown' : 'Hidden', onToggleAmenities: this.onToggleAmenities,
+      hoursVisStyle: pill(g.hoursVisible), hoursVisText: g.hoursVisible ? 'Shown' : 'Hidden', onToggleHours: this.onToggleHours,
+      contactVisStyle: pill(g.contactVisible), contactVisText: g.contactVisible ? 'Shown' : 'Hidden', onToggleContact: this.onToggleContact,
+      amenityDraft: s.amenityDraft, onAmenityDraft: this.onAmenityDraft, onAmenityKey: this.onAmenityKey, onAddAmenity: this.onAddAmenity, onRemoveAmenity: this.onRemoveAmenity,
+      hoursList, onHoursInput: this.onHoursInput,
+      onAddress: this.onAddress, onPhone: this.onPhone, onInstagram: this.onInstagram, onWebsite: this.onWebsite,
+      // subpages
+      onJumpContact: this.onJumpContact, onJumpPricing: this.onJumpPricing, onJumpLocate: this.onJumpLocate,
+      onAddTeam: this.onAddTeam, onRemoveTeam: this.onRemoveTeam, onAddPricing: this.onAddPricing,
+      onMapEmbed: this.onMapEmbed, onDirections: this.onDirections,
+      // preview
+      tabs, onPickTab: this.onPickTab,
+      devDesktopStyle: devStyle(s.previewDevice === 'desktop'), devMobileStyle: devStyle(s.previewDevice === 'mobile'),
+      onDeviceDesktop: this.onDeviceDesktop, onDeviceMobile: this.onDeviceMobile,
+      safeStyle, onToggleSafe: this.onToggleSafe,
+      previewNode: this._framedPreview(s.previewDevice),
+      // for mobile studio (1b)
+      mobilePreviewNode: this._framedPreview('mobile'),
+      rawMobilePreview: h('div', { className: 'pv-scroll', style: { position: 'absolute', inset: 0, overflowY: 'auto', background: '#fff' } }, this._renderPage('mobile')),
+      drawerOpen: s.drawerOpen, onOpenDrawer: this.onOpenDrawer, onCloseDrawer: this.onCloseDrawer,
+    };
+  }
+}
+</script>
+</body>
+</html>

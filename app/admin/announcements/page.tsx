@@ -64,12 +64,13 @@ export default function AdminAnnouncementsPage() {
   }
 
   const onSubmit = async (data: AnnouncementFormData) => {
-    if (!profile) return;
+    if (!profile?.gymId) return;
 
     const { error } = await supabase.from('announcements').insert({
       title: data.title,
       body: data.body,
       created_by: profile.id,
+      gym_id: profile.gymId,
     });
 
     if (error) {
@@ -79,6 +80,7 @@ export default function AdminAnnouncementsPage() {
 
     await supabase.from('feed_items').insert({
       member_id: profile.id,
+      gym_id: profile.gymId,
       type: 'announcement' as const,
       title: `${data.title}`,
       description: data.body,

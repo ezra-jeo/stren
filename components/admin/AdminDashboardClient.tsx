@@ -43,10 +43,10 @@ export interface DashboardStats {
   active_plans: number
   expired_plans: number
   frozen_plans: number
-  today_revenue: number
-  month_revenue: number
+  today_revenue?: number
+  month_revenue?: number
   attendance_7d: { day: string; visits: number }[]
-  revenue_7d: { day: string; revenue: number }[]
+  revenue_7d?: { day: string; revenue: number }[]
 }
 
 export function AdminDashboardClient({ initialData }: { initialData: DashboardStats | null }) {
@@ -60,8 +60,8 @@ export function AdminDashboardClient({ initialData }: { initialData: DashboardSt
   const activeCount = initialData?.active_plans ?? 0
   const expiredCount = initialData?.expired_plans ?? 0
   const frozenCount = initialData?.frozen_plans ?? 0
-  const todayRevenue = initialData?.today_revenue ?? 0
-  const monthRevenue = initialData?.month_revenue ?? 0
+  const todayRevenue = initialData?.today_revenue
+  const monthRevenue = initialData?.month_revenue
   const attendanceData = initialData?.attendance_7d ?? []
   const revenueData = initialData?.revenue_7d ?? []
 
@@ -82,8 +82,8 @@ export function AdminDashboardClient({ initialData }: { initialData: DashboardSt
     { label: 'Currently In Gym', value: checkedInCount, icon: Activity, iconColor: '#16A34A', bg: '#ECFDF3' },
     { label: 'Visits Today', value: todayVisits, icon: UserCheck, iconColor: '#2563EB', bg: '#EFF6FF' },
     { label: 'Total Members', value: totalMembers, icon: Users, iconColor: 'var(--color-primary)', bg: 'var(--color-primary-glow)' },
-    { label: 'Today Revenue', value: '₱' + todayRevenue.toLocaleString(), icon: DollarSign, iconColor: '#16A34A', bg: '#ECFDF3' },
-    { label: 'Month Revenue', value: '₱' + monthRevenue.toLocaleString(), icon: TrendingUp, iconColor: 'var(--color-primary)', bg: 'var(--color-primary-glow)' },
+    { label: 'Today Revenue', value: todayRevenue == null ? '—' : '₱' + todayRevenue.toLocaleString(), icon: DollarSign, iconColor: '#16A34A', bg: '#ECFDF3' },
+    { label: 'Month Revenue', value: monthRevenue == null ? '—' : '₱' + monthRevenue.toLocaleString(), icon: TrendingUp, iconColor: 'var(--color-primary)', bg: 'var(--color-primary-glow)' },
   ]
 
   const breakdownRows = [

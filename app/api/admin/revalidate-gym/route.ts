@@ -3,8 +3,18 @@ import { headers } from 'next/headers';
 import { NextResponse } from 'next/server';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { rateLimit } from '@/lib/rate-limit';
+import { apiRequirePermission, getMyAccess } from '@/lib/permissions-server';
+import { resolveApiRequestUser } from '@/lib/api-request-auth';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 const ADMIN_ROLES = new Set(['owner', 'admin', 'staff']);
+
+export function isSameGymScope(
+  profileGymId: string | null | undefined,
+  targetGymId: string | null | undefined,
+): boolean {
+  return typeof profileGymId === 'string' && profileGymId.length > 0 && profileGymId === targetGymId;
+}
 
 export async function POST(request: Request) {
   const ip = (await headers()).get('x-forwarded-for') ?? 'unknown';
@@ -36,40 +46,19 @@ export async function POST(request: Request) {
 
   const supabase = await createServerSupabaseClient();
 
-  let currentUser: { id: string } | null = null;
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (!userError && user) {
-    currentUser = { id: user.id };
-  } else {
-    const authHeader = request.headers.get('authorization') ?? '';
-    const token = authHeader.startsWith('Bearer ')
-      ? authHeader.slice('Bearer '.length).trim()
-      : '';
-
-    if (token) {
-      const {
-        data: { user: bearerUser },
-        error: bearerError,
-      } = await supabase.auth.getUser(token);
-
-      if (!bearerError && bearerUser) {
-        currentUser = { id: bearerUser.id };
-      }
-    }
-  }
-
-  if (!currentUser) {
+  const resolvedAuth = await resolveApiRequestUser(
+    request,
+    supabase as unknown as SupabaseClient,
+  );
+  if (!resolvedAuth) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
+  const currentUser = resolvedAuth.user;
+  const requestSupabase = resolvedAuth.supabase as unknown as typeof supabase;
 
-  const { data: profile } = await supabase
+  const { data: profile } = await requestSupabase
     .from('profiles')
-    .select('role')
+    .select('role, gym_id')
     .eq('id', currentUser.id)
     .maybeSingle();
 
@@ -77,13 +66,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
   }
 
-  const { data: gym } = await supabase
+  const { data: gym } = await requestSupabase
     .from('gyms')
     .select('id')
     .eq('code', code)
     .maybeSingle();
 
   const gymId = gym?.id ?? '';
+
+  if (!isSameGymScope(profile.gym_id, gymId)) {
+    return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
+  }
+
+  const access = await getMyAccess(requestSupabase as unknown as SupabaseClient);
+  const permissionError = await apiRequirePermission('cache:revalidate', access);
+  if (permissionError) return permissionError;
 
   const encodedCode = encodeURIComponent(code);
   revalidatePath(`/gym/${encodedCode}`);

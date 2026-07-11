@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 import { isValidLoginOrigin } from '@/lib/login-origin'
+import { permissionForPath, type PermissionKey } from '@/lib/permissions'
 
 const LOGIN_ORIGIN_COOKIE_KEY = "stren.auth.loginOriginPath"
 
@@ -224,7 +225,57 @@ export async function middleware(request: NextRequest) {
     return finalize(NextResponse.redirect(url))
   }
 
-  // Role-based access control
+  const isManagerSurface = pathname.startsWith("/admin") || pathname.startsWith("/kiosk")
+
+  // Resolve manager-surface role, gym, permissions, and features in one RPC.
+  if (isManagerSurface) {
+    const accessStart = performance.now()
+    const { data: accessData, error: accessError } = await supabase.rpc('get_my_access')
+    markTiming('access', accessStart)
+
+    const access = accessData && typeof accessData === 'object'
+      ? accessData as {
+          role?: string
+          gym_id?: string | null
+          permissions?: string[]
+          features?: Record<string, boolean>
+        }
+      : null
+
+    if (accessError || !access?.role) {
+      return finalize(NextResponse.redirect(new URL(resolveLoginPath(request, pathname), request.url)))
+    }
+    if (!['owner', 'admin', 'staff'].includes(access.role)) {
+      return finalize(NextResponse.redirect(new URL('/member', request.url)))
+    }
+
+    const permissions = new Set<PermissionKey>((access.permissions ?? []) as PermissionKey[])
+    const requiredPermission = permissionForPath(pathname)
+    const kioskEnabled = access.features?.kiosk_checkin !== false
+
+    if (
+      (requiredPermission && !permissions.has(requiredPermission))
+      || (pathname.startsWith('/kiosk') && !kioskEnabled)
+    ) {
+      const fallback = permissions.has('dashboard:view')
+        ? '/admin'
+        : permissions.has('members:view')
+          ? '/admin/members'
+          : permissions.has('kiosk:use') && kioskEnabled
+            ? '/kiosk'
+            : '/member'
+      return finalize(NextResponse.redirect(new URL(
+        pathname === fallback ? '/member' : fallback,
+        request.url,
+      )))
+    }
+
+    if (access.gym_id) supabaseResponse.headers.set('x-gym-id', access.gym_id)
+    supabaseResponse.headers.set('x-user-role', access.role)
+    return finalize(supabaseResponse)
+  }
+
+  // Non-manager surfaces retain the profile/status lookup.
   // Use maybeSingle — avoids 406 if profile row doesn't exist yet
   const profileStart = performance.now()
   const { data: profile } = await  supabase
@@ -240,12 +291,6 @@ export async function middleware(request: NextRequest) {
   }
 
   // Admin and kiosk routes — only admin/staff/owner
-  if (pathname.startsWith("/admin") || pathname.startsWith("/kiosk")) {
-    if (profile.role !== "admin" && profile.role !== "staff" && profile.role !== "owner") {
-      return finalize(NextResponse.redirect(new URL("/member", request.url)))
-    }
-  }
-
   // Redirect stale /dashboard URLs to /admin
   if (pathname.startsWith("/dashboard")) {
     return finalize(NextResponse.redirect(new URL("/admin", request.url)))

@@ -2,27 +2,32 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { isFeatureEnabled, type FeatureFlags, type FeatureKey } from '@/lib/features';
 
 type GymTopNavProps = {
   gymName: string;
   gymCode: string;
   isPublished: boolean;
+  /** Public feature flags (§8.5). Wired by Agent B from the public payload; defaults to on. */
+  features?: Pick<FeatureFlags, 'public_pricing' | 'public_location'>;
 };
 
-const NAV_LINKS = [
+const NAV_LINKS: { href: string; label: string; feature?: FeatureKey }[] = [
   { href: '', label: 'Home' },
   { href: '/contact', label: 'Contact' },
-  { href: '/pricing', label: 'Pricing' },
-  { href: '/locate', label: 'Locate Us' },
-] as const;
+  { href: '/pricing', label: 'Pricing', feature: 'public_pricing' },
+  { href: '/locate', label: 'Locate Us', feature: 'public_location' },
+];
 
-export function GymTopNav({ gymName, gymCode, isPublished }: GymTopNavProps) {
+export function GymTopNav({ gymName, gymCode, isPublished, features }: GymTopNavProps) {
   const pathname = usePathname();
 
   if (!isPublished) return null;
   if (pathname === `/gym/${gymCode}/login` || pathname === `/gym/${gymCode}/signup`) {
     return null;
   }
+
+  const navLinks = NAV_LINKS.filter((link) => !link.feature || isFeatureEnabled(features, link.feature));
 
   return (
     <nav
@@ -38,7 +43,7 @@ export function GymTopNav({ gymName, gymCode, isPublished }: GymTopNavProps) {
         </Link>
 
         <div className="hidden items-center gap-1 sm:flex">
-          {NAV_LINKS.map(({ href, label }) => (
+          {navLinks.map(({ href, label }) => (
             <Link
               key={href}
               href={`/gym/${gymCode}${href}`}

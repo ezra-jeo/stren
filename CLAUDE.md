@@ -1,6 +1,19 @@
 # Stren — Developer Guide
 
-This file is the authoritative reference for working on this codebase with Claude Code. Keep it up to date as the project evolves.
+This file is the authoritative reference for **conventions** (architecture rules, commands, testing, branching). Keep it up to date as the project evolves.
+
+---
+
+## ⚠ Read the knowledge base FIRST
+
+Project context, mission, plans, and live status do **not** live in this file — they live in **`AgentsContextKnowledgeBase/`**. At the start of every session:
+
+1. Read `AgentsContextKnowledgeBase/Catalog.md` — it indexes every document, the reading order, and your update obligations.
+2. Check `AgentsContextKnowledgeBase/ImplementationState.md` before starting work; **update it (plus `CHANGELOG.md`) in the same PR that ships your work** — a PR without those updates is not done.
+3. `CONTEXT.md` (repo root) is the vocabulary; `docs/adr/` records why load-bearing decisions were made.
+4. **Agents never commit or push.** No `git commit`, `git push`, `git merge`, `git rebase`, tags, or any history-modifying command — ever, even if asked to "finish up". Leave all changes in the working tree and report what changed; **developers perform every commit and push exclusively.** Where any doc says "in the same PR/commit", it means: prepare the changes together in the working tree so the developer commits them as one unit.
+
+These rules apply to **every** agent (Claude, Codex/GPT, or otherwise — `AGENTS.md` routes non-Claude agents here too).
 
 ---
 
@@ -100,21 +113,8 @@ Payment recording, renewal date math, and membership-expiry transitions are the 
 
 ---
 
-## Remediation phases (current work)
+## Current work & status
 
-| Phase | Status |
-|-------|--------|
-| Phase 0 — Repo as source of truth | ✅ Shipped |
-| Phase 1 — Performance / server components | ✅ Shipped |
-| Phase 2 — Auth & routing (single guard) | ✅ Shipped |
-| Phase 2.5 — Security & shippability hardening (RLS/kiosk lockdown, login/gym-search bugfixes, password-reset stabilization) | ✅ Shipped |
-| Phase 2.6 — Notification-system RPC hardening (Critical: unscoped SECURITY DEFINER functions) | Queued — do before Phase 3 |
-| Phase 3 — Dead weight removal | Queued (scope refined) |
-| Phase 4 — Design system | Queued (scope quantified) |
-| Phase 5 — Money path tests (test-first pilot, now incl. transactional RPC extraction) | Queued |
-| Phase 6 — Documentation completion | Queued (fold into Phase 3's doc cleanup) |
-| Phase 7 — TDD as standing methodology | Queued (policy already documented; enforcement undecided) |
+Canonical, always-current status (remediation phases + the active workstream) lives in **`AgentsContextKnowledgeBase/ImplementationState.md`** — do not duplicate a status table here.
 
-Full plan: `/root/.claude/plans/stateless-humming-parnas.md`
-Diagnostic re-validation of Phases 3–7 + newly found Critical/High security
-issues: `PHASE_3_TO_7_DIAGNOSTIC_AND_PLAN.md`
+The active workstream (Gym Page Studio + permissions & feature toggles) is fully specified in **`AgentsContextKnowledgeBase/ImplementationPlan.md`**; security diagnostic detail remains in `PHASE_3_TO_7_DIAGNOSTIC_AND_PLAN.md`.
