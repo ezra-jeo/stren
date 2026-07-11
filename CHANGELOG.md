@@ -8,6 +8,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-07-11
+
 ### Gym Page Studio + Permissions & Feature Toggles — Agent A (UI)
 
 Frozen contracts + all React surfaces for the workstream. Backend enforcement (Agent B) and the version bump land separately; UI degrades to today's role behavior until then.
@@ -24,6 +26,27 @@ Frozen contracts + all React surfaces for the workstream. Backend enforcement (A
 - **`app/admin/gym-profile/page.tsx`** re-skinned to render `<GymPageStudio/>` (all upload/compress/hash/cleanup/save/revalidate handlers preserved verbatim; save is now two writes with partial-failure handling and always revalidates).
 - **Public pages** (`app/gym/[code]/page.tsx`, `contact`, `pricing`, `locate`) render `GymLandingPreview` (pixel-identical output); `lib/gym-data.ts` gains `toGymPreviewData`.
 - **Nav filtering** consumes `useAccess()`/feature props with safe defaults: `app/admin/layout.tsx` (+`components/admin/admin-nav-items.ts`), `components/member/MemberShell.tsx`, `components/member/MemberHomeClient.tsx`, `components/gym/GymTopNav.tsx`.
+
+### Gym Page Studio + Permissions & Feature Toggles — Agent B (logic/enforcement)
+
+#### Added
+- **Migrations 014–017** — notification RPC hardening; role defaults and per-user permission overrides; feature settings and effective access helpers; Gym Page Studio focal-point and section-visibility columns. All four were validated and reapplied idempotently against an isolated PostgreSQL schema.
+- **Layered enforcement** — fail-closed server permission helpers, middleware permission/feature routing, API permission and same-gym checks, server page gates, member/public feature gates, and database RLS/RPC truth-layer checks.
+- **B-owned regression coverage** — permission/feature SQL contracts, payment characterization, notification/avatar/cache hardening, bearer-scoped API authorization, fail-closed access, engagement hooks, kiosk-off polling, finance omission, and environment-gated owner/member E2E + direct member RPC probes.
+
+#### Changed
+- **Generated database types** now come from the isolated schema containing migrations 014–017; JSON-returning public RPC data is narrowed at the server adapter boundary.
+- **Member home/feed/kiosk** use member-safe stats and effective feature settings; a kiosk left open stops scanner/data polling and shows the friendly off state when disabled or access cannot be resolved.
+- **Dashboard/reports** omit only the specified finance fields when finance access is revoked and render a quiet em dash for missing values.
+- **Public Supabase clients** are created lazily so server module evaluation and production builds do not require credentials until a data call is made.
+
+#### Security
+- `process_daily_notifications()` is service-role only; notification/streak helper RPCs validate caller identity and gym scope; avatar URLs must use the configured Supabase Storage origin.
+- Bearer-only admin API requests now carry the verified token into all subsequent RLS/RPC authorization queries, and server access failures deny rather than restore role defaults.
+
+#### Fixed
+- Next 16 Promise-based `searchParams` handling on `/` and `/landing` no longer stalls E2E navigation.
+- The pending `get_gym_by_code()` visibility correction is **not included**: migrations 016/017 intentionally retain tagline-derived visibility until explicit product-owner approval.
 
 ---
 

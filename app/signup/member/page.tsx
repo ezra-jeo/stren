@@ -106,7 +106,14 @@ function MemberSignUpPageContent() {
       const { data, error } = await supabase.rpc('get_gym_by_code', { p_code: gymCode });
       if (isCancelled) return;
 
-      if (data && data.is_published) {
+      if (
+        data &&
+        typeof data === 'object' &&
+        !Array.isArray(data) &&
+        data.is_published === true &&
+        typeof data.id === 'string' &&
+        typeof data.name === 'string'
+      ) {
         setSelectedGym({ id: data.id, name: data.name });
         setStep('details');
         return;

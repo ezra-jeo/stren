@@ -5,12 +5,12 @@ import '@/styles/swiper-custom.css';
 
 // Safety net: catch any auth code/token_hash that Supabase drops here instead
 // of at /auth/callback (e.g. after the root redirect strips the query string).
-export default function LandingPage({
+export default async function LandingPage({
   searchParams,
 }: {
-  searchParams?: Record<string, string>;
+  searchParams?: Promise<Record<string, string>>;
 }) {
-  const sp = searchParams ?? {};
+  const sp = searchParams ? await searchParams : {};
   const code = sp['code'];
   const tokenHash = sp['token_hash'];
   const type = sp['type'];

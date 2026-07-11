@@ -2,18 +2,15 @@ import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { MemberHomeClient } from '@/components/member/MemberHomeClient'
 import type { MemberHomeData } from '@/components/member/MemberHomeClient'
 import type { MemberStats } from '@/lib/types'
+import { getMyAccess } from '@/lib/permissions-server'
 
 export default async function MemberHomePage() {
   const supabase = await createServerSupabaseClient()
 
-  const [
-    { data: statsData },
-    { data: checkedInData },
-    { data: { user } },
-  ] = await Promise.all([
+  const [{ data: statsData }, { data: { user } }, access] = await Promise.all([
     supabase.rpc('member_home_stats'),
-    supabase.rpc('kiosk_get_checked_in'),
     supabase.auth.getUser(),
+    getMyAccess(),
   ])
 
   let memberName = 'Member'
@@ -46,9 +43,9 @@ export default async function MemberHomePage() {
       }
 
   const visitedDates: string[] = raw?.calendar_dates ?? []
-  const peopleInGym = (checkedInData as unknown[])?.length ?? 0
+  const peopleInGym = raw?.people_in_gym ?? 0
 
-  const data: MemberHomeData = { memberName, stats, visitedDates, peopleInGym }
+  const data: MemberHomeData = { memberName, stats, visitedDates, peopleInGym, features: access.features }
 
   return <MemberHomeClient data={data} />
 }

@@ -1,13 +1,21 @@
 import { unstable_cache } from 'next/cache';
-import { createClient as createSupabaseClient } from '@supabase/supabase-js';
+import { createClient as createSupabaseClient, type SupabaseClient } from '@supabase/supabase-js';
 import type { Database } from './database.types';
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+let publicSupabase: SupabaseClient<Database> | null = null;
 
-const publicSupabase = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
-  auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
-});
+function getPublicSupabase(): SupabaseClient<Database> {
+  if (publicSupabase) return publicSupabase;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY.');
+  }
+  publicSupabase = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
+    auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+  });
+  return publicSupabase;
+}
 
 export type GymBranding = {
   id: string;
@@ -20,7 +28,7 @@ export type GymBranding = {
 
 const fetchGymBrandingById = unstable_cache(
   async (gymId: string): Promise<GymBranding | null> => {
-    const { data, error } = await publicSupabase
+    const { data, error } = await getPublicSupabase()
       .from('gyms')
       .select('id, name, code, logo_url, logo_path, brand_color, secondary_color')
       .eq('id', gymId)
@@ -30,6 +38,7 @@ const fetchGymBrandingById = unstable_cache(
 
     let logo_url = data.logo_url;
     if (data.logo_path) {
+      if (!supabaseUrl) throw new Error('Missing NEXT_PUBLIC_SUPABASE_URL.');
       const cleaned = data.logo_path.trim().replace(/^\/+/, '');
       logo_url = `${supabaseUrl}/storage/v1/object/public/gym-assets/${cleaned.split('/').map(encodeURIComponent).join('/')}`;
     }

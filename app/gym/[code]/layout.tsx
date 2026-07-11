@@ -17,6 +17,10 @@ type GymLayoutData = {
   brand_color: string | null;
   secondary_color?: string | null;
   is_published: boolean;
+  features?: {
+    public_pricing?: boolean;
+    public_location?: boolean;
+  };
 };
 
 export default async function GymLayout({ children, params }: LayoutProps) {
@@ -31,7 +35,12 @@ export default async function GymLayout({ children, params }: LayoutProps) {
     <>
       <style>{`:root { ${brandColorVars(gymData.brand_color ?? '#D4956A', gymData.secondary_color ?? null)} }`}</style>
 
-      <GymTopNav gymName={gymData.name} gymCode={gymData.code} isPublished={isPublished} />
+      <GymTopNav
+        gymName={gymData.name}
+        gymCode={gymData.code}
+        isPublished={isPublished}
+        features={gymData.features}
+      />
 
       <main>{children}</main>
 

@@ -4,6 +4,9 @@ import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { rateLimit } from '@/lib/rate-limit';
 import { getGymPublicByCode } from '@/lib/gym-public';
 import { getGymBrandingById } from '@/lib/gym-member';
+import { apiRequirePermission, getMyAccess } from '@/lib/permissions-server';
+import { resolveApiRequestUser } from '@/lib/api-request-auth';
+import type { SupabaseClient } from '@supabase/supabase-js';
 
 const ADMIN_ROLES = new Set(['owner', 'admin', 'staff']);
 
@@ -20,38 +23,17 @@ export async function GET(request: Request) {
 
   const supabase = await createServerSupabaseClient();
 
-  let currentUser: { id: string } | null = null;
-
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
-
-  if (!userError && user) {
-    currentUser = { id: user.id };
-  } else {
-    const authHeader = request.headers.get('authorization') ?? '';
-    const token = authHeader.startsWith('Bearer ')
-      ? authHeader.slice('Bearer '.length).trim()
-      : '';
-
-    if (token) {
-      const {
-        data: { user: bearerUser },
-        error: bearerError,
-      } = await supabase.auth.getUser(token);
-
-      if (!bearerError && bearerUser) {
-        currentUser = { id: bearerUser.id };
-      }
-    }
-  }
-
-  if (!currentUser) {
+  const resolvedAuth = await resolveApiRequestUser(
+    request,
+    supabase as unknown as SupabaseClient,
+  );
+  if (!resolvedAuth) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
+  const currentUser = resolvedAuth.user;
+  const requestSupabase = resolvedAuth.supabase as unknown as typeof supabase;
 
-  const { data: profile } = await supabase
+  const { data: profile } = await requestSupabase
     .from('profiles')
     .select('role, gym_id')
     .eq('id', currentUser.id)
@@ -61,11 +43,16 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
   }
 
+
+  const access = await getMyAccess(requestSupabase as unknown as SupabaseClient);
+  const permissionError = await apiRequirePermission('cache:revalidate', access);
+  if (permissionError) return permissionError;
+
   const url = new URL(request.url);
   let gymCode = (url.searchParams.get('code') ?? '').trim();
 
   if (!gymCode && profile.gym_id) {
-    const { data: gymRow } = await supabase
+    const { data: gymRow } = await requestSupabase
       .from('gyms')
       .select('code')
       .eq('id', profile.gym_id)
@@ -79,6 +66,16 @@ export async function GET(request: Request) {
       { error: 'Missing gym code. Provide ?code=... or ensure your profile has a gym_id.' },
       { status: 400 },
     );
+  }
+
+  const { data: targetGym } = await requestSupabase
+    .from('gyms')
+    .select('id')
+    .eq('code', gymCode)
+    .maybeSingle();
+
+  if (!profile.gym_id || targetGym?.id !== profile.gym_id) {
+    return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
   }
 
   const publicFirstStart = performance.now();

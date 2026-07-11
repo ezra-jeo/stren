@@ -12,8 +12,6 @@ export default async function ContactPage({ params }: PageProps) {
   const { data } = await getGymPublicByCode(rawCode);
   if (!data || !data.is_published) notFound();
 
-  // TODO(logic): Agent B gates this page and the team block on the `public_team`
-  // feature via the payload; until then the contact page renders with the team shown.
   const preview = toGymPreviewData(data as Record<string, unknown>);
 
   return <GymLandingPreview gym={preview} view="contact" interactive />;

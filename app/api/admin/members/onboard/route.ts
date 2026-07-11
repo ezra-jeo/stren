@@ -15,6 +15,8 @@ import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { createAdminClient } from "@/lib/supabase-admin"
 import { sendOnboardingEmail, type SendResult } from "@/lib/email"
 import { rateLimit } from "@/lib/rate-limit"
+import { apiRequirePermission, getMyAccess } from "@/lib/permissions-server"
+import type { SupabaseClient } from "@supabase/supabase-js"
 
 type ManagerRole = "owner" | "admin" | "staff"
 const MANAGER_ROLES: ManagerRole[] = ["owner", "admin", "staff"]
@@ -97,6 +99,10 @@ export async function POST(request: Request) {
   ) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 })
   }
+
+  const access = await getMyAccess(supabase as unknown as SupabaseClient)
+  const permissionError = await apiRequirePermission('members:manage', access)
+  if (permissionError) return permissionError
 
   // Rate-limit: max 20 onboarding requests per gym per minute to prevent
   // accidental bulk-invite abuse or email spam.

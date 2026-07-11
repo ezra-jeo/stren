@@ -1,8 +1,10 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { LeaderboardClient } from '@/components/member/LeaderboardClient'
 import type { LeaderboardEntry } from '@/lib/types'
+import { requireFeature } from '@/lib/permissions-server'
 
 export default async function LeaderboardPage() {
+  await requireFeature('leaderboards', '/member')
   const supabase = await createServerSupabaseClient()
 
   const [{ data: rows }, { data: { user } }] = await Promise.all([

@@ -10,9 +10,7 @@ export const revalidate = 86400;
 export default async function PricingPage({ params }: PageProps) {
   const { code: rawCode } = await params;
   const { data } = await getGymPublicByCode(rawCode);
-  if (!data || !data.is_published) notFound();
-
-  // TODO(logic): Agent B calls notFound() when the `public_pricing` feature is off.
+  if (!data || !data.is_published || data.features?.public_pricing === false) notFound();
   const preview = toGymPreviewData(data as Record<string, unknown>);
 
   return <GymLandingPreview gym={preview} view="pricing" interactive />;

@@ -11,6 +11,22 @@ interface AvatarCooldownResult {
 
 const AVATAR_BUCKET_CANDIDATES = ["member-avatars", "gym-assets"] as const
 
+export function isAllowedSupabaseStorageUrl(candidate: string, supabaseUrl: string): boolean {
+  try {
+    const url = new URL(candidate)
+    const configured = new URL(supabaseUrl)
+    return (
+      (url.protocol === "https:" || url.protocol === "http:") &&
+      url.origin === configured.origin &&
+      url.username === "" &&
+      url.password === "" &&
+      url.pathname.startsWith("/storage/v1/object/")
+    )
+  } catch {
+    return false
+  }
+}
+
 function isBucketNotFoundError(error: unknown): boolean {
   if (!error || typeof error !== "object") return false
   const maybeMessage = "message" in error ? String((error as { message?: unknown }).message ?? "") : ""
@@ -99,6 +115,17 @@ export async function POST(request: Request) {
 
   const avatarDataUrl = typeof body.avatarDataUrl === "string" ? body.avatarDataUrl.trim() : ""
   const avatarUrl = typeof body.avatarUrl === "string" ? body.avatarUrl.trim() : ""
+
+  if (
+    !avatarDataUrl &&
+    avatarUrl &&
+    !isAllowedSupabaseStorageUrl(avatarUrl, process.env.NEXT_PUBLIC_SUPABASE_URL ?? "")
+  ) {
+    return NextResponse.json(
+      { error: "Avatar URL must point to this gym's Supabase storage." },
+      { status: 400 },
+    )
+  }
 
   let publicUrl = avatarUrl
   let uploadedPath: string | null = null

@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -7,8 +7,30 @@ export type Json =
   | Json[]
 
 export type Database = {
-  __InternalSupabase: {
-    PostgrestVersion: "14.4"
+  graphql_public: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      graphql: {
+        Args: {
+          extensions?: Json
+          operationName?: string
+          query?: string
+          variables?: Json
+        }
+        Returns: Json
+      }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
   public: {
     Tables: {
@@ -96,6 +118,142 @@ export type Database = {
           },
         ]
       }
+      checkins: {
+        Row: {
+          check_in: string | null
+          check_out: string | null
+          created_at: string | null
+          gym_id: string | null
+          id: string
+          member_id: string | null
+        }
+        Insert: {
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string | null
+          gym_id?: string | null
+          id?: string
+          member_id?: string | null
+        }
+        Update: {
+          check_in?: string | null
+          check_out?: string | null
+          created_at?: string | null
+          gym_id?: string | null
+          id?: string
+          member_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checkins_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkins_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      class_enrollments: {
+        Row: {
+          class_id: string | null
+          created_at: string | null
+          gym_id: string | null
+          id: string
+          member_id: string | null
+        }
+        Insert: {
+          class_id?: string | null
+          created_at?: string | null
+          gym_id?: string | null
+          id?: string
+          member_id?: string | null
+        }
+        Update: {
+          class_id?: string | null
+          created_at?: string | null
+          gym_id?: string | null
+          id?: string
+          member_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "class_enrollments_class_id_fkey"
+            columns: ["class_id"]
+            isOneToOne: false
+            referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_enrollments_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_enrollments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      classes: {
+        Row: {
+          capacity: number | null
+          created_at: string | null
+          end_time: string | null
+          gym_id: string | null
+          id: string
+          instructor_id: string | null
+          name: string
+          start_time: string | null
+        }
+        Insert: {
+          capacity?: number | null
+          created_at?: string | null
+          end_time?: string | null
+          gym_id?: string | null
+          id?: string
+          instructor_id?: string | null
+          name: string
+          start_time?: string | null
+        }
+        Update: {
+          capacity?: number | null
+          created_at?: string | null
+          end_time?: string | null
+          gym_id?: string | null
+          id?: string
+          instructor_id?: string | null
+          name?: string
+          start_time?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "classes_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classes_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       feed_items: {
         Row: {
           created_at: string | null
@@ -147,13 +305,113 @@ export type Database = {
           },
         ]
       }
+      gym_feature_settings: {
+        Row: {
+          flags: Json
+          gym_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          flags?: Json
+          gym_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          flags?: Json
+          gym_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gym_feature_settings_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: true
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gym_feature_settings_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gym_role_permission_defaults: {
+        Row: {
+          permission: string
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Insert: {
+          permission: string
+          role: Database["public"]["Enums"]["user_role"]
+        }
+        Update: {
+          permission?: string
+          role?: Database["public"]["Enums"]["user_role"]
+        }
+        Relationships: []
+      }
+      gym_user_permission_overrides: {
+        Row: {
+          granted: boolean
+          granted_by: string | null
+          gym_id: string
+          permission: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          granted: boolean
+          granted_by?: string | null
+          gym_id: string
+          permission: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          granted?: boolean
+          granted_by?: string | null
+          gym_id?: string
+          permission?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gym_user_permission_overrides_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gym_user_permission_overrides_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gym_user_permission_overrides_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gyms: {
         Row: {
           address: string | null
           amenities: string[] | null
           brand_color: string | null
-          secondary_color: string | null
           code: string
+          cover_focal: Json
           cover_path: string | null
           cover_url: string | null
           created_at: string | null
@@ -168,6 +426,8 @@ export type Database = {
           operating_hours: Json | null
           phone: string | null
           pricing_packages: Json | null
+          secondary_color: string | null
+          section_visibility: Json
           social_links: Json | null
           tagline: string | null
           team_members: Json | null
@@ -176,8 +436,8 @@ export type Database = {
           address?: string | null
           amenities?: string[] | null
           brand_color?: string | null
-          secondary_color?: string | null
           code: string
+          cover_focal?: Json
           cover_path?: string | null
           cover_url?: string | null
           created_at?: string | null
@@ -192,6 +452,8 @@ export type Database = {
           operating_hours?: Json | null
           phone?: string | null
           pricing_packages?: Json | null
+          secondary_color?: string | null
+          section_visibility?: Json
           social_links?: Json | null
           tagline?: string | null
           team_members?: Json | null
@@ -200,8 +462,8 @@ export type Database = {
           address?: string | null
           amenities?: string[] | null
           brand_color?: string | null
-          secondary_color?: string | null
           code?: string
+          cover_focal?: Json
           cover_path?: string | null
           cover_url?: string | null
           created_at?: string | null
@@ -216,59 +478,113 @@ export type Database = {
           operating_hours?: Json | null
           phone?: string | null
           pricing_packages?: Json | null
+          secondary_color?: string | null
+          section_visibility?: Json
           social_links?: Json | null
           tagline?: string | null
           team_members?: Json | null
         }
         Relationships: []
       }
-      notifications: {
+      member_notification_preferences: {
         Row: {
-          body: string | null
-          created_at: string | null
-          for_member: boolean | null
+          created_at: string
           gym_id: string
           id: string
-          is_read: boolean | null
-          member_id: string | null
-          notification_type: Database["public"]["Enums"]["notification_type"] | null
-          title: string
-          type: string
+          inactivity_nudges_enabled: boolean
+          member_id: string
+          streak_notifications_enabled: boolean
+          updated_at: string
         }
         Insert: {
-          body?: string | null
-          created_at?: string | null
-          for_member?: boolean | null
+          created_at?: string
           gym_id: string
           id?: string
-          is_read?: boolean | null
-          member_id?: string | null
-          notification_type?: Database["public"]["Enums"]["notification_type"] | null
-          title: string
-          type: string
+          inactivity_nudges_enabled?: boolean
+          member_id: string
+          streak_notifications_enabled?: boolean
+          updated_at?: string
         }
         Update: {
-          body?: string | null
-          created_at?: string | null
-          for_member?: boolean | null
+          created_at?: string
           gym_id?: string
           id?: string
-          is_read?: boolean | null
-          member_id?: string | null
-          notification_type?: Database["public"]["Enums"]["notification_type"] | null
-          title?: string
-          type?: string
+          inactivity_nudges_enabled?: boolean
+          member_id?: string
+          streak_notifications_enabled?: boolean
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "notifications_gym_id_fkey"
+            foreignKeyName: "member_notification_preferences_gym_id_fkey"
             columns: ["gym_id"]
             isOneToOne: false
             referencedRelation: "gyms"
             referencedColumns: ["id"]
           },
           {
-            foreignKeyName: "notifications_member_id_fkey"
+            foreignKeyName: "member_notification_preferences_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      member_onboarding_events: {
+        Row: {
+          created_at: string
+          created_by: string
+          email: string
+          gym_id: string
+          id: string
+          magic_link_url: string | null
+          member_id: string
+          qr_code: string
+          sent_at: string
+          sent_via: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          email: string
+          gym_id: string
+          id?: string
+          magic_link_url?: string | null
+          member_id: string
+          qr_code: string
+          sent_at?: string
+          sent_via?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          email?: string
+          gym_id?: string
+          id?: string
+          magic_link_url?: string | null
+          member_id?: string
+          qr_code?: string
+          sent_at?: string
+          sent_via?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "member_onboarding_events_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_onboarding_events_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "member_onboarding_events_member_id_fkey"
             columns: ["member_id"]
             isOneToOne: false
             referencedRelation: "profiles"
@@ -378,8 +694,168 @@ export type Database = {
           },
         ]
       }
+      notification_cooldowns: {
+        Row: {
+          daily_count: number
+          daily_count_date: string
+          gym_id: string
+          id: string
+          inactivity_nudge_count: number
+          last_sent_at: string
+          member_id: string
+          notification_type: Database["public"]["Enums"]["notification_type"]
+        }
+        Insert: {
+          daily_count?: number
+          daily_count_date?: string
+          gym_id: string
+          id?: string
+          inactivity_nudge_count?: number
+          last_sent_at?: string
+          member_id: string
+          notification_type: Database["public"]["Enums"]["notification_type"]
+        }
+        Update: {
+          daily_count?: number
+          daily_count_date?: string
+          gym_id?: string
+          id?: string
+          inactivity_nudge_count?: number
+          last_sent_at?: string
+          member_id?: string
+          notification_type?: Database["public"]["Enums"]["notification_type"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notification_cooldowns_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notification_cooldowns_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      notifications: {
+        Row: {
+          body: string | null
+          created_at: string | null
+          for_member: boolean | null
+          gym_id: string
+          id: string
+          is_read: boolean | null
+          member_id: string | null
+          notification_type:
+            | Database["public"]["Enums"]["notification_type"]
+            | null
+          title: string
+          type: string
+        }
+        Insert: {
+          body?: string | null
+          created_at?: string | null
+          for_member?: boolean | null
+          gym_id: string
+          id?: string
+          is_read?: boolean | null
+          member_id?: string | null
+          notification_type?:
+            | Database["public"]["Enums"]["notification_type"]
+            | null
+          title: string
+          type: string
+        }
+        Update: {
+          body?: string | null
+          created_at?: string | null
+          for_member?: boolean | null
+          gym_id?: string
+          id?: string
+          is_read?: boolean | null
+          member_id?: string | null
+          notification_type?:
+            | Database["public"]["Enums"]["notification_type"]
+            | null
+          title?: string
+          type?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "notifications_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          created_at: string | null
+          description: string | null
+          gym_id: string | null
+          id: string
+          member_id: string | null
+          method: string | null
+          payment_date: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string | null
+          description?: string | null
+          gym_id?: string | null
+          id?: string
+          member_id?: string | null
+          method?: string | null
+          payment_date?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string | null
+          description?: string | null
+          gym_id?: string | null
+          id?: string
+          member_id?: string | null
+          method?: string | null
+          payment_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
+          avatar_change_count: number
+          avatar_change_locked_until: string | null
+          avatar_required: boolean
+          avatar_updated_at: string | null
           avatar_url: string | null
           contact_number: string | null
           created_at: string | null
@@ -392,6 +868,10 @@ export type Database = {
           status: Database["public"]["Enums"]["profile_status"] | null
         }
         Insert: {
+          avatar_change_count?: number
+          avatar_change_locked_until?: string | null
+          avatar_required?: boolean
+          avatar_updated_at?: string | null
           avatar_url?: string | null
           contact_number?: string | null
           created_at?: string | null
@@ -404,6 +884,10 @@ export type Database = {
           status?: Database["public"]["Enums"]["profile_status"] | null
         }
         Update: {
+          avatar_change_count?: number
+          avatar_change_locked_until?: string | null
+          avatar_required?: boolean
+          avatar_updated_at?: string | null
           avatar_url?: string | null
           contact_number?: string | null
           created_at?: string | null
@@ -536,114 +1020,28 @@ export type Database = {
           },
         ]
       }
-      member_notification_preferences: {
-        Row: {
-          id: string
-          member_id: string
-          gym_id: string
-          inactivity_nudges_enabled: boolean
-          streak_notifications_enabled: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          member_id: string
-          gym_id: string
-          inactivity_nudges_enabled?: boolean
-          streak_notifications_enabled?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          member_id?: string
-          gym_id?: string
-          inactivity_nudges_enabled?: boolean
-          streak_notifications_enabled?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "member_notification_preferences_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: true
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "member_notification_preferences_gym_id_fkey"
-            columns: ["gym_id"]
-            isOneToOne: false
-            referencedRelation: "gyms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      notification_cooldowns: {
-        Row: {
-          id: string
-          member_id: string
-          gym_id: string
-          notification_type: Database["public"]["Enums"]["notification_type"]
-          last_sent_at: string
-          inactivity_nudge_count: number
-          daily_count: number
-          daily_count_date: string
-        }
-        Insert: {
-          id?: string
-          member_id: string
-          gym_id: string
-          notification_type: Database["public"]["Enums"]["notification_type"]
-          last_sent_at?: string
-          inactivity_nudge_count?: number
-          daily_count?: number
-          daily_count_date?: string
-        }
-        Update: {
-          id?: string
-          member_id?: string
-          gym_id?: string
-          notification_type?: Database["public"]["Enums"]["notification_type"]
-          last_sent_at?: string
-          inactivity_nudge_count?: number
-          daily_count?: number
-          daily_count_date?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "notification_cooldowns_member_id_fkey"
-            columns: ["member_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "notification_cooldowns_gym_id_fkey"
-            columns: ["gym_id"]
-            isOneToOne: false
-            referencedRelation: "gyms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      // ── Auth helpers ──
+      admin_dashboard_stats: { Args: never; Returns: Json }
+      admin_reports_data: { Args: { p_days?: number }; Returns: Json }
+      calculate_avg_visit_interval: {
+        Args: { p_member_id: string }
+        Returns: number
+      }
+      can_send_member_notification: {
+        Args: {
+          p_member_id: string
+          p_notification_type: Database["public"]["Enums"]["notification_type"]
+        }
+        Returns: boolean
+      }
       check_gym_membership: {
         Args: { p_email: string; p_gym_code: string }
         Returns: boolean
       }
-      get_gym_id: { Args: Record<string, never>; Returns: string }
-      get_user_role: { Args: Record<string, never>; Returns: string }
-      is_manager: { Args: Record<string, never>; Returns: boolean }
-
-      // ── Gym signup ──
       create_gym_and_owner: {
         Args: {
           p_email: string
@@ -656,15 +1054,40 @@ export type Database = {
         }
         Returns: Json
       }
-
-      // ── Kiosk RPCs (callable by anon key, no auth session required) ──
+      create_member_notification: {
+        Args: {
+          p_body: string
+          p_gym_id: string
+          p_member_id: string
+          p_title: string
+          p_type: Database["public"]["Enums"]["notification_type"]
+        }
+        Returns: string
+      }
+      escape_ilike: { Args: { p_input: string }; Returns: string }
+      generate_secure_gym_suffix: {
+        Args: { p_length?: number }
+        Returns: string
+      }
+      get_gym_by_code: { Args: { p_code: string }; Returns: Json }
+      get_gym_id: { Args: never; Returns: string }
+      get_my_access: { Args: never; Returns: Json }
+      get_user_role: { Args: never; Returns: string }
+      gym_feature_enabled: {
+        Args: { p_feature: string; p_gym_id?: string }
+        Returns: boolean
+      }
+      has_gym_permission: {
+        Args: { p_gym_id?: string; p_permission: string }
+        Returns: boolean
+      }
+      is_manager: { Args: never; Returns: boolean }
+      kiosk_access_allowed: { Args: { p_gym_id: string }; Returns: boolean }
       kiosk_checkin: { Args: { p_qr_code: string }; Returns: Json }
       kiosk_checkin_by_member: { Args: { p_member_id: string }; Returns: Json }
       kiosk_checkout: { Args: { p_attendance_id: string }; Returns: Json }
       kiosk_get_checked_in: {
-        // No args = authenticated member portal (gym derived from session)
-        // p_gym_id arg = unauthenticated kiosk path
-        Args: { p_gym_id?: string } | Record<string, never>
+        Args: never
         Returns: {
           attendance_id: string
           check_in: string
@@ -688,57 +1111,10 @@ export type Database = {
         Args: { p_gym_id: string; p_member_id: string }
         Returns: undefined
       }
-
-      // ── Admin RPCs ──
-      admin_dashboard_stats: {
-        Args: Record<string, never>
-        Returns: {
-          currently_in: { id: string; member_id: string; check_in: string; name: string }[]
-          today_visits: number
-          total_members: number
-          pending_count: number
-          active_plans: number
-          expired_plans: number
-          frozen_plans: number
-          today_revenue: number
-          month_revenue: number
-          attendance_7d: { day: string; date: string; visits: number }[]
-          revenue_7d: { day: string; date: string; revenue: number }[]
-        }
-      }
-      admin_reports_data: {
-        Args: { p_days?: number }
-        Returns: {
-          active_count: number
-          expired_count: number
-          month_revenue: number
-          attendance_by_day: { date: string; visits: number }[]
-          revenue_by_day: { date: string; revenue: number }[]
-          peak_hours: { hour: number; label: string; count: number }[]
-          revenue_by_dom: { day: number; amount: number }[]
-          method_breakdown: {
-            cash_total: number
-            cash_count: number
-            gcash_total: number
-            gcash_count: number
-          }
-        }
-      }
-
-      // ── Leaderboard RPCs ──
-      leaderboard_workouts: {
-        Args: { p_limit?: number }
-        Returns: {
-          avatar_url: string | null
-          member_id: string
-          member_name: string
-          value: number
-        }[]
-      }
       leaderboard_longest_member: {
         Args: { p_limit?: number }
         Returns: {
-          avatar_url: string | null
+          avatar_url: string
           member_id: string
           member_name: string
           value: number
@@ -747,61 +1123,32 @@ export type Database = {
       leaderboard_week_streak: {
         Args: { p_limit?: number }
         Returns: {
-          avatar_url: string | null
+          avatar_url: string
           member_id: string
           member_name: string
           value: number
         }[]
       }
-
-      // ── Member RPCs ──
-      member_home_stats: {
-        Args: Record<string, never>
+      leaderboard_workouts: {
+        Args: { p_limit?: number }
         Returns: {
-          total_visits: number
-          monthly_visits: number
-          avg_session_minutes: number
-          streak: {
-            current_streak: number
-            best_streak: number
-            last_visit_date: string | null
-          } | null
-          recent_visits: { date: string; duration_min: number | null }[]
-          calendar_dates: string[]
-          membership?: {
-            plan_name: string
-            status: string
-            end_date: string
-            days_left: number
-          }
-        }
+          avatar_url: string
+          member_id: string
+          member_name: string
+          value: number
+        }[]
       }
-
-      // ── Public RPCs ──
-      get_gym_by_code: {
-        Args: { p_code: string }
-        Returns: {
-          id: string
-          name: string
-          code: string
-          address: string | null
-          phone: string | null
-          tagline: string | null
-          description: string | null
-          logo_url: string | null
-          cover_url: string | null
-          brand_color: string
-          secondary_color: string | null
-          operating_hours: Json | null
-          amenities: string[] | null
-          social_links: Json | null
-          team_members: Json | null
-          pricing_packages: Json | null
-          map_embed_url: string | null
-          directions: string | null
-          member_count: number
-          is_published: boolean
-        } | null
+      member_home_stats: { Args: never; Returns: Json }
+      process_daily_notifications: { Args: never; Returns: Json }
+      process_expiry_notifications: { Args: never; Returns: number }
+      process_inactivity_notifications: { Args: never; Returns: number }
+      record_notification_sent: {
+        Args: {
+          p_gym_id: string
+          p_member_id: string
+          p_notification_type: Database["public"]["Enums"]["notification_type"]
+        }
+        Returns: undefined
       }
       search_gyms: {
         Args: { p_query: string }
@@ -812,43 +1159,27 @@ export type Database = {
           name: string
         }[]
       }
-
-      // ── Internal trigger functions (not called directly from the client) ──
-      handle_new_user: { Args: Record<string, never>; Returns: unknown }
-      handle_checkin_notification: { Args: Record<string, never>; Returns: unknown }
-      handle_pending_member_notification: { Args: Record<string, never>; Returns: unknown }
-
-      // ── Notification system functions ──
-      calculate_avg_visit_interval: { Args: { p_member_id: string }; Returns: number | null }
-      can_send_member_notification: { 
-        Args: { p_member_id: string; p_notification_type: Database["public"]["Enums"]["notification_type"] }
-        Returns: boolean 
-      }
-      create_member_notification: {
-        Args: { 
+      set_member_avatar_with_cooldown: {
+        Args: {
+          p_avatar_url: string
+          p_lock_days?: number
           p_member_id: string
-          p_gym_id: string
-          p_type: Database["public"]["Enums"]["notification_type"]
-          p_title: string
-          p_body: string
         }
-        Returns: string | null
-      }
-      process_daily_notifications: {
-        Args: Record<string, never>
         Returns: {
-          expiry_notifications: number
-          inactivity_notifications: number
-          processed_at: string
-        }
+          message: string
+          next_allowed_at: string
+          updated: boolean
+        }[]
       }
-      process_expiry_notifications: { Args: Record<string, never>; Returns: number }
-      process_inactivity_notifications: { Args: Record<string, never>; Returns: number }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
     }
     Enums: {
       feed_item_type:
         | "check_in"
         | "check_out"
+        | "badge"
+        | "challenge"
         | "announcement"
         | "streak_milestone"
       membership_status: "active" | "expired" | "frozen"
@@ -862,6 +1193,23 @@ export type Database = {
       profile_status: "pending" | "active" | "rejected"
       promo_type: "student_pass" | "new_member" | "birthday" | "custom"
       user_role: "member" | "admin" | "staff" | "owner"
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+  storage: {
+    Tables: {
+      [_ in never]: never
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
     }
     CompositeTypes: {
       [_ in never]: never
@@ -987,19 +1335,34 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
+  graphql_public: {
+    Enums: {},
+  },
   public: {
     Enums: {
       feed_item_type: [
         "check_in",
         "check_out",
+        "badge",
+        "challenge",
         "announcement",
         "streak_milestone",
       ],
       membership_status: ["active", "expired", "frozen"],
+      notification_type: [
+        "membership_expiry_7d",
+        "membership_expiry_0d",
+        "streak_milestone",
+        "inactivity_nudge",
+        "announcement",
+      ],
       payment_method: ["cash", "gcash"],
       profile_status: ["pending", "active", "rejected"],
       promo_type: ["student_pass", "new_member", "birthday", "custom"],
       user_role: ["member", "admin", "staff", "owner"],
     },
+  },
+  storage: {
+    Enums: {},
   },
 } as const

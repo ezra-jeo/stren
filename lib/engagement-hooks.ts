@@ -1,5 +1,6 @@
 import { createClient } from "./supabase"
 import { updateStreak } from "./streaks"
+import { isFeatureEnabled, type FeatureFlags } from "./features"
 
 const supabase = createClient()
 
@@ -29,6 +30,24 @@ export async function handleScan(memberId: string): Promise<CheckInResult> {
 
   const gymId = memberProfile?.gym_id ?? null
 
+  let memberFeedEnabled = true
+  if (gymId) {
+    try {
+      const { data: featureSettings } = await supabase
+        .from("gym_feature_settings")
+        .select("flags")
+        .eq("gym_id", gymId)
+        .maybeSingle()
+      memberFeedEnabled = isFeatureEnabled(
+        featureSettings?.flags as FeatureFlags | null | undefined,
+        "member_feed",
+      )
+    } catch {
+      // Missing settings/table keeps the catalog default (on).
+      memberFeedEnabled = true
+    }
+  }
+
   // Check for an open session (checked in but not out)
   const { data: openSession } = await supabase
     .from("attendance")
@@ -52,14 +71,19 @@ export async function handleScan(memberId: string): Promise<CheckInResult> {
     }
 
     // Run engagement hooks in parallel
-    const [streakResult] = await Promise.all([
-      updateStreak(memberId),
-      postCheckInFeedItem(memberId, gymId),
-    ])
+    const streakPromise = updateStreak(memberId)
+    const feedPromise = memberFeedEnabled
+      ? ignoreFeedFailure(postCheckInFeedItem(memberId, gymId))
+      : Promise.resolve()
+    const [streakResult] = await Promise.all([streakPromise, feedPromise])
 
     // Post streak milestone feed items
     if (streakResult.currentStreak > 0 && streakResult.currentStreak % 7 === 0) {
-      await postStreakMilestoneFeedItem(memberId, gymId, streakResult.currentStreak)
+      if (memberFeedEnabled) {
+        await ignoreFeedFailure(
+          postStreakMilestoneFeedItem(memberId, gymId, streakResult.currentStreak),
+        )
+      }
     }
 
     return {
@@ -149,4 +173,12 @@ async function postStreakMilestoneFeedItem(
     description: `${streak} consecutive days at the gym`,
     metadata: { streak_count: streak },
   })
+}
+
+async function ignoreFeedFailure(task: Promise<unknown>): Promise<void> {
+  try {
+    await task
+  } catch {
+    // Engagement is best-effort; attendance is the source-of-truth action.
+  }
 }
