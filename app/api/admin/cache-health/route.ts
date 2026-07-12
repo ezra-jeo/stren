@@ -8,8 +8,6 @@ import { apiRequirePermission, getMyAccess } from '@/lib/permissions-server';
 import { resolveApiRequestUser } from '@/lib/api-request-auth';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-const ADMIN_ROLES = new Set(['owner', 'admin', 'staff']);
-
 function msSince(start: number): number {
   return Number((performance.now() - start).toFixed(2));
 }
@@ -30,32 +28,20 @@ export async function GET(request: Request) {
   if (!resolvedAuth) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
-  const currentUser = resolvedAuth.user;
   const requestSupabase = resolvedAuth.supabase as unknown as typeof supabase;
-
-  const { data: profile } = await requestSupabase
-    .from('profiles')
-    .select('role, gym_id')
-    .eq('id', currentUser.id)
-    .maybeSingle();
-
-  if (!profile || !profile.role || !ADMIN_ROLES.has(profile.role)) {
-    return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
-  }
-
-
   const access = await getMyAccess(requestSupabase as unknown as SupabaseClient);
+  if (!access.gymId || !['owner', 'admin', 'staff'].includes(access.role)) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
   const permissionError = await apiRequirePermission('cache:revalidate', access);
   if (permissionError) return permissionError;
 
   const url = new URL(request.url);
   let gymCode = (url.searchParams.get('code') ?? '').trim();
 
-  if (!gymCode && profile.gym_id) {
+  if (!gymCode && access.gymId) {
     const { data: gymRow } = await requestSupabase
       .from('gyms')
       .select('code')
-      .eq('id', profile.gym_id)
+      .eq('id', access.gymId)
       .maybeSingle();
 
     gymCode = (gymRow?.code ?? '').trim();
@@ -74,7 +60,7 @@ export async function GET(request: Request) {
     .eq('code', gymCode)
     .maybeSingle();
 
-  if (!profile.gym_id || targetGym?.id !== profile.gym_id) {
+  if (targetGym?.id !== access.gymId) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
   }
 

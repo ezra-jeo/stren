@@ -190,11 +190,10 @@ export default function MembersPage() {
     try {
       const memberQueries = Promise.all([
         supabase
-          .from("profiles")
-          .select("id, name, email, contact_number, created_at, status")
+          .from("gym_users")
+          .select("user_id, status, profiles!gym_users_user_id_fkey(id, name, email, contact_number, created_at)")
           .eq("role", "member")
-          .eq("gym_id", profile.gymId)
-          .order("name"),
+          .eq("gym_id", profile.gymId),
         supabase
           .from("memberships")
           .select("id, member_id, start_date, end_date, status, amount_paid, payment_method, created_at, membership_plans!memberships_plan_id_fkey(name)")
@@ -214,21 +213,23 @@ export default function MembersPage() {
         if (!membershipMap.has(m.member_id)) membershipMap.set(m.member_id, m)
       }
 
-      const nextMembers: MemberRow[] = (profilesData ?? []).map((p) => {
+      const nextMembers: MemberRow[] = (profilesData ?? []).flatMap((gymUser) => {
+          const p = gymUser.profiles as unknown as { id: string; name: string; email: string; contact_number: string | null; created_at: string | null } | null
+          if (!p) return []
           const m = membershipMap.get(p.id)
           return {
             profile_id: p.id,
             name: p.name,
             email: p.email,
             contact_number: p.contact_number,
-        profile_status: p.status === "rejected" ? "rejected" : "active",
+            profile_status: gymUser.status === "rejected" ? "rejected" : "active",
             membership_id: m?.id ?? null,
             plan_name: m ? ((m.membership_plans as unknown as { name: string })?.name ?? "Unknown") : null,
             start_date: m?.start_date ?? null,
             end_date: m?.end_date ?? null,
             membership_status: m?.status ?? null,
             created_at: p.created_at,
-          }
+          } satisfies MemberRow
         })
 
       setMembers(nextMembers)
@@ -290,7 +291,7 @@ export default function MembersPage() {
   }
 
   async function handleProfileStatusChange(memberId: string, status: "active" | "rejected") {
-    const { error } = await supabase.from("profiles").update({ status }).eq("id", memberId)
+    const { error } = await supabase.from("gym_users").update({ status }).eq("gym_id", profile!.gymId!).eq("user_id", memberId)
     if (error) {
       toast.error(status === "rejected" ? "Failed to ban member" : "Failed to unban member")
       return

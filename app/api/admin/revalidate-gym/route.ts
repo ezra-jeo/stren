@@ -7,8 +7,6 @@ import { apiRequirePermission, getMyAccess } from '@/lib/permissions-server';
 import { resolveApiRequestUser } from '@/lib/api-request-auth';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
-const ADMIN_ROLES = new Set(['owner', 'admin', 'staff']);
-
 export function isSameGymScope(
   profileGymId: string | null | undefined,
   targetGymId: string | null | undefined,
@@ -53,18 +51,9 @@ export async function POST(request: Request) {
   if (!resolvedAuth) {
     return NextResponse.json({ error: 'Unauthorized.' }, { status: 401 });
   }
-  const currentUser = resolvedAuth.user;
   const requestSupabase = resolvedAuth.supabase as unknown as typeof supabase;
-
-  const { data: profile } = await requestSupabase
-    .from('profiles')
-    .select('role, gym_id')
-    .eq('id', currentUser.id)
-    .maybeSingle();
-
-  if (!profile || !profile.role || !ADMIN_ROLES.has(profile.role)) {
-    return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
-  }
+  const access = await getMyAccess(requestSupabase as unknown as SupabaseClient);
+  if (!access.gymId || !['owner', 'admin', 'staff'].includes(access.role)) return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
 
   const { data: gym } = await requestSupabase
     .from('gyms')
@@ -74,11 +63,10 @@ export async function POST(request: Request) {
 
   const gymId = gym?.id ?? '';
 
-  if (!isSameGymScope(profile.gym_id, gymId)) {
+  if (!isSameGymScope(access.gymId, gymId)) {
     return NextResponse.json({ error: 'Forbidden.' }, { status: 403 });
   }
 
-  const access = await getMyAccess(requestSupabase as unknown as SupabaseClient);
   const permissionError = await apiRequirePermission('cache:revalidate', access);
   if (permissionError) return permissionError;
 

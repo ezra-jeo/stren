@@ -4,7 +4,10 @@ import { MemberShell } from '@/components/member/MemberShell';
 import { MemberHomeClient, type MemberHomeData } from '@/components/member/MemberHomeClient';
 import type { MemberStats } from '@/lib/types';
 
-vi.mock('next/navigation', () => ({ usePathname: () => '/member' }));
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/member',
+  useRouter: () => ({ push: vi.fn(), refresh: vi.fn() }),
+}));
 vi.mock('@/components/member-notifications-panel', () => ({ MemberNotificationsPanel: () => null }));
 
 const stats: MemberStats = {

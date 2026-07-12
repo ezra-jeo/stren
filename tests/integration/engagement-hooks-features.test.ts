@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-const fromMock = vi.fn();
-vi.mock('@/lib/supabase', () => ({ createClient: () => ({ from: fromMock }) }));
+const { fromMock, rpcMock } = vi.hoisted(() => ({
+  fromMock: vi.fn(),
+  rpcMock: vi.fn().mockResolvedValue({ data: { gym_id: 'gym-1' }, error: null }),
+}));
+vi.mock('@/lib/supabase', () => ({ createClient: () => ({ from: fromMock, rpc: rpcMock }) }));
 vi.mock('@/lib/streaks', () => ({
   updateStreak: vi.fn().mockResolvedValue({ currentStreak: 1, bestStreak: 1, isNewBest: true }),
 }));
@@ -17,7 +20,7 @@ function builder(rows: unknown[], onInsert?: (value: unknown) => unknown) {
 }
 
 describe('check-in engagement feature behavior', () => {
-  beforeEach(() => fromMock.mockReset());
+  beforeEach(() => { fromMock.mockReset(); rpcMock.mockClear(); });
 
   it('skips feed items when member_feed is disabled', async () => {
     const attendanceInserts: unknown[] = [];

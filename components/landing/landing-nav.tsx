@@ -195,7 +195,7 @@ export function LandingNav() {
 
               <div className="px-6 space-y-3">
                 <Link
-                  href="/gym-select"
+                  href="/gyms"
                   onClick={closeMenu}
                   className="block w-full text-center px-6 py-3.5 rounded-full font-semibold text-sm uppercase tracking-wider transition-all duration-200 hover:scale-[1.02]"
                   style={{

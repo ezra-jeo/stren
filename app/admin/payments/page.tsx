@@ -81,13 +81,12 @@ export default function PaymentsPage() {
       }))
     )
 
-    const { data: profiles } = await supabase
-      .from("profiles")
-      .select("id, name, contact_number")
-      .eq("role", "member")
+    const { data: gymUsers } = await supabase
+      .from("gym_users")
+      .select("profiles!gym_users_user_id_fkey(id, name, contact_number)")
+      .eq("gym_id", profile?.gymId ?? "")
       .eq("status", "active")
-      .order("name")
-    setMemberOptions(profiles ?? [])
+    setMemberOptions((gymUsers ?? []).flatMap((row) => row.profiles ? [row.profiles as MemberOption] : []))
 
     const { data: plans } = await supabase
       .from("membership_plans")
@@ -196,6 +195,7 @@ export default function PaymentsPage() {
       payment_method: payMethod,
       amount_paid: payableAmount,
       gym_id: profile?.gymId ?? null,
+      created_by: profile?.id ?? null,
     })
 
     if (error) {

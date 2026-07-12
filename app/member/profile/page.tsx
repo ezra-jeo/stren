@@ -12,7 +12,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { profileEditSchema } from '@/lib/validations';
 import { GhostBtn, PrimaryBtn } from '@/lib/admin-ui';
-import type { Profile } from '@/lib/types';
+import type { AccountProfile as Profile } from '@/lib/types';
 import type { z } from 'zod';
 
 type ProfileEditFormData = z.infer<typeof profileEditSchema>;

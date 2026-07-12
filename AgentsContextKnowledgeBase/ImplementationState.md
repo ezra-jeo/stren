@@ -2,7 +2,7 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-11 (all four workstream commits on `CustomizationPermissionsToggles`: Opus UI `272d876`, Codex backend `e031d89`, B7 fix `dc7e9b4`, A6 fix `673b108`. **Fable re-review of both fix commits: passed** — migration 018 verified, all six A6 fixes verified, local gate green (lint, typecheck, 217 tests, build). **Code is prod-ready**; remaining pre-prod items are decisions/ops, not code — see checklist below.)
+Last updated: 2026-07-12 (**Agent C fix pass complete** — all 6 Fable pickup items resolved in the working tree: approval-stamp `COALESCE`, owner-promotion `WITH CHECK` guard, `set-active-gym.test.ts` reconciled to the REVOKE+trigger design, onboard email lookup case-insensitive (`ilike` + escaped input, `handle_new_user` lowercases storage), `OTP-AUTH-GUIDE.md` moved to the Catalog Stale table, cache-key audit verified clean (all `unstable_cache` keys carry gym code/id; no admin/member data in cross-request caches). Gate: lint ✅ · typecheck ✅ · unit/integration **249/249** · production build ✅ with CI-style env (`NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co`, `NEXT_PUBLIC_SUPABASE_ANON_KEY=test-anon-key` — CI always injects these fallbacks; env-less local builds were never supported). E2E not run locally: no `E2E_*` credentials available. Version 2.0.0 + CHANGELOG in tree; awaiting developer commit → PR to `qa`.)
 
 ---
 
@@ -21,9 +21,31 @@ Last updated: 2026-07-11 (all four workstream commits on `CustomizationPermissio
 | Phase 6 — Documentation completion | Queued |
 | Phase 7 — TDD as standing methodology | Queued |
 
-## Active workstream: Gym Page Studio + Permissions & Feature Toggles
+## Active workstream: Unified Accounts & Auth Rebuild
 
-Spec: [ImplementationPlan.md](ImplementationPlan.md). Agent A = Claude Opus 4.8 (UI only). Agent B = GPT 5.5/Codex (logic/backend only). Shared-file rule: A re-skins `app/admin/gym-profile/page.tsx` first; B converts it to a server page strictly after A's merge.
+Spec: [ImplementationPlan-UnifiedAccounts.md](ImplementationPlan-UnifiedAccounts.md) · decision: `docs/adr/0004-one-account-many-gyms.md` · prompts: `prompts/Codex-Backend-UnifiedAccounts-OneShot.md`, `prompts/Opus48-UI-UnifiedAccounts-OneShot.md`. Agent C = Codex 5.6 Sol, effort xhigh (backend, ships first). Agent U = Claude Opus 4.8, effort high (UI, ships second, reskins C's minimal pages — handlers verbatim). Branch `auth/unified-accounts` → `qa`.
+
+| Unit | Scope (plan ref) | Status |
+|---|---|---|
+| C1 | Migration `019_unified_accounts.sql` (`gym_users` incl. `added_by`, `active_gym_id`, helper re-implementations, new RPCs + create-gym guards, kiosk `p_gym_id` reworks, lapsed/attribution columns, unique fixes, pre-approved column drops) + regenerated types + SQL/integration tests (§3, §7) | Implemented (Codex, working tree) — Fable-reviewed 2026-07-12; **all 3 open items resolved by the fix pass (2026-07-12)**: approval stamp now `COALESCE(auth.uid(), NEW.added_by)` (service-role safe); `gym_users_update` WITH CHECK blocks promoting to owner unless caller is owner (test-pinned in `join-and-approve.test.ts`); `set-active-gym.test.ts` reconciled to the REVOKE+trigger design |
+| C2 | Middleware rewrite + 308 map, `lib/auth-actions.ts`, `lib/auth-context.tsx` rebuild, onboard attach-vs-create, kiosk gym pinning, lapsed gate wiring, attribution + owner payment alerts, profiles-query/type sweep, minimal `/login` `/signup` `/gyms` `/gyms/new`, cache-key audit (§4, §6) | Implemented (Codex, working tree) — Fable-reviewed 2026-07-12; **open items resolved by the fix pass (2026-07-12)**: onboard email lookup now case-insensitive (`ilike` with `%`/`_`/`\` escaping; `handle_new_user` lowercases stored emails). Cache-key audit verified clean: `unstable_cache` sites (`gym-public`, `gym-member`) key by gym code/id via args, public data only; `/gym/[code]` ISR keys by path; `permissions-server` uses per-request React `cache()`; service worker never caches admin/member/kiosk/api. Auth-context keeps the documented `gymId`/`role:'member'` shim for page islands (safe: real role flows via `useAccess()`/`get_my_access`; TODO retained) |
+| C3 | Deletion sweep (old auth pages/components/libs, grep-zero), E2E auth rewrite, `OTP-AUTH-GUIDE.md` quarantine (§4) | Implemented (Codex/U, working tree) — Fable-reviewed 2026-07-12: grep-zero clean; **leftover resolved by the fix pass (2026-07-12)**: `OTP-AUTH-GUIDE.md` row moved to the Catalog **Stale** table |
+| U1 | `/login`, `/signup`, `/reset-password` full UX (Stren-branded, `?gym=` flavor, error states) (§5) | Implemented in working tree (Agent U, 2026-07-12) — `auth-shell` + `lib/auth-error-copy`; `auth-screens.test.tsx` green |
+| U2 | Gym hub `/gyms` + `/gyms/new` (guard errors in plain language) + join flow + public-page Join CTA + join-QR poster + lapsed lock screen + pending/empty states (§5) | Implemented in working tree (Agent U, 2026-07-12) — `GymHub`/`JoinGymPanel`/`gym-badges`, `JoinQrPoster` + `/admin/join-code`, `LapsedLockScreen` (+ `MemberHomeClient` branch), `lib/create-gym-error-copy`; public Join CTA satisfied via 308 + `?join=` (no preview change); `gym-hub`/`gym-new`/`join-qr-and-lapsed` tests green |
+| U3 | Gym switcher in admin + member shells incl. Member/Admin view toggle; `useAccess()` sweep of remaining `profile.role` reads (§5) | Implemented in working tree (Agent U, 2026-07-12) — `GymSwitcher` in both shells; admin layout footer role now via `useAccess()`; `gym-switcher.test.tsx` green. Page-island `profile.gymId` reads left on the auth-context shim (functionally = `activeGymId`; shim removal lives in auth-context internals, Codex-owned) |
+| J1 | Full `npm run test:ci` green; §10 definition of done walked; version 2.0.0 + `CHANGELOG.md` | Done in working tree (Agent C fix pass, 2026-07-12) — lint/typecheck/unit-integration **249/249**/build (CI env) all green; version **2.0.0** + Agent C CHANGELOG entry added. §10 DoD walked: items 1–6a proven by the integration suites + grep-zero; item 7's E2E leg and the credentialed E2E cases **not executed locally** (no `E2E_*` credentials — run against staging before prod, same as the 1.2.0 checklist item). Awaiting developer commit → PR to `qa`. |
+
+**Agent U handoff note (2026-07-12) — SUPERSEDED by the Fable review above** (the tsc/build failures and the two named C-owned test failures it lists are fixed; the actual failing set is `set-active-gym` / `join-and-approve` / `onboard-existing-account`, see C rows). Kept for history:
+- **C2 sweep unfinished:** `app/admin/members/page.tsx`, `app/admin/payments/page.tsx`, `app/gym/[code]/page.tsx` (`canCurrentUserPreviewUnpublishedGym`), `app/member/settings/page.tsx`, `lib/engagement-hooks.ts` still read the dropped `profiles.role`/`gym_id`/`status`; `npx tsc --noEmit` fails on them (and thus `npm run build`).
+- **C-owned test failures:** `kiosk-disabled-state.test.tsx` (imports `app/kiosk/page`) and `onboard-existing-account.test.ts` (source-checks the onboard route) — C kiosk/onboard work.
+- **C3 leftover done by U to unblock the suite:** deleted `tests/integration/gym-auth-flow.test.tsx` (imported the deleted `LoginForm`/`GymSignUpForm`).
+- **Lapsed gate wiring (C2):** the lock-screen UX + `MemberHomeClient` branch are in place with a safe default; the server page (`app/member/page.tsx`) still needs to pass `subscription_status`/`lapsed_summary`/gym name from `member_home_stats` into `MemberHomeData` (one mapping) to activate it.
+
+Deferred by grill session 2026-07-11 (recorded in plan §0 + ADR-0004; queue as future workstreams when triggered): phone-OTP login channel · Organizations/multi-branch layer · owner email digest of recorded payments.
+
+## Workstream (shipped 2026-07-11): Gym Page Studio + Permissions & Feature Toggles
+
+Landed on `main` via qa merge `3e52c95`. Spec: [ImplementationPlan.md](ImplementationPlan.md) (completed; kept per Catalog rule 6). Agent A = Claude Opus 4.8 (UI only). Agent B = GPT 5.5/Codex (logic/backend only). Shared-file rule: A re-skins `app/admin/gym-profile/page.tsx` first; B converts it to a server page strictly after A's merge.
 
 ### Agent A — UI
 
