@@ -2,12 +2,12 @@
 
 import React from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { LoadingScreen } from '@/components/ui/loading-screen';
 import { MemberNotificationsPanel } from '@/components/member-notifications-panel';
 import { NavLinkItem } from '@/components/layout/nav-link';
+import { GymSwitcher } from '@/components/gyms/GymSwitcher';
 import { Home, Activity, Trophy, User, Settings } from 'lucide-react';
 import type { GymBranding } from '@/lib/gym-member';
 import { isFeatureEnabled, type FeatureFlags, type FeatureKey } from '@/lib/features';
@@ -27,17 +27,14 @@ interface MemberShellProps {
   features?: FeatureFlags;
 }
 
-export function MemberShell({ children, gymBranding, hasServerUser, features }: MemberShellProps) {
+export function MemberShell({ children, hasServerUser, features }: MemberShellProps) {
   const pathname = usePathname();
   const { profile, isLoading } = useAuth();
-  const gymCode = gymBranding?.code ?? null;
   const navItems = NAV_ITEMS.filter((item) => !item.feature || isFeatureEnabled(features, item.feature));
 
   // Middleware is the single auth guard — no client-side redirects here.
+  // The active gym's name/logo is now shown by the gym switcher (§5 U3).
   if (isLoading && !hasServerUser) return <LoadingScreen />;
-
-  const gymName = gymBranding?.name ?? 'Stren';
-  const gymLogoUrl = gymBranding?.logo_url ?? null;
 
   return (
     <div className="min-h-screen flex flex-col" style={{ backgroundColor: 'var(--color-background)' }}>
@@ -45,30 +42,9 @@ export function MemberShell({ children, gymBranding, hasServerUser, features }: 
         className="hidden md:flex items-center justify-between px-6 py-3 border-b"
         style={{ backgroundColor: 'var(--color-white)', borderColor: 'var(--color-surface)' }}
       >
-        <Link
-          href={gymCode ? `/gym/${encodeURIComponent(gymCode)}` : '/member'}
-          className="flex items-center gap-2.5"
-        >
-          {gymLogoUrl ? (
-            <div className="h-8 w-8 rounded-lg overflow-hidden border" style={{ borderColor: 'var(--color-surface)' }}>
-              <Image
-                src={gymLogoUrl}
-                alt={gymName}
-                width={32}
-                height={32}
-                className="h-full w-full object-cover"
-              />
-            </div>
-          ) : (
-            <Image src="/stren-logo.png" alt="Stren" width={32} height={32} className="object-contain" />
-          )}
-          <span
-            className="font-bold text-lg"
-            style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-heading)' }}
-          >
-            {gymName}
-          </span>
-        </Link>
+        <div className="min-w-0 max-w-[240px] flex-1">
+          <GymSwitcher variant="member" />
+        </div>
 
         <div className="flex items-center gap-6">
           {navItems.map(({ href, label, icon }) => (
@@ -96,30 +72,9 @@ export function MemberShell({ children, gymBranding, hasServerUser, features }: 
         className="md:hidden flex items-center justify-between px-4 py-3 border-b"
         style={{ backgroundColor: 'var(--color-white)', borderColor: 'var(--color-surface)' }}
       >
-        <Link
-          href={gymCode ? `/gym/${encodeURIComponent(gymCode)}` : '/member'}
-          className="flex items-center gap-2"
-        >
-          {gymLogoUrl ? (
-            <div className="h-7 w-7 rounded-md overflow-hidden border" style={{ borderColor: 'var(--color-surface)' }}>
-              <Image
-                src={gymLogoUrl}
-                alt={gymName}
-                width={28}
-                height={28}
-                className="h-full w-full object-cover"
-              />
-            </div>
-          ) : (
-            <Image src="/stren-logo.png" alt="Stren" width={28} height={28} className="object-contain" />
-          )}
-          <span
-            className="font-bold text-base"
-            style={{ color: 'var(--color-primary)', fontFamily: 'var(--font-heading)' }}
-          >
-            {gymName}
-          </span>
-        </Link>
+        <div className="min-w-0 max-w-[190px] flex-1">
+          <GymSwitcher variant="member" />
+        </div>
 
         <div className="flex items-center gap-2">
           <MemberNotificationsPanel />

@@ -4,6 +4,36 @@ Multi-tenant gym management platform. Each gym gets a staff-side admin panel, a 
 
 ## Language
 
+### Accounts & gyms
+
+**Account**:
+One global Stren identity — email + password, created once at `/signup`. People sign in to Stren, not to a gym; gyms attach to the account.
+_Avoid_: user account per gym, login (as a noun), profile (that's the DB row)
+
+**Gym user**:
+One account's tie to one gym: a `gym_users` row holding that gym's role and status. An account has any number of them.
+_Avoid_: membership (reserved for the billing subscription), affiliation, link
+
+**Active gym**:
+The one gym an account is currently operating in (`profiles.active_gym_id`, set only via `set_active_gym`). Every `/admin`, `/member`, and `/kiosk` surface reads it; all data access is pinned to it.
+_Avoid_: current tenant, workspace, context
+
+**Gym switcher**:
+The shell control that swaps the active gym. Gyms switch — the account never does.
+_Avoid_: account switcher
+
+**Gym hub**:
+The account's home at `/gyms`: your gyms with role/status, join a gym, create a gym.
+_Avoid_: gym select, gym picker, dashboard
+
+**Join request**:
+A pending gym-user row created by self-serve joining, awaiting staff approval at People → pending.
+_Avoid_: application, signup request
+
+**Lapsed member**:
+A member whose gym-user row is active but whose subscription has expired. Sees the renewal lock screen (saved stats named, never deleted), can't check in, off the leaderboard until renewal.
+_Avoid_: expired member (ambiguous with the subscription row), churned
+
 ### Access control
 
 **Permission**:
@@ -11,7 +41,7 @@ A per-user capability answering "can this user perform this action?" Identified 
 _Avoid_: right, privilege, ability
 
 **Role**:
-One of `owner`, `admin`, `staff`, `member` — a user's base position that determines their default permissions. Owner always has every permission.
+One of `owner`, `admin`, `staff`, `member` — an account's base position **at one gym** (lives on the gym-user row; the same account can hold different roles at different gyms). Determines default permissions; owner always has every permission.
 _Avoid_: user type, level
 
 **Manager**:

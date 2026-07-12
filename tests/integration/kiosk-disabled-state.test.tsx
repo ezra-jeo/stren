@@ -3,8 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 const mocks = vi.hoisted(() => {
-  const rpc = vi.fn(async (name: string) => name === 'get_my_access'
-    ? { data: { features: { kiosk_checkin: false } }, error: null }
+  const rpc = vi.fn(async (name: string) => name === 'kiosk_access_allowed'
+    ? { data: false, error: null }
     : { data: [], error: null });
   const channel = {
     on: vi.fn().mockReturnThis(),
@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => {
 });
 
 vi.mock('@/lib/supabase', () => ({ createClient: () => mocks.client }));
+vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ activeGymId: 'gym-1' }) }));
 
 import KioskPage, { KioskDisabledState } from '@/app/kiosk/page';
 
@@ -33,7 +34,7 @@ describe('disabled kiosk state', () => {
     render(<KioskPage />);
 
     await screen.findByRole('heading', { name: 'Check-ins are turned off' });
-    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith('get_my_access'));
-    expect(mocks.rpc).not.toHaveBeenCalledWith('kiosk_get_checked_in');
+    await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith('kiosk_access_allowed', { p_gym_id: 'gym-1' }));
+    expect(mocks.rpc).not.toHaveBeenCalledWith('kiosk_get_checked_in', expect.anything());
   });
 });

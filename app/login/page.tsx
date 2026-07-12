@@ -1,115 +1,96 @@
 'use client';
 
-import { Suspense, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { isValidLoginOrigin } from '@/lib/login-origin';
+import { Suspense, useState } from 'react';
+import { useAuth } from '@/lib/auth-context';
+import { resolvePostAuthDestination } from '@/lib/auth-actions';
+import { readableAuthError } from '@/lib/auth-error-copy';
+import { AuthShell, AuthField, AuthSubmit, AuthErrorBanner, useGymFlavor } from '@/components/auth/auth-shell';
 
-const LOGIN_ORIGIN_STORAGE_KEY = 'stren.auth.loginOriginPath';
-
-function getReadableAuthError(error: string): string {
-  const normalized = error.trim().toLowerCase()
-  if (!normalized) return 'Your login link could not be verified. Please request a new one.'
-  if (normalized.includes('expired')) return 'Your login link has expired. Please request a new one.'
-  if (normalized.includes('invalid') || normalized.includes('code')) {
-    return 'Your login link is invalid or already used. Please request a new one.'
-  }
-  if (normalized.includes('missing_code')) return 'Login code is missing. Please open the full login link from your email.'
-  if (normalized.includes('no_user')) return 'Login was completed, but your account could not be loaded. Please try again.'
-  if (normalized.includes('profile_unavailable')) return 'Your member profile was not found or is inactive. Please contact gym staff.'
-  if (normalized.includes('pending_approval')) return 'Your account is still pending approval.'
-  return 'Your login link could not be verified. Please request a new one.'
-}
-
-function LoginPageContent() {
+function LoginForm() {
+  const { signIn } = useAuth();
   const router = useRouter();
-  const searchParams = useSearchParams();
-  const authError = searchParams.get('error')?.trim() ?? ''
+  const params = useSearchParams();
+  const gymCode = params.get('gym');
+  const { flavor } = useGymFlavor(gymCode);
 
-  useEffect(() => {
-    if (authError) {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(() => readableAuthError(params.get('error')));
+  const [submitting, setSubmitting] = useState(false);
+
+  const signupHref = gymCode ? `/signup?gym=${encodeURIComponent(gymCode)}` : '/signup';
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    // Handler kept verbatim from the minimal C2 page: signIn → resolve → route.
+    const result = await signIn(email, password);
+    if (result.error) {
+      setError(result.error);
+      setSubmitting(false);
       return;
     }
-
-    const gym = searchParams.get('gym')?.trim();
-    if (gym) {
-      router.replace(`/gym/${encodeURIComponent(gym)}/login`);
-      return;
-    }
-
-    // Prefer the cookie written by middleware (authoritative), fall back to localStorage.
-    const cookieOrigin = document.cookie
-      .split('; ')
-      .find((row) => row.startsWith(`${LOGIN_ORIGIN_STORAGE_KEY}=`))
-      ?.split('=')[1];
-
-    const candidateOrigin = cookieOrigin
-      ? decodeURIComponent(cookieOrigin)
-      : (() => {
-          try {
-            return window.localStorage.getItem(LOGIN_ORIGIN_STORAGE_KEY);
-          } catch {
-            return null;
-          }
-        })();
-
-    if (candidateOrigin && isValidLoginOrigin(candidateOrigin)) {
-      router.replace(candidateOrigin);
-      return;
-    }
-
-    router.replace('/gym-select');
-  }, [authError, router, searchParams]);
-
-  if (authError) {
-    return (
-      <div className="min-h-dvh flex items-center justify-center px-6" style={{ backgroundColor: 'var(--color-background)' }}>
-        <div className="w-full max-w-md rounded-xl border p-6" style={{ backgroundColor: 'var(--color-white)', borderColor: 'var(--color-surface)' }}>
-          <h1 className="text-lg font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-            Login Link Error
-          </h1>
-          <p className="mt-2 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-            {getReadableAuthError(authError)}
-          </p>
-          <p className="mt-2 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-            Error code: {authError}
-          </p>
-
-          <div className="mt-5 flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={() => router.replace('/gym-select')}
-              className="rounded-lg px-3 py-2 text-sm font-medium"
-              style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-white)' }}
-            >
-              Go to Gym Login
-            </button>
-            <button
-              type="button"
-              onClick={() => router.replace('/landing')}
-              className="rounded-lg px-3 py-2 text-sm font-medium"
-              style={{ backgroundColor: 'var(--color-surface)', color: 'var(--color-text-primary)' }}
-            >
-              Back to Landing
-            </button>
-          </div>
-        </div>
-      </div>
-    );
+    router.replace(await resolvePostAuthDestination(gymCode ?? undefined));
+    router.refresh();
   }
 
   return (
-    <div className="min-h-dvh flex items-center justify-center px-6" style={{ backgroundColor: 'var(--color-background)' }}>
-      <div className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-        Redirecting to gym login...
-      </div>
-    </div>
+    <AuthShell
+      title="Sign in to Stren"
+      subtitle="One account for every gym you belong to."
+      flavor={flavor}
+      flavorLabel="Sign in to continue to"
+      footer={
+        <div className="space-y-2">
+          <p style={{ color: 'var(--color-text-secondary)' }}>
+            New to Stren?{' '}
+            <Link href={signupHref} className="font-semibold" style={{ color: 'var(--color-primary)' }}>
+              Create account
+            </Link>
+          </p>
+        </div>
+      }
+    >
+      {error && <AuthErrorBanner message={error} />}
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <AuthField
+          label="Email"
+          id="login-email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={submitting}
+          required
+        />
+        <AuthField
+          label="Password"
+          id="login-password"
+          type="password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          disabled={submitting}
+          required
+        />
+        <div className="text-right">
+          <Link href="/reset-password" className="text-xs font-medium" style={{ color: 'var(--color-text-secondary)' }}>
+            Forgot password?
+          </Link>
+        </div>
+        <AuthSubmit loading={submitting}>{submitting ? 'Signing in…' : 'Sign in'}</AuthSubmit>
+      </form>
+    </AuthShell>
   );
 }
 
 export default function LoginPage() {
   return (
     <Suspense fallback={null}>
-      <LoginPageContent />
+      <LoginForm />
     </Suspense>
   );
 }

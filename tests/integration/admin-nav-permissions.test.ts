@@ -10,8 +10,9 @@ describe('admin nav filtering (§7.9 / §6 client table)', () => {
     const nav = hrefs(accessFromRoleDefaults('owner', 'g'));
     expect(nav).toContain('/admin/gym-profile');
     expect(nav).toContain('/admin/access');
+    expect(nav).toContain('/admin/join-code');
     expect(nav).toContain('/kiosk');
-    expect(nav).toHaveLength(10);
+    expect(nav).toHaveLength(11);
   });
 
   it('admin sees operations but NOT Gym Page or People & access', () => {
@@ -19,13 +20,13 @@ describe('admin nav filtering (§7.9 / §6 client table)', () => {
     expect(nav).not.toContain('/admin/gym-profile');
     expect(nav).not.toContain('/admin/access');
     expect(nav).toEqual([
-      '/admin', '/admin/members', '/admin/payments', '/admin/plans',
+      '/admin', '/admin/members', '/admin/join-code', '/admin/payments', '/admin/plans',
       '/admin/promos', '/admin/announcements', '/admin/reports', '/kiosk',
     ]);
   });
 
   it('staff sees only Members and Kiosk', () => {
-    expect(hrefs(accessFromRoleDefaults('staff', 'g'))).toEqual(['/admin/members', '/kiosk']);
+    expect(hrefs(accessFromRoleDefaults('staff', 'g'))).toEqual(['/admin/members', '/admin/join-code', '/kiosk']);
   });
 
   it('a granted Studio switch reveals Gym Page for an admin', () => {

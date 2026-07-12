@@ -637,6 +637,7 @@ export type Database = {
         Row: {
           amount_paid: number
           created_at: string | null
+          created_by: string | null
           end_date: string
           gym_id: string | null
           id: string
@@ -649,6 +650,7 @@ export type Database = {
         Insert: {
           amount_paid: number
           created_at?: string | null
+          created_by?: string | null
           end_date: string
           gym_id?: string | null
           id?: string
@@ -661,6 +663,7 @@ export type Database = {
         Update: {
           amount_paid?: number
           created_at?: string | null
+          created_by?: string | null
           end_date?: string
           gym_id?: string | null
           id?: string
@@ -812,6 +815,7 @@ export type Database = {
           member_id: string | null
           method: string | null
           payment_date: string | null
+          recorded_by: string | null
         }
         Insert: {
           amount: number
@@ -822,6 +826,7 @@ export type Database = {
           member_id?: string | null
           method?: string | null
           payment_date?: string | null
+          recorded_by?: string | null
         }
         Update: {
           amount?: number
@@ -832,6 +837,7 @@ export type Database = {
           member_id?: string | null
           method?: string | null
           payment_date?: string | null
+          recorded_by?: string | null
         }
         Relationships: [
           {
@@ -850,8 +856,19 @@ export type Database = {
           },
         ]
       }
+      gym_users: {
+        Row: { gym_id: string; user_id: string; role: Database["public"]["Enums"]["user_role"]; status: Database["public"]["Enums"]["profile_status"]; added_by: string | null; created_at: string; updated_at: string }
+        Insert: { gym_id: string; user_id: string; role?: Database["public"]["Enums"]["user_role"]; status?: Database["public"]["Enums"]["profile_status"]; added_by?: string | null; created_at?: string; updated_at?: string }
+        Update: { gym_id?: string; user_id?: string; role?: Database["public"]["Enums"]["user_role"]; status?: Database["public"]["Enums"]["profile_status"]; added_by?: string | null; created_at?: string; updated_at?: string }
+        Relationships: [
+          { foreignKeyName: "gym_users_gym_id_fkey"; columns: ["gym_id"]; isOneToOne: false; referencedRelation: "gyms"; referencedColumns: ["id"] },
+          { foreignKeyName: "gym_users_user_id_fkey"; columns: ["user_id"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+          { foreignKeyName: "gym_users_added_by_fkey"; columns: ["added_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
+        ]
+      }
       profiles: {
         Row: {
+          active_gym_id: string | null
           avatar_change_count: number
           avatar_change_locked_until: string | null
           avatar_required: boolean
@@ -860,14 +877,12 @@ export type Database = {
           contact_number: string | null
           created_at: string | null
           email: string
-          gym_id: string | null
           id: string
           name: string
           qr_code: string | null
-          role: Database["public"]["Enums"]["user_role"] | null
-          status: Database["public"]["Enums"]["profile_status"] | null
         }
         Insert: {
+          active_gym_id?: string | null
           avatar_change_count?: number
           avatar_change_locked_until?: string | null
           avatar_required?: boolean
@@ -876,14 +891,12 @@ export type Database = {
           contact_number?: string | null
           created_at?: string | null
           email: string
-          gym_id?: string | null
           id: string
           name: string
           qr_code?: string | null
-          role?: Database["public"]["Enums"]["user_role"] | null
-          status?: Database["public"]["Enums"]["profile_status"] | null
         }
         Update: {
+          active_gym_id?: string | null
           avatar_change_count?: number
           avatar_change_locked_until?: string | null
           avatar_required?: boolean
@@ -892,17 +905,14 @@ export type Database = {
           contact_number?: string | null
           created_at?: string | null
           email?: string
-          gym_id?: string | null
           id?: string
           name?: string
           qr_code?: string | null
-          role?: Database["public"]["Enums"]["user_role"] | null
-          status?: Database["public"]["Enums"]["profile_status"] | null
         }
         Relationships: [
           {
-            foreignKeyName: "profiles_gym_id_fkey"
-            columns: ["gym_id"]
+            foreignKeyName: "profiles_active_gym_id_fkey"
+            columns: ["active_gym_id"]
             isOneToOne: false
             referencedRelation: "gyms"
             referencedColumns: ["id"]
@@ -1038,22 +1048,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      check_gym_membership: {
-        Args: { p_email: string; p_gym_code: string }
-        Returns: boolean
-      }
-      create_gym_and_owner: {
-        Args: {
-          p_email: string
-          p_gym_address?: string
-          p_gym_code: string
-          p_gym_name: string
-          p_gym_phone?: string
-          p_name: string
-          p_user_id: string
-        }
-        Returns: Json
-      }
+      create_gym: { Args: { p_code: string; p_name: string }; Returns: Database["public"]["Tables"]["gyms"]["Row"] }
       create_member_notification: {
         Args: {
           p_body: string
@@ -1072,6 +1067,10 @@ export type Database = {
       get_gym_by_code: { Args: { p_code: string }; Returns: Json }
       get_gym_id: { Args: never; Returns: string }
       get_my_access: { Args: never; Returns: Json }
+      get_my_gyms: {
+        Args: never
+        Returns: { gym_id: string; code: string; name: string; logo_url: string | null; role: Database["public"]["Enums"]["user_role"]; status: Database["public"]["Enums"]["profile_status"] }[]
+      }
       get_user_role: { Args: never; Returns: string }
       gym_feature_enabled: {
         Args: { p_feature: string; p_gym_id?: string }
@@ -1082,12 +1081,13 @@ export type Database = {
         Returns: boolean
       }
       is_manager: { Args: never; Returns: boolean }
+      join_gym: { Args: { p_gym_id: string }; Returns: Json }
       kiosk_access_allowed: { Args: { p_gym_id: string }; Returns: boolean }
-      kiosk_checkin: { Args: { p_qr_code: string }; Returns: Json }
-      kiosk_checkin_by_member: { Args: { p_member_id: string }; Returns: Json }
-      kiosk_checkout: { Args: { p_attendance_id: string }; Returns: Json }
+      kiosk_checkin: { Args: { p_qr_code: string; p_gym_id: string }; Returns: Json }
+      kiosk_checkin_by_member: { Args: { p_member_id: string; p_gym_id: string }; Returns: Json }
+      kiosk_checkout: { Args: { p_attendance_id: string; p_gym_id: string }; Returns: Json }
       kiosk_get_checked_in: {
-        Args: never
+        Args: { p_gym_id: string }
         Returns: {
           attendance_id: string
           check_in: string
@@ -1096,7 +1096,7 @@ export type Database = {
         }[]
       }
       kiosk_search_members: {
-        Args: { p_query: string }
+        Args: { p_query: string; p_gym_id: string }
         Returns: {
           contact_number: string
           email: string
@@ -1111,6 +1111,7 @@ export type Database = {
         Args: { p_gym_id: string; p_member_id: string }
         Returns: undefined
       }
+      set_active_gym: { Args: { p_gym_id: string }; Returns: Json }
       leaderboard_longest_member: {
         Args: { p_limit?: number }
         Returns: {

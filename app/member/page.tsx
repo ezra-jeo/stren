@@ -45,7 +45,15 @@ export default async function MemberHomePage() {
   const visitedDates: string[] = raw?.calendar_dates ?? []
   const peopleInGym = raw?.people_in_gym ?? 0
 
-  const data: MemberHomeData = { memberName, stats, visitedDates, peopleInGym, features: access.features }
+  const data: MemberHomeData = {
+    memberName,
+    stats,
+    visitedDates,
+    peopleInGym,
+    features: access.features,
+    subscriptionStatus: raw?.subscription_status,
+    lapsedSummary: raw?.lapsed_summary ?? null,
+  }
 
   return <MemberHomeClient data={data} />
 }
