@@ -243,18 +243,8 @@ export default function SettingsPage() {
 
   async function handleDeleteAccount() {
     if (!profile) return;
-    setDeleting(true);
-    const { error } = await supabase
-      .from('profiles')
-      .update({ status: 'rejected' })
-      .eq('id', profile.id);
-    if (error) {
-      toast.error('Failed to delete account. Please contact support.');
-      setDeleting(false);
-      return;
-    }
-    toast.success('Account deleted.');
-    await signOut();
+    toast.error('Please contact support to delete your Stren account.');
+    setDeleting(false);
   }
 
   function openPasswordModal() {

@@ -2,16 +2,16 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/lib/auth-context';
-import { createClient } from '@/lib/supabase';
 import { NotificationsPanel } from '@/components/notifications-panel';
 import { LoadingScreen, Spinner } from '@/components/ui/loading-screen';
 import { AppShell } from '@/components/layout/app-shell';
 import { LogOut } from 'lucide-react';
 import { AccessProvider, useAccess } from '@/lib/access-context';
 import { visibleAdminNav } from '@/components/admin/admin-nav-items';
+import { GymSwitcher } from '@/components/gyms/GymSwitcher';
+import { roleLabel } from '@/components/gyms/gym-badges';
 
 const PROFILE_GRACE_MS = 2500;
 
@@ -30,9 +30,7 @@ function AdminLayoutInner({
 }) {
   const pathname = usePathname();
   const { user, profile, isLoading, isSigningOut, signOut, refreshProfile } = useAuth();
-  const supabase = useMemo(() => createClient(), []);
   const [isOpen, setIsOpen] = useState(false);
-  const [gymName, setGymName] = useState<string | null>(null);
   const [profileGraceExceeded, setProfileGraceExceeded] = useState(false);
 
   // Middleware is the single auth guard — no redirects here.
@@ -51,19 +49,6 @@ function AdminLayoutInner({
       window.clearTimeout(timeoutId);
     };
   }, [isLoading, profile, user]);
-
-  // Fetch gym name once profile (and gymId) is available
-  useEffect(() => {
-    if (!profile?.gymId) return;
-    supabase
-      .from('gyms')
-      .select('name')
-      .eq('id', profile.gymId)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data?.name) setGymName(data.name);
-      });
-  }, [profile?.gymId, supabase]);
 
   const access = useAccess();
   const visibleNavItems = useMemo(() => visibleAdminNav(access), [access]);
@@ -113,30 +98,9 @@ function AdminLayoutInner({
 
   if (!profile) return <LoadingScreen />;
 
-  const displayName = gymName ?? 'Stren';
-  const displayInitial = displayName.charAt(0).toUpperCase();
-
-  const GymBadge = () => (
-    <div className="flex items-center gap-3">
-      <div
-        className="h-9 w-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0"
-        style={{ backgroundColor: 'hsl(var(--primary))', color: 'hsl(var(--white))' }}
-      >
-        {displayInitial}
-      </div>
-      <div className="min-w-0">
-        <h1
-          className="text-base font-bold leading-tight truncate"
-          style={{ color: 'hsl(var(--primary-light))', fontFamily: 'var(--font-heading)' }}
-        >
-          {displayName}
-        </h1>
-        <p className="text-xs capitalize" style={{ color: 'hsl(var(--gray))' }}>
-          {profile.role} Panel
-        </p>
-      </div>
-    </div>
-  );
+  // The gym switcher is the brand anchor now: it names the active gym and lets
+  // the account swap gyms / views (§5 U3), replacing the old single-gym badge.
+  const roleName = roleLabel(access.role);
 
   const desktopFooter = (
     <>
@@ -145,8 +109,8 @@ function AdminLayoutInner({
           <p className="text-sm font-medium truncate" style={{ color: 'hsl(var(--light-gray))' }}>
             {profile.email}
           </p>
-          <p className="text-xs capitalize" style={{ color: 'hsl(var(--gray))' }}>
-            {profile.role}
+          <p className="text-xs" style={{ color: 'hsl(var(--gray))' }}>
+            {roleName}
           </p>
         </div>
         <NotificationsPanel />
@@ -179,8 +143,8 @@ function AdminLayoutInner({
 
   return (
     <AppShell
-      desktopBrand={<GymBadge />}
-      mobileBrand={<GymBadge />}
+      desktopBrand={<GymSwitcher variant="admin" />}
+      mobileBrand={<GymSwitcher variant="admin" />}
       navItems={visibleNavItems.map((item) => ({
         href: item.href,
         label: item.label,

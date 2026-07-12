@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { toast } from "sonner"
 import type { Html5Qrcode as Html5QrcodeType } from "html5-qrcode"
+import { useAuth } from "@/lib/auth-context"
 import {
   LogIn,
   LogOut,
@@ -113,6 +114,8 @@ export function KioskDisabledState() {
 
 export default function KioskPage() {
   const supabase = useMemo(() => createClient(), [])
+  const { activeGymId } = useAuth()
+  const [pinnedGymId, setPinnedGymId] = useState<string | null>(null)
   const [mode, setMode] = useState<KioskMode>("qr")
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<
@@ -143,13 +146,22 @@ export default function KioskPage() {
   const refreshQueuedRef = useRef(false)
 
   useEffect(() => {
+    const stored = window.localStorage.getItem('stren.kiosk.gymId')
+    const gymId = stored || activeGymId
+    if (gymId && !pinnedGymId) {
+      window.localStorage.setItem('stren.kiosk.gymId', gymId)
+      setPinnedGymId(gymId)
+    }
+  }, [activeGymId, pinnedGymId])
+
+  useEffect(() => {
     void refreshKioskAvailability()
     const availabilityInterval = setInterval(refreshKioskAvailability, 30000)
 
     return () => {
       clearInterval(availabilityInterval)
     }
-  }, [supabase])
+  }, [supabase, pinnedGymId])
 
   useEffect(() => {
     if (kioskEnabled !== true) return
@@ -170,17 +182,17 @@ export default function KioskPage() {
       clearInterval(interval)
       void supabase.removeChannel(channel)
     }
-  }, [supabase, kioskEnabled])
+  }, [supabase, kioskEnabled, pinnedGymId])
 
   async function refreshKioskAvailability() {
-    const { data, error } = await supabase.rpc('get_my_access')
-    if (error || !isJsonObject(data)) {
+    if (!pinnedGymId) { setKioskEnabled(false); return }
+    const { data, error } = await supabase.rpc('kiosk_access_allowed', { p_gym_id: pinnedGymId })
+    if (error) {
       setKioskEnabled(false)
       void stopScanner()
       return
     }
-    const features = isJsonObject(data.features) ? data.features : null
-    const enabled = features?.kiosk_checkin !== false
+    const enabled = data === true
     setKioskEnabled(enabled)
     if (!enabled) void stopScanner()
   }
@@ -195,7 +207,7 @@ export default function KioskPage() {
     setIsLoadingCheckedIn(true)
     try {
       const { data, error } = await withTimeout(
-        supabase.rpc("kiosk_get_checked_in"),
+        supabase.rpc("kiosk_get_checked_in", { p_gym_id: pinnedGymId! }),
         KIOSK_RPC_TIMEOUT_MS,
         "Loading checked-in members timed out.",
       )
@@ -371,7 +383,7 @@ export default function KioskPage() {
 
   async function handleQrScan(qrCode: string) {
     const { data, error } = await withTimeout(
-      supabase.rpc("kiosk_checkin", { p_qr_code: qrCode }),
+      supabase.rpc("kiosk_checkin", { p_qr_code: qrCode, p_gym_id: pinnedGymId! }),
       KIOSK_RPC_TIMEOUT_MS,
       "QR check-in timed out.",
     )
@@ -439,7 +451,7 @@ export default function KioskPage() {
 
     try {
       const { data, error } = await withTimeout(
-        supabase.rpc("kiosk_checkin_by_member", { p_member_id: memberId }),
+        supabase.rpc("kiosk_checkin_by_member", { p_member_id: memberId, p_gym_id: pinnedGymId! }),
         KIOSK_RPC_TIMEOUT_MS,
         pendingKind === "checkout" ? "Manual check-out timed out." : "Manual check-in timed out.",
       )
@@ -518,7 +530,7 @@ export default function KioskPage() {
 
     try {
       const { data, error } = await withTimeout(
-        supabase.rpc("kiosk_search_members", { p_query: q }),
+        supabase.rpc("kiosk_search_members", { p_query: q, p_gym_id: pinnedGymId! }),
         KIOSK_RPC_TIMEOUT_MS,
         "Member search timed out.",
       )

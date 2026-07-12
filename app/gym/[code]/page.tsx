@@ -2,7 +2,7 @@ import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { getGymAssetPublicUrl, getGymPublicByCode } from '@/lib/gym-public';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
-import { canPreviewUnpublishedGym } from '@/lib/gym-visibility';
+import { canPreviewUnpublishedGym, type GymViewerRole } from '@/lib/gym-visibility';
 import { GymLandingPreview, type GymPreviewData } from '@/components/gym/GymLandingPreview';
 import { normalizeFocal } from '@/lib/focal';
 import type { Json } from '@/lib/database.types';
@@ -187,15 +187,12 @@ async function canCurrentUserPreviewUnpublishedGym(gymId: string): Promise<boole
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData.user) return false;
 
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('role, gym_id')
-      .eq('id', userData.user.id)
-      .maybeSingle();
+    const { data: access } = await supabase.rpc('get_my_access');
+    const resolved = access as { role?: string; gym_id?: string | null } | null;
 
     return canPreviewUnpublishedGym(gymId, {
-      role: profile?.role,
-      gymId: profile?.gym_id,
+      role: resolved?.role as GymViewerRole,
+      gymId: resolved?.gym_id,
     });
   } catch {
     return false;

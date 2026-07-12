@@ -22,20 +22,17 @@ test('member session cannot call manager-only dashboard, notification, or streak
   });
   expect(signInError).toBeNull();
 
-  const { data: profile, error: profileError } = await supabase
-    .from('profiles')
-    .select('id, gym_id')
-    .eq('id', signIn.user!.id)
-    .maybeSingle();
-  expect(profileError).toBeNull();
-  expect(profile?.gym_id).toBeTruthy();
+  const { data: access, error: accessError } = await supabase.rpc('get_my_access');
+  expect(accessError).toBeNull();
+  const gymId = (access as { gym_id?: string } | null)?.gym_id;
+  expect(gymId).toBeTruthy();
 
   const dashboard = await supabase.rpc('admin_dashboard_stats');
   expect(dashboard.error).toBeTruthy();
 
   const notification = await supabase.rpc('create_member_notification', {
-    p_member_id: profile!.id,
-    p_gym_id: profile!.gym_id!,
+    p_member_id: signIn.user!.id,
+    p_gym_id: gymId!,
     p_type: 'announcement',
     p_title: 'Unauthorized E2E probe',
     p_body: 'This row must never be inserted.',
@@ -43,8 +40,8 @@ test('member session cannot call manager-only dashboard, notification, or streak
   expect(notification.error).toBeTruthy();
 
   const streak = await supabase.rpc('kiosk_update_streak', {
-    p_member_id: profile!.id,
-    p_gym_id: profile!.gym_id!,
+    p_member_id: signIn.user!.id,
+    p_gym_id: gymId!,
   });
   expect(streak.error).toBeTruthy();
 });

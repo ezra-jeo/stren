@@ -47,7 +47,7 @@ export function CTAOverlay() {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
-            href="/gym-select"
+            href="/gyms"
             className="inline-flex items-center justify-center px-8 py-4 rounded-full font-semibold text-sm uppercase tracking-widest transition-all duration-200 hover:scale-105 hover:shadow-xl"
             style={{
               backgroundColor: 'var(--color-primary)',

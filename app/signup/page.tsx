@@ -1,122 +1,105 @@
 'use client';
 
-import Image from 'next/image';
 import Link from 'next/link';
-import { Users, Building2 } from 'lucide-react';
+import { Suspense, useState } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { signUpAccount } from '@/lib/auth-actions';
+import { AuthShell, AuthField, AuthSubmit, AuthErrorBanner, useGymFlavor } from '@/components/auth/auth-shell';
 
-export default function SignUpChooser() {
+function SignupForm() {
+  const router = useRouter();
+  const params = useSearchParams();
+  const gymCode = params.get('gym');
+  const { flavor } = useGymFlavor(gymCode);
+
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const loginHref = gymCode ? `/login?gym=${encodeURIComponent(gymCode)}` : '/login';
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setSubmitting(true);
+    // Handler kept verbatim from the minimal C2 page: signUpAccount → login.
+    const result = await signUpAccount({ name, email, password, joinGymCode: gymCode ?? undefined });
+    if (result.error) {
+      setError(result.error);
+      setSubmitting(false);
+      return;
+    }
+    router.replace(loginHref);
+  }
+
   return (
-    <div
-      className="min-h-screen flex items-center justify-center p-4"
-      style={{ backgroundColor: 'var(--color-background)' }}
-    >
-      <div className="w-full max-w-md">
-        <div className="flex justify-center mb-12">
-          <Link href="/landing">
-            <div className="cursor-pointer hover:opacity-80 transition-opacity">
-              <Image src="/stren-logo.png" alt="Stren Logo" width={80} height={80} className="object-contain" />
-            </div>
+    <AuthShell
+      title="Create your Stren account"
+      subtitle="One account for every gym you belong to."
+      flavor={flavor}
+      flavorLabel="You're joining"
+      footer={
+        <p style={{ color: 'var(--color-text-secondary)' }}>
+          Already have an account?{' '}
+          <Link href={loginHref} className="font-semibold" style={{ color: 'var(--color-primary)' }}>
+            Sign in
           </Link>
-        </div>
-
-        <div
-          className="p-8 rounded-lg border shadow-md"
-          style={{
-            backgroundColor: 'var(--color-white)',
-            borderColor: 'var(--color-surface)',
-            borderWidth: '1px',
-          }}
-        >
-          <div className="mb-8 text-center">
-            <h1
-              className="text-4xl font-bold mb-2"
-              style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)', fontWeight: 800 }}
-            >
-              Join Stren
-            </h1>
-            <p className="text-lg" style={{ color: 'var(--color-text-secondary)' }}>
-              How would you like to get started?
-            </p>
-          </div>
-
-          <div className="space-y-4">
-            <Link
-              href="/gym-select"
-              className="flex items-center gap-4 w-full p-5 rounded-lg border transition-all hover:scale-[1.02] active:scale-100"
-              style={{ borderColor: 'var(--color-light-gray)', borderWidth: '1.5px' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-primary)';
-                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(212,149,106,0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-light-gray)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <div
-                className="h-12 w-12 rounded-full flex items-center justify-center shrink-0"
-                style={{ backgroundColor: 'rgba(212,149,106,0.12)' }}
-              >
-                <Users className="h-6 w-6" style={{ color: 'var(--color-primary)' }} />
-              </div>
-              <div>
-                <p className="font-semibold text-lg" style={{ color: 'var(--color-text-primary)' }}>
-                  Join as Member
-                </p>
-                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                  Find your gym and start tracking workouts
-                </p>
-              </div>
-            </Link>
-
-            <Link
-              href="/signup/admin?from=signup"
-              className="flex items-center gap-4 w-full p-5 rounded-lg border transition-all hover:scale-[1.02] active:scale-100"
-              style={{ borderColor: 'var(--color-light-gray)', borderWidth: '1.5px' }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-primary)';
-                e.currentTarget.style.boxShadow = '0 0 0 3px rgba(212,149,106,0.15)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-light-gray)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
-            >
-              <div
-                className="h-12 w-12 rounded-full flex items-center justify-center shrink-0"
-                style={{ backgroundColor: 'rgba(44,44,44,0.08)' }}
-              >
-                <Building2 className="h-6 w-6" style={{ color: 'var(--color-text-primary)' }} />
-              </div>
-              <div>
-                <p className="font-semibold text-lg" style={{ color: 'var(--color-text-primary)' }}>
-                  Register Your Gym
-                </p>
-                <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-                  Set up your gym on Stren and manage members
-                </p>
-              </div>
-            </Link>
-          </div>
-
-          <div className="mt-8 text-center">
-            <p style={{ color: 'var(--color-text-secondary)' }}>
-              Already have an account?{' '}
-              <Link
-                href="/login"
-                className="font-semibold transition-colors"
-                style={{ color: 'var(--color-primary)' }}
-              >
-                Sign in
-              </Link>
-            </p>
-          </div>
-        </div>
-
-        <p className="text-center text-xs mt-6" style={{ color: 'var(--color-text-muted)' }}>
-          Stren © 2026. All rights reserved.
         </p>
-      </div>
-    </div>
+      }
+    >
+      {error && <AuthErrorBanner message={error} />}
+      {flavor && (
+        <p
+          className="mb-4 rounded-lg border px-3 py-2 text-xs leading-relaxed"
+          style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-surface)', color: 'var(--color-text-secondary)' }}
+        >
+          After you create your account, we&apos;ll send your request to join <strong>{flavor.name}</strong>. Their staff
+          approves you at the front desk — you&apos;ll see &ldquo;waiting for approval&rdquo; until then.
+        </p>
+      )}
+      <form className="space-y-4" onSubmit={handleSubmit}>
+        <AuthField
+          label="Name"
+          id="signup-name"
+          autoComplete="name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          disabled={submitting}
+          required
+        />
+        <AuthField
+          label="Email"
+          id="signup-email"
+          type="email"
+          autoComplete="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          disabled={submitting}
+          required
+        />
+        <AuthField
+          label="Password"
+          id="signup-password"
+          type="password"
+          autoComplete="new-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          minLength={8}
+          disabled={submitting}
+          required
+        />
+        <AuthSubmit loading={submitting}>{submitting ? 'Creating account…' : 'Create account'}</AuthSubmit>
+      </form>
+    </AuthShell>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={null}>
+      <SignupForm />
+    </Suspense>
   );
 }

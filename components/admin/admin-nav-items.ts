@@ -9,6 +9,7 @@ import {
   Tag,
   Globe,
   ShieldCheck,
+  QrCode,
   type LucideIcon,
 } from 'lucide-react';
 import type { PermissionKey } from '@/lib/permissions';
@@ -31,6 +32,7 @@ export type AdminNavItem = {
 export const ADMIN_NAV_ITEMS: AdminNavItem[] = [
   { href: '/admin', label: 'Dashboard', icon: LayoutDashboard, permission: 'dashboard:view' },
   { href: '/admin/members', label: 'Members', icon: Users, permission: 'members:view' },
+  { href: '/admin/join-code', label: 'Invite QR', icon: QrCode, permission: 'members:view' },
   { href: '/admin/payments', label: 'Payments', icon: CreditCard, permission: 'payments:view' },
   { href: '/admin/plans', label: 'Plans', icon: PackageOpen, permission: 'plans:manage' },
   { href: '/admin/promos', label: 'Promos', icon: Tag, permission: 'promos:manage', feature: 'promos' },

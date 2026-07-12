@@ -8,6 +8,60 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Unified Accounts & Auth Rebuild — Agent C (backend, units C1–C3 + fix pass) — 2.0.0
+
+One account for all of Stren: per-gym roles live in `gym_users`, context comes from a server-side active gym, and the legacy per-gym auth stack is deleted. Backend + logic only (Codex 5.6 Sol, one-shot; Fable review fix pass 2026-07-12). Version bumped to **2.0.0** — the `profiles.role`/`gym_id`/`status` drops and the auth-route map are breaking changes.
+
+#### Added
+- **Migration `019_unified_accounts.sql`** — `gym_users` (per-gym role/status, `added_by`), `profiles.active_gym_id`, backfill-before-drop in one idempotent transaction; helper stack re-implemented with the same signatures over `gym_users` (`get_gym_id`, `get_user_role`, `is_manager`, `has_gym_permission`, `get_my_access`, plus `is_manager_of`/`has_active_gym_affiliation`/`is_gym_owner`/`has_member_portal_entitlement`/`shares_active_gym`); recursion-safe `gym_users`/`profiles` RLS; new RPCs `get_my_gyms`/`set_active_gym`/`join_gym`/`create_gym` (slug/reserved/unpublished-cap guards; `create_gym_and_owner` and `check_gym_membership` dropped); kiosk RPCs take explicit `p_gym_id` (pinned-gym rule); per-gym uniques for streaks/notification prefs/cooldowns; `member_home_stats` gains `subscription_status` + `lapsed_summary`; lapsed members excluded from the leaderboard; payment attribution (`payments.recorded_by`, `memberships.created_by`) + owner in-app alert on recorded payments; last-active-owner protection and active-gym integrity triggers. Types regenerated.
+- **`lib/auth-actions.ts`** — server actions per the §6.3 contract (`signUpAccount`, `resolvePostAuthDestination`, `setActiveGymAction`, `joinGymAction`, `createGymAction`, `signOutAction`) with validation/copy modules; `lib/post-auth-destination.ts` implements the five §2.4 destination rules once, shared by login, callback, and middleware.
+- Integration tests: `gym-users-access`, `set-active-gym`, `join-and-approve`, `onboard-existing-account`, `post-auth-destination`, `kiosk-pinned-gym`, `lapsed-member-gate`, `payment-attribution`, `create-gym-guards`.
+
+#### Changed
+- **`middleware.ts` rewritten** — static `LEGACY_AUTH_REDIRECTS` 308 map (`/gym/{code}/login|signup`, `/signup/admin|member`, `/gym-select`, `/kiosk/signup`), one `get_my_access()` gate for all protected surfaces, authed users with no usable gym land on `/gyms`; login-origin cookie writer and `resolveLoginPath` deleted.
+- **`lib/auth-context.tsx` rebuilt** to the §6.2 interface (`myGyms`/`activeGymId`/`refreshMyGyms`), keeping the hardened session lifecycle; a documented `gymId`/`role:'member'` shim remains for page islands (real roles flow via `useAccess()`).
+- **Onboard route** (`app/api/admin/members/onboard`) — existing email **attaches** (active `gym_users` row + QR email, no duplicate account); new email keeps the create+invite flow; email lookup is case-insensitive (`ilike` with escaped input) and `handle_new_user` stores emails lowercased so lookup and storage agree.
+- App-side sweep: every `profiles.role`/`gym_id`/`status` consumer re-pointed to `gym_users`/`get_my_access`; kiosk pinned to an explicit gym at launch; member home wires the lapsed gate.
+
+#### Fixed (Fable review pass, 2026-07-12)
+- `stamp_gym_user_approval` keeps an existing `added_by` when approval runs under the service role (`COALESCE(auth.uid(), NEW.added_by)`).
+- `gym_users_update` RLS `WITH CHECK` now blocks promoting anyone **to** owner unless the caller is an owner (previously any `members:manage` holder could mint owners).
+- `set-active-gym.test.ts` reconciled to the shipped design (column-level `REVOKE` + SECURITY DEFINER RPC + affiliation trigger) instead of the abandoned `set_config` handshake.
+
+#### Removed
+- Legacy auth surfaces: `/gym/{code}/login|signup` pages, `/signup/admin|member`, `/gym-select`, `/kiosk/signup`, `LoginForm`/`GymSignUpForm`, `lib/login-origin.ts`, `lib/sign-out-routing.ts` and their tests (grep-zero on `login-origin|LOGIN_ORIGIN|sign-out-routing|check_gym_membership|gym-select`). `OTP-AUTH-GUIDE.md` quarantined in the Catalog's Stale table.
+
+### Unified Accounts & Auth Rebuild — Agent U (UI/UX, units U1–U3)
+
+The Stren-branded UX over Agent C's rebuilt auth/account backend. UI only — handlers and server-action calls consumed verbatim; no schema, middleware, `lib/auth-*`, API, or Studio-component changes. (The typecheck/C2-sweep caveat originally noted here was resolved by Agent C's entry above; the branch gate is green.)
+
+#### Added
+- **Auth screens (U1)** — real `/login` (email + password, "Forgot password?", "Create account", `?gym=CODE` gym-flavored header via `get_gym_by_code`, magic-link `?error=` banner in plain language) and `/signup` (name/email/password + join-intent notice); shared `components/auth/auth-shell.tsx` (Stren-branded card, fields, submit, error banner, `useGymFlavor`), `lib/auth-error-copy.ts` (readable auth-error map). `/reset-password` reskin fixed to route through the single `/login`.
+- **Gym hub (U2)** — `/gyms` (`components/gyms/GymHub.tsx`): your-gyms cards with role/status chips, "Waiting for approval" pending state, quiet rejected row, tap-to-enter (`setActiveGymAction` → role surface), two-choice onboarding empty state, `?join=CODE` prefill; `JoinGymPanel` (code entry + `search_gyms` name search → confirm → `joinGymAction` → pending); `/gyms/new` create-gym with plain-language guard errors (`lib/create-gym-error-copy.ts` maps reserved/taken/format/cap).
+- **Join-QR poster (U2)** — `components/admin/JoinQrPoster.tsx` + `/admin/join-code` ("Invite QR" nav item, `members:view`): printable/downloadable QR of `/signup?gym=CODE`.
+- **Lapsed lock screen (U2)** — `components/member/LapsedLockScreen.tsx`; `MemberHomeClient` branches to it when `subscriptionStatus === 'expired'`, naming the saved streak/visits/member-since from `lapsed_summary`, warm not punitive.
+- **Gym switcher (U3)** — `components/gyms/GymSwitcher.tsx` in both shells: active-gym anchor, switch list (role-labeled), Member/Admin view toggle (managers only for Admin view), "All gyms", sign out; keyboard + screen-reader operable menu (Escape/outside-close/arrow-nav). Shared `components/gyms/gym-badges.tsx` (avatar, role/status chips).
+- Tests (red-first): `auth-screens`, `gym-hub`, `gym-new`, `join-qr-and-lapsed`, `gym-switcher`.
+
+#### Changed
+- `app/admin/layout.tsx` — gym-name badge replaced by the switcher; footer role now reads `useAccess().role` (was the hardcoded `profile.role` shim). `components/member/MemberShell.tsx` — brand replaced by the switcher.
+- Public gym "Join" CTA needs no preview change: existing `/gym/{code}/signup` 308s to `/signup?gym=CODE` (logged-out), and a logged-in visitor is routed by middleware to `/gyms?join=CODE`, which the hub opens pre-filled → confirm → pending.
+- Removed `tests/integration/gym-auth-flow.test.tsx` (imported the deleted `LoginForm`/`GymSignUpForm`; superseded by `auth-screens.test.tsx` — a leftover C3 cleanup).
+
+### Unified Accounts & Auth Rebuild — workstream plan (docs only)
+
+Planning pass for moving from Canvas-style per-gym logins to **one account for all of Stren** with per-gym roles (`gym_users`), a server-side active gym, a `/gyms` hub, and an in-shell gym switcher; auth routes to be rebuilt from scratch and legacy ones deleted. No product code changed.
+
+#### Added
+- `AgentsContextKnowledgeBase/ImplementationPlan-UnifiedAccounts.md` — the workstream contract (schema/migration 019 spec, middleware + server-action plan, UI spec, frozen contracts, test plan, sequencing, DoD).
+- `docs/adr/0004-one-account-many-gyms.md` — the decision and rejected alternatives (multi-account switcher, path-scoped tenancy, cookie/JWT context).
+- `AgentsContextKnowledgeBase/prompts/Codex-Backend-UnifiedAccounts-OneShot.md` and `prompts/Opus48-UI-UnifiedAccounts-OneShot.md` — paste-ready agent prompts.
+- `CONTEXT.md` "Accounts & gyms" vocabulary (account, gym user, active gym, gym switcher, gym hub, join request); role sharpened to per-gym.
+
+#### Changed
+- Catalog/ImplementationState re-pointed: Unified Accounts is the active workstream; Gym Page Studio plan marked completed (shipped to `main` via `3e52c95`); `OTP-AUTH-GUIDE.md` flagged as pre-rebuild-only.
+- Grill-session resolutions folded into the plan/ADR/prompts (2026-07-11): managers-are-members (any active affiliation gets the member experience; Member/Admin view toggle in the switcher); kiosk pins its gym at launch (kiosk RPCs take explicit gym, affiliation-validated); self-joins default to pending, join-by-code works for unpublished gyms, join-QR poster; create-gym guards (slug/reserved/3-unpublished cap); lapsed members = locked portal with saved stats named (data never deleted, off leaderboard); payment attribution (`recorded_by`/`created_by`/`added_by`) + owner in-app alert per recorded payment. Deferred with composition paths: phone-OTP login, Organizations/multi-branch, owner email digest.
+
 ### Gym Page Studio — Agent A UI fix pass (unit A6)
 
 Non-blocking polish over the 1.2.0 UI surfaces after the backend (Agent B) landed. UI only; no schema, middleware, API, or server-gate changes.

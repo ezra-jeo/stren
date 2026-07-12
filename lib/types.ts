@@ -45,8 +45,10 @@ export interface CheckIn {
 // Engagement types (GymPulse pivot)
 // ============================================
 
-export type UserRole = "member" | "admin" | "staff" | "owner"
-export type ProfileStatus = "pending" | "active" | "rejected"
+export type GymUserRole = "member" | "admin" | "staff" | "owner"
+export type GymUserStatus = "pending" | "active" | "rejected"
+export type UserRole = GymUserRole
+export type ProfileStatus = GymUserStatus
 
 export interface Gym {
   id: string
@@ -57,20 +59,26 @@ export interface Gym {
   createdAt: string
 }
 
-export interface Profile {
+export interface AccountProfile {
   id: string
   email: string
   name: string
   contactNumber: string | null
-  role: UserRole
-  status: ProfileStatus
-  gymId: string | null
   avatarUrl: string | null
   avatarUpdatedAt: string | null
   avatarChangeLockedUntil: string | null
   avatarChangeCount: number
   qrCode: string
   createdAt: string
+}
+
+export interface MyGym {
+  gymId: string
+  code: string
+  name: string
+  logoUrl: string | null
+  role: GymUserRole
+  status: GymUserStatus
 }
 
 export interface Membership {

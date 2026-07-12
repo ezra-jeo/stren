@@ -22,13 +22,10 @@ export interface CheckInResult {
  */
 export async function handleScan(memberId: string): Promise<CheckInResult> {
   // Fetch member's gym_id — needed for RLS-compliant inserts
-  const { data: memberProfile } = await supabase
-    .from("profiles")
-    .select("gym_id")
-    .eq("id", memberId)
-    .maybeSingle()
-
-  const gymId = memberProfile?.gym_id ?? null
+  const { data: access } = await supabase.rpc("get_my_access")
+  const gymId = access && typeof access === "object" && !Array.isArray(access)
+    ? ((access as { gym_id?: string | null }).gym_id ?? null)
+    : null
 
   let memberFeedEnabled = true
   if (gymId) {
@@ -120,6 +117,7 @@ export async function handleScan(memberId: string): Promise<CheckInResult> {
 }
 
 async function postCheckInFeedItem(memberId: string, gymId: string | null) {
+  if (!gymId) return
   const { data: profile } = await supabase
     .from("profiles")
     .select("name")
@@ -130,6 +128,7 @@ async function postCheckInFeedItem(memberId: string, gymId: string | null) {
     .from("streaks")
     .select("current_streak")
     .eq("member_id", memberId)
+    .eq("gym_id", gymId)
     .maybeSingle()
 
   const streakText =

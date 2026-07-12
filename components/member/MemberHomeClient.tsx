@@ -5,6 +5,7 @@ import { Flame, TrendingUp, Clock, ChevronLeft, ChevronRight, Users } from 'luci
 import Link from 'next/link'
 import type { MemberStats } from '@/lib/types'
 import { isFeatureEnabled, type FeatureFlags } from '@/lib/features'
+import { LapsedLockScreen, type LapsedSummary } from '@/components/member/LapsedLockScreen'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -390,12 +391,26 @@ export interface MemberHomeData {
   peopleInGym: number
   /** Effective gym feature flags (§8.5). Wired server-side by Agent B; defaults to catalog-on. */
   features?: FeatureFlags
+  /**
+   * Subscription state at the active gym, from `member_home_stats` (§2.6).
+   * When `'expired'`, the renewal lock screen replaces the home body. Optional
+   * so the safe default (undefined) renders the normal home until the server
+   * page passes it through (C2 lapsed-gate wiring).
+   */
+  subscriptionStatus?: 'active' | 'expired' | 'none'
+  lapsedSummary?: LapsedSummary | null
+  gymName?: string | null
 }
 
 export function MemberHomeClient({ data }: { data: MemberHomeData }) {
   const { memberName, stats, visitedDates: visitedDatesArr, peopleInGym, features } = data
   const visitedDates = useMemo(() => new Set(visitedDatesArr), [visitedDatesArr])
   const greeting = getGreeting()
+
+  // Lapsed subscription → warm renewal lock screen naming what's saved (§2.6).
+  if (data.subscriptionStatus === 'expired' && data.lapsedSummary) {
+    return <LapsedLockScreen gymName={data.gymName} summary={data.lapsedSummary} />
+  }
 
   return (
     <div className="space-y-6">

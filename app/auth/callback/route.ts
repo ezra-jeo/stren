@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase-server"
+import { resolvePostAuthDestination } from "@/lib/auth-actions"
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -39,33 +40,10 @@ export async function GET(request: Request) {
     return NextResponse.redirect(new URL(`/reset-password?${resetParams.toString()}`, requestUrl.origin))
   }
 
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
-
-  if (!user) {
-    return NextResponse.redirect(new URL("/login?error=no_user", requestUrl.origin))
-  }
-
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("role, status")
-    .eq("id", user.id)
-    .maybeSingle()
-
-  if (!profile || profile.status === "rejected") {
-    return NextResponse.redirect(new URL("/login?error=profile_unavailable", requestUrl.origin))
-  }
-
-  if (profile.status === "pending") {
-    return NextResponse.redirect(new URL("/login?error=pending_approval", requestUrl.origin))
-  }
-
-  if (profile.role === "owner" || profile.role === "admin" || profile.role === "staff") {
-    return NextResponse.redirect(new URL("/admin", requestUrl.origin))
-  }
-
+  const destination = await resolvePostAuthDestination(gymCode ?? undefined)
   const shouldPromptPasswordSetup = tokenType === "magiclink" || tokenType === "email" || tokenType === "invite" || tokenType === "signup"
-  const memberTarget = shouldPromptPasswordSetup ? "/member?first_login=1" : "/member"
-  return NextResponse.redirect(new URL(memberTarget, requestUrl.origin))
+  const target = shouldPromptPasswordSetup && destination.startsWith('/member')
+    ? `${destination}${destination.includes('?') ? '&' : '?'}first_login=1`
+    : destination
+  return NextResponse.redirect(new URL(target, requestUrl.origin))
 }

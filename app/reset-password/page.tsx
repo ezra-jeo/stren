@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
+import { resolvePostAuthDestination } from '@/lib/auth-actions';
 
 function ResetPasswordContent() {
   const supabase = useMemo(() => createClient(), []);
@@ -24,7 +25,8 @@ function ResetPasswordContent() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
-  const loginHref = gymCode ? `/gym/${encodeURIComponent(gymCode)}/login` : '/gym-select';
+  // Single account login now; carry the gym flavor through as `?gym=CODE`.
+  const loginHref = gymCode ? `/login?gym=${encodeURIComponent(gymCode)}` : '/login';
 
   // Exchange the PKCE ?code= (or legacy hash tokens) for a live session on mount.
   // updateUser() requires an active session — nothing works without this step.
@@ -98,7 +100,7 @@ function ResetPasswordContent() {
     const signInEmail = currentUserData.user?.email ?? data.user?.email ?? '';
     const signInResult = signInEmail
       ? await signIn(signInEmail, password)
-      : { error: 'Missing user email.', user: null, profile: null };
+      : { error: 'Missing user email.' };
 
     if (signInResult.error) {
       setError(signInResult.error);
@@ -106,30 +108,12 @@ function ResetPasswordContent() {
       return;
     }
 
-    // If this reset came from a gym login page, verify the account belongs to that gym.
-    if (gymCode && signInResult.profile) {
-      const { data: gymRow } = await supabase
-        .from('gyms')
-        .select('id')
-        .eq('code', gymCode)
-        .maybeSingle();
-
-      if (!gymRow || signInResult.profile.gymId !== gymRow.id) {
-        setError('This account is not a member of this gym. Password was not changed.');
-        await signOut({ redirect: false });
-        setIsSubmitting(false);
-        return;
-      }
-    }
-
-    completePasswordSetup(signInResult.user?.id ?? data.user?.id ?? null);
+    completePasswordSetup(data.user?.id ?? null);
 
     setSuccess(true);
     setIsSubmitting(false);
 
-    const role = signInResult.profile?.role;
-    const destination =
-      role === 'owner' || role === 'admin' || role === 'staff' ? '/admin' : '/member';
+    const destination = await resolvePostAuthDestination(gymCode ?? undefined);
 
     setTimeout(() => {
       router.replace(destination);

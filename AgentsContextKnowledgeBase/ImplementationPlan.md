@@ -1,5 +1,7 @@
 # Gym Page Studio + Permissions & Feature Toggles — Implementation Guide
 
+**✅ Completed 2026-07-11** — shipped to `main` via qa merge `3e52c95` (open pre-prod items tracked in `ImplementationState.md`). Superseded as the active plan by [ImplementationPlan-UnifiedAccounts.md](ImplementationPlan-UnifiedAccounts.md); kept per Catalog rule 6. **Caution for later readers:** migration 019 re-implements the `get_gym_id()`/role helper internals over `gym_users` — this document's profile-based identity assumptions are historical.
+
 _Authored 2026-07-10 on branch `CustomizationPermissionsToggles`. Planning document only — no product code changed yet. Every file/line reference below was verified against the working tree on this date. Revised the same date after a 35-question grilling session with the product owner; the resolved vocabulary lives in `CONTEXT.md` and the load-bearing decisions in `docs/adr/`._
 
 This guide is the **contract** for two implementation agents working in parallel:
