@@ -1203,6 +1203,7 @@ export type Database = {
         Args: { p_gym_id: string; p_member_id: string }
         Returns: undefined
       }
+      my_weekly_streak: { Args: never; Returns: number }
       set_active_gym: { Args: { p_gym_id: string }; Returns: Json }
       leaderboard_longest_member: {
         Args: { p_limit?: number }

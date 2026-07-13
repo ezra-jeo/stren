@@ -21,4 +21,12 @@ This corrective workstream fixes the case where a valid authenticated account wa
 
 - Red-first regressions cover RPC-error-as-empty, browser-session owner routing, bounded setup recovery, gym-hub fail-closed UI, and profile recovery.
 - Final gates: lint, typecheck, all unit/integration tests, production build with the standard CI placeholder environment, and public E2E where the local runner permits.
-- QA must have migrations 019, 020, and 021 applied in order. The repository contains them, but this workspace has no linked Supabase access token and therefore cannot prove or repair the remote migration state.
+- The linked hosted project must have canonical migration history through 021 and `mailer_autoconfirm = false`. `npm run verify:deployment` checks the externally observable Auth and RPC contract before deploy.
+
+## Hosted deployment recovery — 2026-07-13
+
+- The hosted project was verified at 001–012 plus a timestamped copy of local migration 013. The timestamped SQL matched local 013 after comment/whitespace normalization, so history was reconciled to canonical 013 before any schema push.
+- Migrations 014–021 were applied in order. Migration 019 required two unapplied-file corrections discovered by the real PostgreSQL run: alias the longest-member leaderboard expression as `value`, and replace three hosted `storage.objects` policies that depended on legacy `profiles.role`/`gym_id` before those columns are dropped.
+- Hosted Auth email auto-confirm was disabled with a one-field Management API patch; existing site URL and redirect allow-list were preserved. The project still uses Supabase's limited built-in mailer and needs custom SMTP for production delivery volume.
+- Live verification proves the owner account resolves to `/admin`, the member account resolves to `/member`, `/profile` loads, and neither sign-in requires a refresh.
+- The production build accepts either legacy `NEXT_PUBLIC_SUPABASE_*` variables or Supabase's modern `SUPABASE_PROJECT_ID` + `SUPABASE_PUBLISHABLE_KEY`; only publishable values enter the browser bundle. The standard bounded-worker suite passes all 310 unit/integration tests with coverage.

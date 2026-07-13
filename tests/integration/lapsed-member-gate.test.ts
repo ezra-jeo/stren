@@ -35,4 +35,12 @@ describe('lapsed-member SQL gate', () => {
       expect(body).not.toMatch(/gu\.role = 'member'/i);
     }
   });
+
+  it('aliases the longest-member duration before ordering by the leaderboard value', () => {
+    const sql = readFileSync(migrationPath, 'utf8');
+    const start = sql.indexOf('FUNCTION public.leaderboard_longest_member');
+    const body = sql.slice(start, start + 1_500);
+
+    expect(body).toMatch(/\)::INTEGER\s+AS value[\s\S]*ORDER BY value DESC/i);
+  });
 });

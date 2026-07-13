@@ -2,7 +2,7 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-13 (**Auth Session & Account Access Recovery is implemented and verified in the working tree.**)
+Last updated: 2026-07-13 (**Auth Session & Account Access Recovery is implemented and verified against the linked hosted project.**)
 
 ---
 
@@ -21,6 +21,14 @@ Last updated: 2026-07-13 (**Auth Session & Account Access Recovery is implemente
 | Phase 6 — Documentation completion | Queued |
 | Phase 7 — TDD as standing methodology | Queued |
 
+## Workstream (implemented in working tree 2026-07-13): Member Area Redesign
+
+| Unit | Scope | Status |
+|---|---|---|
+| D1 | Responsive Stren member shell and Home/Ranks/Profile/Settings presentation | Implemented (Codex, working tree, 2026-07-13) — desktop sidebar, mobile bottom navigation, one primary content column, QR-backed check-in, honest recommendations, responsive ranks, and preserved profile/settings flows |
+| D2 | Weekly member-consistency streak contract | Implemented (Codex, working tree, 2026-07-13) — migration 022 calculates one qualifying visit per Monday–Sunday week in Asia/Manila, retains the open-week grace period, and uses the same rule on the weekly leaderboard |
+| D3 | Member redesign verification | Implemented (Codex, working tree, 2026-07-13) — lint, typecheck, production build, focused member/weekly suites, and the full 319-test unit/integration suite are green |
+
 ## Workstream (completed in working tree 2026-07-13): Auth Session & Account Access Recovery
 
 Spec: [ImplementationPlan-AccountSessionRecovery.md](ImplementationPlan-AccountSessionRecovery.md) · branch `auth/cohesive-auth-owner-onboarding`.
@@ -30,7 +38,8 @@ Spec: [ImplementationPlan-AccountSessionRecovery.md](ImplementationPlan-AccountS
 | R1 | Reproduce false no-gym routing, profile infinite loading, and mobile post-sign-in server-cookie race with red regressions | Implemented (Codex, working tree, 2026-07-13) — regressions fail on the previous implementation and pass after correction |
 | R2 | Resolve sign-in through the confirmed browser session; separate profile and gym-access errors; fail closed in server action, middleware, and callback | Implemented (Codex, working tree, 2026-07-13) — one active owner routes to `/admin`, member to `/member`, multi-gym to `/gyms` |
 | R3 | Add explicit `/gyms` and `/profile` recovery states with real account email, retry, and sign out; identify the signed-in account on genuine no-gym home | Implemented (Codex, working tree, 2026-07-13) — no placeholder identity and no error-as-onboarding fallback |
-| R4 | Final verification and deployment handoff | Implemented (Codex, working tree, 2026-07-13) — lint/typecheck, 298 unit/integration tests, focused public E2E checks, and CI-placeholder production build green; full E2E command timed out after all 12 public checks passed and 8 credentialed checks skipped; remote migration status remains unverified without `SUPABASE_ACCESS_TOKEN` |
+| R4 | Final verification and deployment handoff | Implemented (Codex, working tree, 2026-07-13) — lint/typecheck, **310/310** unit/integration tests with coverage, focused public E2E checks, real owner/member browser journeys, and production build green; full E2E command previously timed out after all 12 public checks passed and 8 credentialed checks skipped |
+| R5 | Hosted schema/Auth recovery and deployment contract | Applied and verified (Codex, linked project + working tree, 2026-07-13) — reconciled the timestamped duplicate of 013, applied 014–021, fixed migration-019 leaderboard alias and hosted Storage-policy dependencies, disabled Auth auto-confirm without changing redirect settings, and live-verified owner `/admin`, member `/member`, and `/profile`; deploy preflight now blocks schema/Auth drift, and Next maps Supabase's modern project/publishable environment names without exposing the server secret |
 
 ## Workstream (completed in working tree 2026-07-13): Member Onboarding & Auth Recovery
 

@@ -8,7 +8,6 @@ import { useRouter } from 'next/navigation';
 import {
   ChevronRight,
   LogOut,
-  Trash2,
   Info,
   Mail,
   Shield,
@@ -109,8 +108,11 @@ function ToggleRow({
         )}
       </div>
       <button
+        type="button"
         onClick={onToggle}
         disabled={disabled}
+        role="switch"
+        aria-checked={enabled}
         className="relative w-11 h-6 rounded-full transition-colors duration-200 disabled:opacity-50"
         style={{
           backgroundColor: enabled ? 'var(--color-primary)' : 'var(--color-surface)',
@@ -158,8 +160,6 @@ export default function SettingsPage() {
   const { profile, signOut, isSigningOut, needsPasswordSetup, completePasswordSetup, signIn } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [passwordValue, setPasswordValue] = useState('');
   const [confirmPasswordValue, setConfirmPasswordValue] = useState('');
@@ -241,12 +241,6 @@ export default function SettingsPage() {
     await signOut();
   }
 
-  async function handleDeleteAccount() {
-    if (!profile) return;
-    toast.error('Please contact support to delete your Stren account.');
-    setDeleting(false);
-  }
-
   function openPasswordModal() {
     setPasswordValue('');
     setConfirmPasswordValue('');
@@ -291,14 +285,11 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="member-page space-y-6">
       <div>
-        <h1 className="text-2xl font-bold"
-          style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}>
-          Settings
-        </h1>
+        <h1 className="member-page-title">Settings</h1>
         <p className="text-sm mt-1" style={{ color: 'var(--color-text-secondary)' }}>
-          Account and app preferences
+          Manage your account and the updates you receive.
         </p>
       </div>
 
@@ -328,6 +319,7 @@ export default function SettingsPage() {
         </div>
       )}
 
+      <div className="grid gap-6 lg:grid-cols-2">
       {/* Account */}
       <SectionCard title="Account">
         <div className="px-4 py-3.5 flex items-center gap-4">
@@ -346,7 +338,7 @@ export default function SettingsPage() {
         <SettingsRow
           icon={<Shield size={17} />}
           label="Edit Profile"
-          sublabel="Name, contact number, QR code"
+          sublabel="Name, contact number, and QR code"
           onClick={() => router.push('/member/profile')}
         />
         <Divider />
@@ -372,7 +364,7 @@ export default function SettingsPage() {
         <Divider />
         <ToggleRow
           icon={<Flame size={17} />}
-          label="Streak Celebrations"
+          label="Weekly consistency updates"
           sublabel="Celebrate your consistency milestones"
           enabled={notifPrefs.streak_notifications_enabled}
           onToggle={() => toggleNotifPref('streak_notifications_enabled')}
@@ -407,65 +399,12 @@ export default function SettingsPage() {
           hideChevron
           disabled={isSigningOut}
         />
-        <Divider />
-        <SettingsRow
-          icon={<Trash2 size={17} />}
-          label="Delete Account"
-          sublabel="Permanently remove your account"
-          onClick={() => setShowDeleteConfirm(true)}
-          danger
-        />
       </SectionCard>
+      </div>
 
       <p className="text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>
         Member since {new Date(profile.createdAt).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
       </p>
-
-      {/* Delete confirmation modal */}
-      {showDeleteConfirm && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-          onClick={() => setShowDeleteConfirm(false)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl p-6 space-y-4"
-            style={{ backgroundColor: 'var(--color-white)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl flex items-center justify-center"
-                style={{ backgroundColor: 'var(--color-danger-bg)' }}>
-                <AlertTriangle size={20} style={{ color: 'var(--color-danger)' }} />
-              </div>
-              <div>
-                <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>Delete Account?</p>
-                <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>This cannot be undone</p>
-              </div>
-            </div>
-            <p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-              Your profile, attendance history, and membership records will be permanently removed.
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowDeleteConfirm(false)}
-                className="flex-1 py-2.5 rounded-xl text-sm font-medium border transition-colors"
-                style={{ borderColor: 'var(--color-surface)', color: 'var(--color-text-secondary)' }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleDeleteAccount}
-                disabled={deleting}
-                className="flex-1 py-2.5 rounded-xl text-sm font-semibold transition-colors disabled:opacity-50"
-                style={{ backgroundColor: 'var(--color-danger)', color: 'white' }}
-              >
-                {deleting ? 'Deleting...' : 'Delete'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showPasswordModal && (
         <div

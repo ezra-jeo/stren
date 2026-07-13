@@ -41,7 +41,7 @@ describe('lapsed lock screen', () => {
     render(<MemberHomeClient data={data} />);
 
     expect(screen.getByText(/renew at the front desk/i)).toBeInTheDocument();
-    expect(screen.getByText('47 days')).toBeInTheDocument();
+    expect(screen.getByText('47 weeks')).toBeInTheDocument();
     expect(screen.getByText('218')).toBeInTheDocument();
     // Normal home content is replaced, not shown.
     expect(screen.queryByText(/quick access/i)).not.toBeInTheDocument();
@@ -55,7 +55,7 @@ describe('lapsed lock screen', () => {
       peopleInGym: 0,
     };
     render(<MemberHomeClient data={data} />);
-    expect(screen.getByText(/quick access/i)).toBeInTheDocument();
+    expect(screen.getByText(/recommended for you/i)).toBeInTheDocument();
     expect(screen.queryByText(/renew at the front desk/i)).not.toBeInTheDocument();
   });
 });

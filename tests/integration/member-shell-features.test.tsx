@@ -45,16 +45,16 @@ describe('MemberShell — feature-gated nav (§8.5)', () => {
 describe('MemberHomeClient — feature-gated quick links (§8.5)', () => {
   const base: MemberHomeData = { memberName: 'Sam Doe', stats, visitedDates: [], peopleInGym: 0 };
 
-  it('shows the feed + leaderboard quick links by default', () => {
+  it('shows the Feed and Ranks recommendations by default', () => {
     render(<MemberHomeClient data={base} />);
-    expect(screen.getByText('Activity Feed')).toBeInTheDocument();
-    expect(screen.getByText('Leaderboard')).toBeInTheDocument();
+    expect(screen.getByText('Gym activity')).toBeInTheDocument();
+    expect(screen.getByText('Latest ranks')).toBeInTheDocument();
   });
 
-  it('hides the feed + leaderboard quick links when features are off', () => {
+  it('replaces unavailable community recommendations with existing member tools', () => {
     render(<MemberHomeClient data={{ ...base, features: { member_feed: false, leaderboards: false } }} />);
-    expect(screen.queryByText('Activity Feed')).not.toBeInTheDocument();
-    expect(screen.queryByText('Leaderboard')).not.toBeInTheDocument();
-    expect(screen.getByText('My QR Code')).toBeInTheDocument();
+    expect(screen.queryByText('Gym activity')).not.toBeInTheDocument();
+    expect(screen.queryByText('Latest ranks')).not.toBeInTheDocument();
+    expect(screen.getByText('Your member QR code')).toBeInTheDocument();
   });
 });
