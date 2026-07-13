@@ -14,14 +14,14 @@ const zeroStats: MemberStats = {
 };
 
 describe('join-QR poster', () => {
-  it('encodes the /signup?gym=CODE join link', () => {
-    expect(joinSignupPath('iron-house')).toBe('/signup?gym=iron-house');
+  it('encodes the shared auth join link', () => {
+    expect(joinSignupPath('iron-house')).toBe('/auth?mode=signup&gym=iron-house');
   });
 
   it('renders the join URL for the gym', async () => {
     render(<JoinQrPoster gymName="Iron House" gymCode="iron-house" />);
     await waitFor(() =>
-      expect(screen.getByTestId('join-url')).toHaveTextContent(/\/signup\?gym=iron-house$/),
+      expect(screen.getByTestId('join-url')).toHaveTextContent(/\/auth\?mode=signup&gym=iron-house$/),
     );
     expect(screen.getByText('Iron House')).toBeInTheDocument();
   });

@@ -9,8 +9,9 @@ test("home redirects to landing", async ({ page }) => {
 test("landing exposes core CTAs", async ({ page }) => {
   await page.goto("/landing");
 
-  // Hero CTA button (changed from "Try the Demo" to "Your Gym")
-  await expect(page.getByRole("link", { name: /your gym/i })).toBeVisible();
+  await expect(page.getByRole("link", { name: /^sign in$/i }).first()).toHaveAttribute("href", "/auth?mode=signin");
+  await expect(page.getByRole("link", { name: /^create account$/i }).first()).toHaveAttribute("href", "/auth?mode=signup");
+  await expect(page.getByRole("link", { name: /^for gym owners$/i }).first()).toHaveAttribute("href", "/for-gym-owners");
   
   // Open the navigation menu to access Sign In and Create Account
   await page.getByRole("button", { name: /open menu/i }).click();
@@ -19,6 +20,7 @@ test("landing exposes core CTAs", async ({ page }) => {
   const menuPanel = page.locator("#nav-menu-panel");
   await expect(menuPanel.getByRole("link", { name: /sign in/i })).toBeVisible();
   await expect(menuPanel.getByRole("link", { name: /create account/i })).toBeVisible();
+  await expect(menuPanel.getByRole("link", { name: /bring stren to your gym/i })).toHaveAttribute("href", "/for-gym-owners");
   
   // Close menu using the X button (not the backdrop overlay)
   await menuPanel.locator("button[aria-label='Close menu']").click();

@@ -1,5 +1,5 @@
 /**
- * Plain-language copy for the magic-link / auth `?error=` banner on `/login`
+ * Plain-language copy for the magic-link / auth `?error=` banner on `/auth`
  * (ImplementationPlan-UnifiedAccounts.md §5 U1).
  *
  * Supabase hands back terse codes and technical messages when a magic link,

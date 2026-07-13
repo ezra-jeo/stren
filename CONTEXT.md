@@ -7,7 +7,7 @@ Multi-tenant gym management platform. Each gym gets a staff-side admin panel, a 
 ### Accounts & gyms
 
 **Account**:
-One global Stren identity — email + password, created once at `/signup`. People sign in to Stren, not to a gym; gyms attach to the account.
+One global Stren identity — email + password, created once through `/auth?mode=signup`. People sign in to Stren, not to a gym; gyms attach to the account.
 _Avoid_: user account per gym, login (as a noun), profile (that's the DB row)
 
 **Gym user**:
@@ -23,7 +23,7 @@ The shell control that swaps the active gym. Gyms switch — the account never d
 _Avoid_: account switcher
 
 **Gym hub**:
-The account's home at `/gyms`: your gyms with role/status, join a gym, create a gym.
+The account's home at `/gyms`: your gyms with role/status and the authenticated QR/code join experience. Gym organizations are provisioned by Stren through assisted onboarding, never created here.
 _Avoid_: gym select, gym picker, dashboard
 
 **Join request**:

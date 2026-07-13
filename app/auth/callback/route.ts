@@ -28,7 +28,7 @@ export async function GET(request: Request) {
   }
 
   if (authError) {
-    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(authError)}`, requestUrl.origin))
+    return NextResponse.redirect(new URL(`/auth?mode=signin&error=${encodeURIComponent(authError)}`, requestUrl.origin))
   }
 
   // Password reset: forward to /reset-password so the user can set a new password.

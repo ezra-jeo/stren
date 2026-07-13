@@ -134,7 +134,7 @@ function ComingSoonPage({ gym }: { gym: GymData }) {
             This gym has not published its public landing page yet, but staff can still log in.
           </p>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link href={`/gym/${encodeURIComponent(gym.code)}/login?from=landing`}>
+            <Link href={`/auth?mode=signin&gym=${encodeURIComponent(gym.code)}`}>
               <button
                 className="w-full rounded-full px-8 py-4 text-base font-semibold sm:w-auto sm:px-10"
                 style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-white)' }}
@@ -142,7 +142,7 @@ function ComingSoonPage({ gym }: { gym: GymData }) {
                 Log In
               </button>
             </Link>
-            <Link href={`/gym/${encodeURIComponent(gym.code)}/signup`}>
+            <Link href={`/auth?mode=signup&gym=${encodeURIComponent(gym.code)}`}>
               <button
                 className="w-full rounded-full border px-8 py-4 text-base font-semibold sm:w-auto sm:px-10"
                 style={{ borderColor: 'rgba(255,255,255,0.35)', backgroundColor: 'rgba(255,255,255,0.08)', color: 'var(--color-white)' }}

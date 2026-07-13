@@ -54,7 +54,7 @@ export function GymTopNav({ gymName, gymCode, isPublished, features }: GymTopNav
           ))}
         </div>
 
-        <Link href={`/gym/${encodeURIComponent(gymCode)}/signup`}>
+        <Link href={`/auth?mode=signup&gym=${encodeURIComponent(gymCode)}`}>
           <button
             className="rounded-full px-4 py-1.5 text-xs font-semibold sm:px-5 sm:py-2 md:text-sm"
             style={{ backgroundColor: 'var(--color-secondary)', color: 'var(--color-white)' }}

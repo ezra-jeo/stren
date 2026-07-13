@@ -4,8 +4,8 @@
  * Printable join-QR poster (grill amendment 2026-07-11; §2.5 path 4, §5 U2).
  *
  * An owner prints this and pins it at the front desk. The QR encodes the plain
- * `/signup?gym=CODE` URL — phone cameras open it natively (no in-app scanner),
- * landing a new member on signup pre-flavored for this gym, which drops them
+ * `/auth?mode=signup&gym=CODE` URL — phone cameras open it natively,
+ * landing a new member on account creation pre-flavored for this gym, which drops them
  * into a **join request** after they create their account.
  */
 
@@ -16,7 +16,7 @@ import { GymAvatar } from '@/components/gyms/gym-badges';
 
 /** The relative join link the QR points at (also shown as readable text). */
 export function joinSignupPath(code: string): string {
-  return `/signup?gym=${encodeURIComponent(code)}`;
+  return `/auth?mode=signup&gym=${encodeURIComponent(code)}`;
 }
 
 export function JoinQrPoster({

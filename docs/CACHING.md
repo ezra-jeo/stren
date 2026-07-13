@@ -17,11 +17,11 @@ The service worker is registered only in production, and it waits until the wind
 On install, the service worker pre-caches a small app shell:
 
 - `/landing`
-- `/login`
+- `/auth?mode=signin`
 - `/manifest.webmanifest`
 - `/stren-logo.png`
 
-Those assets are stored in a versioned static cache named like `stren-static-v4`.
+Those assets are stored in a versioned static cache named like `stren-static-v6`.
 
 This is the fast-path for the public-facing experience: if the network is slow or temporarily unavailable, the user can still get a basic landing/login shell.
 
@@ -49,7 +49,8 @@ The app deliberately avoids caching the dynamic parts of the site:
 - `/admin`
 - `/member`
 - `/kiosk`
-- `/signup`
+- `/auth`
+- `/gyms`
 - `/api`
 
 Those routes always go to the network.
@@ -83,13 +84,13 @@ The service worker itself also listens for a `SKIP_WAITING` message and immediat
 The worker uses a version string:
 
 ```js
-const CACHE_VERSION = 'v4';
+const CACHE_VERSION = 'v6';
 ```
 
 That version is part of the cache names:
 
-- `stren-static-v4`
-- `stren-runtime-v4`
+- `stren-static-v6`
+- `stren-runtime-v6`
 
 When the version changes, old caches are deleted during `activate`.
 

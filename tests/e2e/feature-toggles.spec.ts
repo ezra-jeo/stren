@@ -6,7 +6,7 @@ const MEMBER_EMAIL = process.env.E2E_MEMBER_EMAIL;
 const MEMBER_PASSWORD = process.env.E2E_MEMBER_PASSWORD;
 
 async function signIn(page: Page, email: string, password: string, destination: RegExp) {
-  await page.goto('/login');
+  await page.goto('/auth?mode=signin');
   await page.getByLabel(/email/i).fill(email);
   await page.getByLabel(/password/i).fill(password);
   await page.getByRole('button', { name: /sign in/i }).click();

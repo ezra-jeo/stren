@@ -72,7 +72,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
   const recovering = useRef(false);
   const router = useRouter(); const pathname = usePathname();
-  const skipBootstrap = useMemo(() => pathname === '/' || pathname?.startsWith('/landing') || pathname?.startsWith('/gym/') || pathname === '/login' || pathname === '/signup' || pathname === '/reset-password', [pathname]);
+  const skipBootstrap = useMemo(() => pathname === '/' || pathname?.startsWith('/landing') || pathname?.startsWith('/gym/') || pathname === '/auth' || pathname === '/reset-password', [pathname]);
   const supabase = useMemo(() => skipBootstrap ? null : createClient(), [skipBootstrap]);
   const client = useCallback(() => supabase ?? createClient(), [supabase]);
 
@@ -93,7 +93,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     if (recovering.current) return; recovering.current = true;
     try { await db.auth.signOut({ scope: 'local' }); } catch {}
     setUser(null); setProfile(null); setMyGyms([]); setActiveGymId(null); setIsLoading(false); recovering.current = false;
-    if (pathname !== '/login' && pathname !== '/signup') { router.replace('/login'); router.refresh(); }
+    if (pathname !== '/auth') { router.replace('/auth?mode=signin'); router.refresh(); }
   }, [client, pathname, router]);
 
   useEffect(() => {
@@ -101,7 +101,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     const db = createClient(); setIsLoading(true);
     void db.auth.setSession({ access_token: tokens.accessToken, refresh_token: tokens.refreshToken }).then(async ({ data, error }) => {
       history.replaceState({}, '', `${location.pathname}${location.search}`);
-      if (error || !data.user) { router.replace(`/login?error=${encodeURIComponent(error?.message ?? 'invalid_magic_link_session')}`); setIsLoading(false); return; }
+      if (error || !data.user) { router.replace(`/auth?mode=signin&error=${encodeURIComponent(error?.message ?? 'invalid_magic_link_session')}`); setIsLoading(false); return; }
       setUser(data.user); if (['recovery','magiclink','email','invite'].includes(tokens.type ?? '')) setStorageFlag(`${PASSWORD_SETUP_PENDING_PREFIX}${data.user.id}`, true);
       setNeedsPasswordSetup(needsSetup(data.user.id)); await Promise.all([fetchProfile(data.user.id, db), fetchGyms(db)]); setIsLoading(false);
       if (tokens.type === 'recovery' && pathname !== '/reset-password') router.replace('/reset-password');
@@ -118,7 +118,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   }, [fetchGyms, fetchProfile, recover, skipBootstrap, supabase]);
 
   async function signIn(email: string, password: string) { const db = client(); const { data, error } = await db.auth.signInWithPassword({ email, password }); if (error || !data.user) return { error: error?.message ?? 'Sign in failed.' }; setUser(data.user); setStorageFlag(`${PASSWORD_SETUP_DONE_PREFIX}${data.user.id}`, true); setStorageFlag(`${PASSWORD_SETUP_PENDING_PREFIX}${data.user.id}`, false); await Promise.all([fetchProfile(data.user.id, db), fetchGyms(db)]); return { error: null }; }
-  async function signOut() { if (isSigningOut) return; setIsSigningOut(true); const db = client(); try { await withTimeout(db.auth.signOut(), 10000, 'Sign-out timed out.'); } catch { await db.auth.signOut({ scope: 'local' }); } setUser(null); setProfile(null); setMyGyms([]); setActiveGymId(null); setIsSigningOut(false); router.replace('/login'); router.refresh(); }
+  async function signOut() { if (isSigningOut) return; setIsSigningOut(true); const db = client(); try { await withTimeout(db.auth.signOut(), 10000, 'Sign-out timed out.'); } catch { await db.auth.signOut({ scope: 'local' }); } setUser(null); setProfile(null); setMyGyms([]); setActiveGymId(null); setIsSigningOut(false); router.replace('/auth?mode=signin'); router.refresh(); }
   async function refreshProfile() { if (user) await fetchProfile(user.id); }
   async function refreshMyGyms() { await fetchGyms(); }
   function completePasswordSetup(userId?: string | null) { const id = userId ?? user?.id; if (!id) return; setStorageFlag(`${PASSWORD_SETUP_DONE_PREFIX}${id}`, true); setStorageFlag(`${PASSWORD_SETUP_PENDING_PREFIX}${id}`, false); if (id === user?.id) setNeedsPasswordSetup(false); }
