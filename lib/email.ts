@@ -28,6 +28,16 @@ export interface OnboardingEmailPayload {
   magicLink: string   // one-time login URL from Supabase
 }
 
+export interface OwnerInquiryEmailPayload {
+  gymName: string
+  contactName: string
+  location: string
+  email: string
+  mobile: string
+  memberCount?: number
+  message?: string
+}
+
 export type SendResult = {
   ok: true
   messageId: string
@@ -51,6 +61,15 @@ function getFromAddress(): string {
     process.env.RESEND_FROM_EMAIL?.trim() ??
     "Stren <noreply@mail.stren.app>"
   )
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;")
 }
 
 /** Renders the QR payload to a base64 PNG data-URI (for inline embedding). */
@@ -273,4 +292,45 @@ export async function sendOnboardingEmail(
 
   const data = (await res.json()) as { id?: string }
   return { ok: true, messageId: data.id ?? "unknown" }
+}
+
+export async function sendOwnerInquiryEmail(payload: OwnerInquiryEmailPayload): Promise<SendResult> {
+  const to = process.env.OWNER_INQUIRY_TO_EMAIL?.trim() || "bonakainu@gmail.com"
+  const fields = [
+    ["Gym", payload.gymName],
+    ["Owner / manager", payload.contactName],
+    ["Location", payload.location],
+    ["Email", payload.email],
+    ["Mobile", payload.mobile],
+    ["Approximate members", payload.memberCount?.toString() || "Not provided"],
+    ["How can we help?", payload.message || "Not provided"],
+  ] as const
+  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;color:#1a1a1a"><h1>New Stren gym inquiry</h1>${fields.map(([label, value]) => `<p><strong>${escapeHtml(label)}:</strong><br>${escapeHtml(value)}</p>`).join("")}</body></html>`
+  const text = ["New Stren gym inquiry", "", ...fields.map(([label, value]) => `${label}: ${value}`)].join("\n")
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 12000)
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getResendKey()}` },
+      body: JSON.stringify({
+        from: getFromAddress(),
+        to: [to],
+        reply_to: payload.email,
+        subject: `Gym inquiry: ${payload.gymName}`,
+        html,
+        text,
+      }),
+      signal: controller.signal,
+    })
+    if (!response.ok) return { ok: false, error: `Resend error ${response.status}` }
+    const data = await response.json() as { id?: string }
+    return { ok: true, messageId: data.id || "unknown" }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") return { ok: false, error: "Resend request timed out." }
+    return { ok: false, error: error instanceof Error ? error.message : "Email send failed." }
+  } finally {
+    clearTimeout(timeout)
+  }
 }

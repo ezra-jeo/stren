@@ -80,7 +80,8 @@ export function ContactFooter() {
                 { label: 'About Stren', href: '#about' },
                 { label: 'Features', href: '#features' },
                 { label: 'Contact Us', href: '#contact' },
-                { label: 'Sign In', href: '/login' },
+                { label: 'Sign In', href: '/auth?mode=signin' },
+                { label: 'Bring Stren to Your Gym', href: '/for-gym-owners' },
               ].map((link) =>
                 link.href.startsWith('#') ? (
                   <a

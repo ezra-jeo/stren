@@ -1080,6 +1080,7 @@ export type Database = {
         Args: { p_gym_id?: string; p_permission: string }
         Returns: boolean
       }
+      is_platform_admin: { Args: never; Returns: boolean }
       is_manager: { Args: never; Returns: boolean }
       join_gym: { Args: { p_gym_id: string }; Returns: Json }
       kiosk_access_allowed: { Args: { p_gym_id: string }; Returns: boolean }

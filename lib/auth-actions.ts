@@ -1,10 +1,11 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { createServerSupabaseClient } from './supabase-server';
 import { choosePostAuthDestination } from './post-auth-destination';
 import type { GymUserRole, GymUserStatus, MyGym } from './types';
-import { mapCreateGymError, validateAccountSignup } from './auth-action-validation';
+import { validateAccountSignup } from './auth-action-validation';
 
 function toMyGym(row: Record<string, unknown>): MyGym {
   return {
@@ -21,30 +22,31 @@ export async function signUpAccount(input: {
   name: string;
   email: string;
   password: string;
-  joinGymCode?: string;
-}): Promise<{ error: string | null }> {
+}): Promise<
+  | { error: string; status?: never }
+  | { error: null; status: 'authenticated' | 'verification_required' }
+> {
   const validationError = validateAccountSignup(input);
   if (validationError) return { error: validationError };
   const supabase = await createServerSupabaseClient();
+  const requestHeaders = await headers();
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim() || requestHeaders.get('origin') || '').replace(/\/$/, '');
   const { data, error } = await supabase.auth.signUp({
     email: input.email.trim().toLowerCase(),
     password: input.password,
-    options: { data: { name: input.name.trim() } },
+    options: {
+      data: { name: input.name.trim() },
+      ...(siteUrl ? { emailRedirectTo: `${siteUrl}/auth/callback` } : {}),
+    },
   });
   if (error) return { error: error.message };
-
-  if (data.user && data.session && input.joinGymCode) {
-    const { data: gym } = await supabase.rpc('get_gym_by_code', { p_code: input.joinGymCode });
-    const gymId = gym && typeof gym === 'object' && !Array.isArray(gym) ? (gym as { id?: string }).id : null;
-    if (gymId) await supabase.rpc('join_gym', { p_gym_id: gymId });
-  }
-  return { error: null };
+  return { error: null, status: data.session ? 'authenticated' : 'verification_required' };
 }
 
 export async function resolvePostAuthDestination(gymCode?: string): Promise<string> {
   const supabase = await createServerSupabaseClient();
   const { data: userData } = await supabase.auth.getUser();
-  if (!userData.user) return '/login';
+  if (!userData.user) return '/auth?mode=signin';
 
   const [{ data: rows }, { data: profile }] = await Promise.all([
     supabase.rpc('get_my_gyms'),
@@ -72,18 +74,6 @@ export async function joinGymAction(gymId: string): Promise<{ status: GymUserSta
   if (error) throw new Error(error.message);
   revalidatePath('/gyms');
   return { status: (data as { status: GymUserStatus }).status };
-}
-
-export async function createGymAction(input: { name: string; code: string }): Promise<{ gymId: string; code: string } | { error: string }> {
-  const supabase = await createServerSupabaseClient();
-  const { data, error } = await supabase.rpc('create_gym', {
-    p_name: input.name,
-    p_code: input.code,
-  });
-  if (error) return { error: mapCreateGymError(error.message) };
-  const gym = data as unknown as { id: string; code: string };
-  revalidatePath('/gyms'); revalidatePath('/admin');
-  return { gymId: gym.id, code: gym.code };
 }
 
 export async function signOutAction(): Promise<void> {

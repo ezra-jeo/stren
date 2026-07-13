@@ -26,7 +26,9 @@ function ResetPasswordContent() {
   const [success, setSuccess] = useState(false);
 
   // Single account login now; carry the gym flavor through as `?gym=CODE`.
-  const loginHref = gymCode ? `/login?gym=${encodeURIComponent(gymCode)}` : '/login';
+  const loginHref = gymCode
+    ? `/auth?mode=signin&gym=${encodeURIComponent(gymCode)}`
+    : '/auth?mode=signin';
 
   // Exchange the PKCE ?code= (or legacy hash tokens) for a live session on mount.
   // updateUser() requires an active session — nothing works without this step.

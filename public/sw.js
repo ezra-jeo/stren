@@ -1,14 +1,14 @@
-const CACHE_VERSION = 'v5';
+const CACHE_VERSION = 'v6';
 const STATIC_CACHE = `stren-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `stren-runtime-${CACHE_VERSION}`;
 
 const APP_SHELL_URLS = [
   '/landing',
-  '/login',
+  '/auth?mode=signin',
   '/manifest.webmanifest',
   '/stren-logo.png'
 ];
-const NETWORK_ONLY_PREFIXES = ['/admin', '/member', '/kiosk', '/signup', '/api'];
+const NETWORK_ONLY_PREFIXES = ['/admin', '/member', '/kiosk', '/auth', '/gyms', '/api'];
 
 const STATIC_DESTINATIONS = new Set(['style', 'script', 'font', 'image']);
 

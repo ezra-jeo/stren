@@ -1,9 +1,9 @@
 const steps = [
   {
     number: "01",
-    title: "Set up your gym",
+    title: "Talk to the Stren team",
     description:
-      "Enter your gym details, membership plans, and pricing. Takes less than 10 minutes.",
+      "Tell us about your gym. We personally help configure your workspace and staff access.",
   },
   {
     number: "02",

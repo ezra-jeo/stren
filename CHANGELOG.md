@@ -8,6 +8,25 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Cohesive Auth & Assisted Gym Onboarding — 2.1.0
+
+#### Added
+- One responsive `/auth?mode=signin|signup` experience: stationary two-pane card, restrained 600 ms Stren-panel transition, URL/Back synchronization, state preservation, reduced-motion behavior, non-tabbable covered form, generic credential errors, and explicit email-verification completion.
+- Authenticated Join a gym onboarding at `/gyms` with user-initiated QR scanning, normalized code fallback, trusted gym confirmation, pending/existing affiliation states, and camera/error cleanup.
+- `/for-gym-owners` assisted-onboarding form and validated, honeypot-protected, rate-limited Resend delivery through `/api/owner-inquiries`.
+- Migration `020_platform_admin_gym_creation.sql`: `create_gym` now requires server-controlled `app_metadata.platform_role = 'platform_admin'`; ADR 0005 records the provisioning decision.
+
+#### Changed
+- Landing and drawer actions are now Sign In, Create Account, and For Gym Owners / Bring Stren to Your Gym. Auth callback, password reset, account emails, public gym Join links, join posters, auth context, and E2E helpers all point to the shared auth route.
+- Post-auth routing opens a single active gym directly, keeps multi-gym accounts on the selector, and shows Join/pending states for accounts without an active gym.
+- Service-worker cache version advanced to v6; `/auth` and `/gyms` are network-only. Next development allows the test host so server-rendered controls cannot remain non-interactive during local browser verification.
+
+#### Removed
+- Public `/gyms/new`, `createGymAction`, self-serve gym creation UI/copy, separate `/login` and `/signup` pages, and the superseded auth shell/tests. Legacy bookmarks permanently redirect to the appropriate shared auth or owner-inquiry destination.
+
+#### Fixed
+- The captured `public.create_gym(p_code, p_name)` schema-cache error can no longer occur through a public workflow: the stale UI/RPC coupling was removed and direct ordinary-user RPC calls are denied in the database.
+
 ### Unified Accounts & Auth Rebuild — Agent C (backend, units C1–C3 + fix pass) — 2.0.0
 
 One account for all of Stren: per-gym roles live in `gym_users`, context comes from a server-side active gym, and the legacy per-gym auth stack is deleted. Backend + logic only (Codex 5.6 Sol, one-shot; Fable review fix pass 2026-07-12). Version bumped to **2.0.0** — the `profiles.role`/`gym_id`/`status` drops and the auth-route map are breaking changes.

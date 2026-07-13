@@ -47,7 +47,7 @@ export function CTAOverlay() {
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <Link
-            href="/gyms"
+            href="/auth?mode=signin"
             className="inline-flex items-center justify-center px-8 py-4 rounded-full font-semibold text-sm uppercase tracking-widest transition-all duration-200 hover:scale-105 hover:shadow-xl"
             style={{
               backgroundColor: 'var(--color-primary)',
@@ -58,7 +58,7 @@ export function CTAOverlay() {
             Sign In
           </Link>
           <Link
-            href="/signup"
+            href="/auth?mode=signup"
             className="inline-flex items-center justify-center px-8 py-4 rounded-full font-semibold text-sm uppercase tracking-widest border-2 transition-all duration-200 hover:scale-105 hover:bg-white/10"
             style={{
               borderColor: 'rgba(255,255,255,0.25)',
@@ -66,6 +66,12 @@ export function CTAOverlay() {
             }}
           >
             Create Account
+          </Link>
+          <Link
+            href="/for-gym-owners"
+            className="inline-flex items-center justify-center px-8 py-4 text-sm font-semibold uppercase tracking-widest text-white/85 underline-offset-4 hover:text-white hover:underline"
+          >
+            For Gym Owners
           </Link>
         </div>
       </div>

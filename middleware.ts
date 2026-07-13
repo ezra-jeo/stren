@@ -4,11 +4,22 @@ import { permissionForPath, type PermissionKey } from '@/lib/permissions';
 import { choosePostAuthDestination } from '@/lib/post-auth-destination';
 import type { MyGym } from '@/lib/types';
 
+function authPath(url: URL, mode: 'signin' | 'signup', gymCode?: string): string {
+  const params = new URLSearchParams(url.search);
+  params.set('mode', mode);
+  if (gymCode) params.set('gym', gymCode);
+  return `/auth?${params.toString()}`;
+}
+
 export const LEGACY_AUTH_REDIRECTS = [
-  { pattern: /^\/gym\/([^/]+)\/login\/?$/, target: (m: RegExpMatchArray) => `/login?gym=${encodeURIComponent(m[1])}` },
-  { pattern: /^\/gym\/([^/]+)\/signup\/?$/, target: (m: RegExpMatchArray) => `/signup?gym=${encodeURIComponent(m[1])}` },
-  { pattern: /^\/signup\/admin\/?$/, target: () => '/gyms/new' },
-  { pattern: /^\/signup\/member\/?$/, target: () => '/signup' },
+  { pattern: /^\/gym\/([^/]+)\/login\/?$/, target: (m: RegExpMatchArray, url: URL) => authPath(url, 'signin', m[1]) },
+  { pattern: /^\/gym\/([^/]+)\/signup\/?$/, target: (m: RegExpMatchArray, url: URL) => authPath(url, 'signup', m[1]) },
+  { pattern: /^\/login\/?$/, target: (_m: RegExpMatchArray, url: URL) => authPath(url, 'signin') },
+  { pattern: /^\/signup\/?$/, target: (_m: RegExpMatchArray, url: URL) => authPath(url, 'signup') },
+  { pattern: /^\/signup\/admin\/?$/, target: () => '/for-gym-owners' },
+  { pattern: /^\/signup\/member\/?$/, target: (_m: RegExpMatchArray, url: URL) => authPath(url, 'signup') },
+  { pattern: /^\/gyms\/new\/?$/, target: () => '/for-gym-owners' },
+  { pattern: /^\/(?:register-gym|gym-registration|for-gyms)\/?$/, target: () => '/for-gym-owners' },
   { pattern: new RegExp(`^/gym${'-'}select/?$`), target: () => '/gyms' },
   { pattern: /^\/kiosk\/signup\/?$/, target: () => '/kiosk' },
 ] as const;
@@ -17,7 +28,7 @@ function securityHeaders(response: NextResponse, pathname: string) {
   response.headers.set('X-Content-Type-Options', 'nosniff');
   response.headers.set('X-Frame-Options', 'DENY');
   response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
-  response.headers.set('Permissions-Policy', `${pathname.startsWith('/kiosk') ? 'camera=(self)' : 'camera=()'}, microphone=(), geolocation=()`);
+  response.headers.set('Permissions-Policy', `${pathname.startsWith('/kiosk') || pathname === '/gyms' ? 'camera=(self)' : 'camera=()'}, microphone=(), geolocation=()`);
   return response;
 }
 
@@ -46,14 +57,14 @@ export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   for (const redirect of LEGACY_AUTH_REDIRECTS) {
     const match = pathname.match(redirect.pattern);
-    if (match) return securityHeaders(NextResponse.redirect(new URL(redirect.target(match), request.url), 308), pathname);
+    if (match) return securityHeaders(NextResponse.redirect(new URL(redirect.target(match, new URL(request.url)), request.url), 308), pathname);
   }
 
   let response = NextResponse.next({ request });
   const finish = (next: NextResponse) => securityHeaders(next, pathname);
   if (pathname.startsWith('/api')) return finish(response);
 
-  const isPublic = pathname === '/' || pathname.startsWith('/landing') || pathname === '/auth/callback' || pathname === '/reset-password' || (/^\/gym\/[^/]+(?:\/.*)?$/.test(pathname));
+  const isPublic = pathname === '/' || pathname.startsWith('/landing') || pathname === '/auth/callback' || pathname === '/reset-password' || pathname === '/for-gym-owners' || (/^\/gym\/[^/]+(?:\/.*)?$/.test(pathname));
   if (isPublic) return finish(response);
 
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
@@ -72,13 +83,13 @@ export async function middleware(request: NextRequest) {
     user = (await supabase.auth.getUser()).data.user;
   } catch (error) {
     if (!invalidRefresh(error)) throw error;
-    const target = NextResponse.redirect(new URL('/login', request.url));
+    const target = NextResponse.redirect(new URL('/auth?mode=signin', request.url));
     clearAuthCookies(request, target);
     return finish(target);
   }
 
-  const isAuthRoute = pathname === '/login' || pathname === '/signup';
-  if (!user) return isAuthRoute ? finish(response) : finish(NextResponse.redirect(new URL('/login', request.url)));
+  const isAuthRoute = pathname === '/auth';
+  if (!user) return isAuthRoute ? finish(response) : finish(NextResponse.redirect(new URL('/auth?mode=signin', request.url)));
 
   if (isAuthRoute) {
     const [{ data: rows }, { data: profile }] = await Promise.all([
@@ -90,7 +101,7 @@ export async function middleware(request: NextRequest) {
     return finish(NextResponse.redirect(new URL(destination.path, request.url)));
   }
 
-  if (pathname === '/gyms' || pathname === '/gyms/new') return finish(response);
+  if (pathname === '/gyms') return finish(response);
 
   const { data, error } = await supabase.rpc('get_my_access');
   const access = data && typeof data === 'object' ? data as { role?: string; gym_id?: string; permissions?: string[]; features?: Record<string, boolean> } : null;

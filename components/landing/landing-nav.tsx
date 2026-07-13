@@ -17,6 +17,9 @@ const menuLinks = [
 export function LandingNav() {
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => setHydrated(true), []);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -77,6 +80,7 @@ export function LandingNav() {
               <button
                 type="button"
                 onClick={() => setMenuOpen(true)}
+                disabled={!hydrated}
                 className="flex items-center justify-center w-10 h-10 -ml-2 rounded-lg transition-colors duration-200 hover:bg-black/5"
                 style={{ color: scrolled ? 'var(--color-text-primary)' : '#FFFFFF' }}
                 aria-label="Open menu"
@@ -106,7 +110,7 @@ export function LandingNav() {
             {/* Right: Gym owner entry */}
             <div className="hidden sm:block">
               <Link
-                href="/signup/admin?from=landing"
+                href="/for-gym-owners"
                 className="inline-flex items-center justify-center rounded-full px-4 py-2 text-xs font-semibold uppercase tracking-[0.14em] transition-all duration-200 hover:scale-[1.02]"
                 style={{
                   backgroundColor: scrolled ? 'var(--color-primary)' : 'rgba(255,255,255,0.16)',
@@ -114,7 +118,7 @@ export function LandingNav() {
                   border: scrolled ? 'none' : '1px solid rgba(255,255,255,0.28)',
                 }}
               >
-                Register Gym
+                For Gym Owners
               </Link>
             </div>
           </div>
@@ -195,7 +199,7 @@ export function LandingNav() {
 
               <div className="px-6 space-y-3">
                 <Link
-                  href="/gyms"
+                  href="/auth?mode=signin"
                   onClick={closeMenu}
                   className="block w-full text-center px-6 py-3.5 rounded-full font-semibold text-sm uppercase tracking-wider transition-all duration-200 hover:scale-[1.02]"
                   style={{
@@ -206,7 +210,7 @@ export function LandingNav() {
                   Sign In
                 </Link>
                 <Link
-                  href="/signup"
+                  href="/auth?mode=signup"
                   onClick={closeMenu}
                   className="block w-full text-center px-6 py-3.5 rounded-full font-semibold text-sm uppercase tracking-wider border-2 transition-all duration-200 hover:scale-[1.02]"
                   style={{
@@ -217,7 +221,7 @@ export function LandingNav() {
                   Create Account
                 </Link>
                 <Link
-                  href="/signup/admin?from=landing"
+                  href="/for-gym-owners"
                   onClick={closeMenu}
                   className="block w-full text-center px-6 py-3.5 rounded-full font-semibold text-sm uppercase tracking-wider border-2 transition-all duration-200 hover:scale-[1.02]"
                   style={{
@@ -225,7 +229,7 @@ export function LandingNav() {
                     color: 'var(--color-primary)',
                   }}
                 >
-                  Register Gym
+                  Bring Stren to Your Gym
                 </Link>
               </div>
             </div>

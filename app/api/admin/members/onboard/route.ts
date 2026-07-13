@@ -9,7 +9,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 
 const schema = z.object({ name:z.string().trim().min(2).max(100), email:z.string().trim().toLowerCase().email(), avatarUrl:z.string().url(), planId:z.string().uuid(), paymentMethod:z.enum(['cash','gcash']), amountPaid:z.number().nonnegative().optional(), startDate:z.string().date().optional() });
 function endDate(start:string,days:number){const date=new Date(`${start}T00:00:00Z`);date.setUTCDate(date.getUTCDate()+days);return date.toISOString().slice(0,10)}
-function siteUrl(request:Request){return (process.env.NEXT_PUBLIC_SITE_URL?.trim()||new URL(request.url).origin).replace(/\/$/,'')}
+function siteUrl(request:Request){return (process.env.NEXT_PUBLIC_SITE_URL?.trim()||process.env.NEXT_PUBLIC_APP_URL?.trim()||new URL(request.url).origin).replace(/\/$/,'')}
 
 export async function POST(request:Request){
   const supabase=await createServerSupabaseClient(); const {data:{user}}=await supabase.auth.getUser();
@@ -38,7 +38,7 @@ export async function POST(request:Request){
   const {data:membership,error:membershipError}=await admin.from('memberships').insert({member_id:memberId,plan_id:plan.id,gym_id:access.gymId,start_date:start,end_date:endDate(start,plan.duration_days),status:'active',payment_method:body.paymentMethod,amount_paid:body.amountPaid??plan.price,created_by:user.id}).select('id').maybeSingle(); if(membershipError||!membership)return NextResponse.json({error:membershipError?.message??'Failed to create membership.'},{status:400});
 
   if(!existingProfile){const {data:link}=await admin.auth.admin.generateLink({type:'magiclink',email:body.email,options:{redirectTo:`${siteUrl(request)}/auth/callback`}});magicLink=link.properties?.action_link??null}
-  const emailResult=await sendOnboardingEmail({to:body.email,memberName:body.name,gymName:gym?.name??'Your Gym',qrPayload:qrCode,magicLink:magicLink??`${siteUrl(request)}/login`});
+  const emailResult=await sendOnboardingEmail({to:body.email,memberName:body.name,gymName:gym?.name??'Your Gym',qrPayload:qrCode,magicLink:magicLink??`${siteUrl(request)}/auth?mode=signin`});
   await admin.from('member_onboarding_events').insert({member_id:memberId,gym_id:access.gymId,created_by:user.id,email:body.email,magic_link_url:magicLink,qr_code:qrCode,sent_via:emailResult.ok?'email':'preview'});
   return NextResponse.json({memberId,membershipId:membership.id,qrCode,magicLink,redirectTo:`${siteUrl(request)}/auth/callback`,emailSent:emailResult.ok,attachedExistingAccount:!!existingProfile},{status:emailResult.ok?200:207});
 }
