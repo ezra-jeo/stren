@@ -4,8 +4,13 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { track } from '@vercel/analytics';
+import { useAuth } from '@/lib/auth-context';
 
 export function ContactFooter() {
+  const { user, isLoading } = useAuth();
+  const authLink = user
+    ? { label: 'Open Stren', href: '/gyms' }
+    : { label: 'Sign In', href: '/auth?mode=signin' };
   return (
     <footer
       id="contact"
@@ -80,7 +85,7 @@ export function ContactFooter() {
                 { label: 'About Stren', href: '#about' },
                 { label: 'Features', href: '#features' },
                 { label: 'Contact Us', href: '#contact' },
-                { label: 'Sign In', href: '/auth?mode=signin' },
+                ...(!isLoading ? [authLink] : []),
                 { label: 'Bring Stren to Your Gym', href: '/for-gym-owners' },
               ].map((link) =>
                 link.href.startsWith('#') ? (

@@ -8,9 +8,46 @@ import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { resolvePostAuthDestination, signUpAccount } from '@/lib/auth-actions';
 import { readableAuthError } from '@/lib/auth-error-copy';
+import { withTimeout } from '@/lib/async-guard';
 import styles from './unified-auth.module.css';
 
 type AuthMode = 'signin' | 'signup';
+
+function GooglePreviewButton({
+  id,
+  disabled,
+  notice,
+  onPreview,
+}: {
+  id: string;
+  disabled: boolean;
+  notice: string | null;
+  onPreview: () => void;
+}) {
+  return (
+    <div className={styles.googleGroup}>
+      <button
+        type="button"
+        className={styles.googleButton}
+        aria-label="Continue with Google (coming soon)"
+        aria-describedby={notice ? id : undefined}
+        disabled={disabled}
+        onClick={onPreview}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+          <path fill="#4285F4" d="M22.6 12.2c0-.7-.1-1.4-.2-2.1H12v4h6a5.1 5.1 0 0 1-2.2 3.3v2.7h3.6c2.1-2 3.2-4.8 3.2-7.9Z" />
+          <path fill="#34A853" d="M12 23c3 0 5.5-1 7.4-2.9l-3.6-2.7c-1 .7-2.3 1.1-3.8 1.1-2.9 0-5.4-2-6.3-4.6H2v2.8A11.2 11.2 0 0 0 12 23Z" />
+          <path fill="#FBBC05" d="M5.7 13.9a6.7 6.7 0 0 1 0-4.3V6.8H2A11 11 0 0 0 2 16.7l3.7-2.8Z" />
+          <path fill="#EA4335" d="M12 5c1.7 0 3.2.6 4.4 1.7l3.2-3.1A10.7 10.7 0 0 0 2 6.8l3.7 2.8C6.6 7 9.1 5 12 5Z" />
+        </svg>
+        <span>Continue with Google</span>
+        <span className={styles.comingSoon}>Coming soon</span>
+      </button>
+      {notice && <p id={id} role="status" className={styles.googleNotice}>{notice}</p>}
+      <div className={styles.emailDivider}><span>or continue with email</span></div>
+    </div>
+  );
+}
 
 function modeFrom(value: string | null): AuthMode {
   return value === 'signup' ? 'signup' : 'signin';
@@ -80,13 +117,19 @@ export function UnifiedAuthSurface() {
   const [submitting, setSubmitting] = useState<AuthMode | null>(null);
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState(false);
+  const [postAuthError, setPostAuthError] = useState<string | null>(null);
+  const [googleNotice, setGoogleNotice] = useState<string | null>(null);
   const signInEmailRef = useRef<HTMLInputElement>(null);
   const fullNameRef = useRef<HTMLInputElement>(null);
   const signInErrorRef = useRef<HTMLDivElement>(null);
   const signUpErrorRef = useRef<HTMLDivElement>(null);
+  const navigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     setHydrated(true);
+    return () => {
+      if (navigationTimerRef.current) clearTimeout(navigationTimerRef.current);
+    };
   }, []);
 
   useEffect(() => {
@@ -101,21 +144,53 @@ export function UnifiedAuthSurface() {
     if (signUpError) signUpErrorRef.current?.focus();
   }, [signUpError]);
 
+  async function finishAuthentication() {
+    if (navigationTimerRef.current) clearTimeout(navigationTimerRef.current);
+    setPostAuthError(null);
+    setSettingUp(true);
+    try {
+      const destination = await withTimeout(
+        resolvePostAuthDestination(gymCode),
+        10_000,
+        'Loading your account timed out.',
+      );
+      router.replace(destination);
+      router.refresh();
+      navigationTimerRef.current = setTimeout(() => {
+        setSettingUp(false);
+        setSubmitting(null);
+        setPostAuthError('You’re signed in, but navigation didn’t finish. Please try again.');
+      }, 10_000);
+    } catch {
+      setSettingUp(false);
+      setSubmitting(null);
+      setPostAuthError('You’re signed in, but we couldn’t finish loading your account. Please try again.');
+    }
+  }
+
   async function handleSignIn(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (submitting) return;
     setSignInError(null);
     setSubmitting('signin');
-    const result = await signIn(signInEmail.trim(), signInPassword);
+    let result: { error: string | null };
+    try {
+      result = await withTimeout(
+        signIn(signInEmail.trim(), signInPassword),
+        10_000,
+        'Sign in timed out.',
+      );
+    } catch {
+      setSignInError('We couldn’t sign you in. Please check your connection and try again.');
+      setSubmitting(null);
+      return;
+    }
     if (result.error) {
       setSignInError('We couldn’t sign you in. Check your email and password, then try again.');
       setSubmitting(null);
       return;
     }
-    setSettingUp(true);
-    const destination = await resolvePostAuthDestination(gymCode);
-    router.replace(destination);
-    router.refresh();
+    await finishAuthentication();
   }
 
   async function handleSignUp(event: React.FormEvent<HTMLFormElement>) {
@@ -138,10 +213,7 @@ export function UnifiedAuthSurface() {
       setSubmitting(null);
       return;
     }
-    setSettingUp(true);
-    const destination = await resolvePostAuthDestination(gymCode);
-    router.replace(destination);
-    router.refresh();
+    await finishAuthentication();
   }
 
   function switchMode(next: AuthMode) {
@@ -183,6 +255,12 @@ export function UnifiedAuthSurface() {
             <h1>Welcome back</h1>
             <p className={styles.supporting}>Sign in to continue to your account.</p>
             <form onSubmit={handleSignIn} className={styles.form} noValidate>
+              <GooglePreviewButton
+                id="signin-google-preview-note"
+                disabled={!hydrated || transitioning || submitting !== null}
+                notice={googleNotice}
+                onPreview={() => setGoogleNotice('Google sign-in is coming soon.')}
+              />
               <div className={styles.fieldGroup}>
                 <label htmlFor="signin-email">Email address</label>
                 <input
@@ -229,7 +307,7 @@ export function UnifiedAuthSurface() {
         >
           <div className={styles.formInner}>
             <h1>Create your Stren account</h1>
-            <p className={styles.supporting}>Your account lets you join and access your gym.</p>
+            <p className={styles.supporting}>Your account lets you connect with and access your gym.</p>
             {verificationEmail ? (
               <div role="status" className={styles.verificationState}>
                 <h2>Check your email</h2>
@@ -237,6 +315,12 @@ export function UnifiedAuthSurface() {
               </div>
             ) : (
             <form onSubmit={handleSignUp} className={styles.form} noValidate>
+              <GooglePreviewButton
+                id="signup-google-preview-note"
+                disabled={!hydrated || transitioning || submitting !== null}
+                notice={googleNotice}
+                onPreview={() => setGoogleNotice('Google sign-in is coming soon.')}
+              />
               <div className={styles.fieldGroup}>
                 <label htmlFor="signup-name">Full name</label>
                 <input
@@ -305,6 +389,14 @@ export function UnifiedAuthSurface() {
           </div>
         </aside>
       </div>
+      {postAuthError && (
+        <div role="alert" className={styles.postAuthRecovery}>
+          <span>{postAuthError}</span>
+          <button type="button" onClick={() => void finishAuthentication()}>
+            Try again
+          </button>
+        </div>
+      )}
       {settingUp && (
         <div className={styles.settingUp} role="status" aria-live="polite">
           <Image src="/stren-logo.png" alt="" width={42} height={42} />

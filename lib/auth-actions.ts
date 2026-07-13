@@ -76,6 +76,44 @@ export async function joinGymAction(gymId: string): Promise<{ status: GymUserSta
   return { status: (data as { status: GymUserStatus }).status };
 }
 
+export async function verifyMembershipAction(gymId: string): Promise<{
+  status: GymUserStatus;
+  role: GymUserRole;
+  matched: boolean;
+}> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase.rpc('verify_gym_membership', { p_gym_id: gymId });
+  if (error) throw new Error(error.message);
+  const result = data as { status: GymUserStatus; role: GymUserRole; matched: boolean };
+  revalidatePath('/gyms');
+  return { status: result.status, role: result.role, matched: Boolean(result.matched) };
+}
+
+export async function saveGymAction(gymId: string, saved: boolean): Promise<{ saved: boolean }> {
+  const supabase = await createServerSupabaseClient();
+  const functionName = saved ? 'save_gym' : 'unsave_gym';
+  const { data, error } = await supabase.rpc(functionName, { p_gym_id: gymId });
+  if (error) throw new Error(error.message);
+  revalidatePath('/gyms');
+  return { saved: Boolean((data as { saved?: boolean } | null)?.saved) };
+}
+
+export async function sendVerificationReminderAction(gymId: string): Promise<{ nextReminderAt: string }> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase.rpc('send_membership_verification_reminder', { p_gym_id: gymId });
+  if (error) throw new Error(error.message);
+  revalidatePath('/gyms');
+  return { nextReminderAt: String((data as { next_reminder_at: unknown }).next_reminder_at) };
+}
+
+export async function withdrawVerificationAction(gymId: string): Promise<{ withdrawn: boolean }> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase.rpc('withdraw_membership_verification', { p_gym_id: gymId });
+  if (error) throw new Error(error.message);
+  revalidatePath('/gyms');
+  return { withdrawn: Boolean((data as { withdrawn?: boolean } | null)?.withdrawn) };
+}
+
 export async function signOutAction(): Promise<void> {
   const supabase = await createServerSupabaseClient();
   await supabase.auth.signOut();

@@ -8,6 +8,29 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Member Onboarding & Auth Recovery
+
+#### Added
+- A useful responsive no-gym member home at `/gyms`: one supported name/location/code search, explicit QR scanning, multiple calm membership-verification cards, saved gyms, profile completion, an isolated sample-data demo, and visibly explained beta tools. Unsupported filters and Personal Mode are intentionally absent.
+- Public gym profile actions for authenticated accounts to save a published gym or identify as an existing member without exposing private gym data.
+- Migration `021_membership_verification.sql`: separate `saved_gyms`, deterministic email-confirmed membership connection, pending verification list, seven-day reminder cooldown, withdrawal, permission-checked staff confirmation, and member/staff in-app notifications. Database types and server actions cover every new RPC.
+- Honest “Continue with Google” preview controls in both auth modes; no OAuth request or callback is started.
+- A no-gym-safe `/profile` page for basic account details.
+
+#### Changed
+- Member-facing gym connection now uses **membership verification**, not join-request/application language. An existing verified billing record connects immediately; otherwise staff calmly check the member record. Phone matching remains deferred until phone ownership can be verified.
+- Landing and public gym pages now hydrate the real browser session before rendering account-sensitive actions. Signed-in landing visitors see “Open Stren” instead of Sign In/Create Account, while public gym save/verify controls recognize the signed-in account. Direct `/auth` visits still resolve through the account’s active gym state.
+- Password recovery now starts with an email field and uses Supabase Auth’s official reset link, PKCE/session validation, a ten-minute server-signed HTTP-only completion proof, password update, and local recovery-session sign-out.
+
+#### Fixed
+- Successful sign-in can no longer remain behind “Setting things up for you…” indefinitely: credential exchange, server-side destination resolution, and client navigation each have bounded, interactive recovery states, and navigation begins only after the provider confirms the user session.
+- Password reset no longer presents an unvalidated new-password form to an ordinary signed-in or anonymous visitor, trusts a query flag or ordinary session as recovery proof, swallows recovery errors, or implies that email was delivered when required site/provider configuration is missing.
+
+#### Security
+- Saving a gym never writes `gym_users`; possession of a gym code/QR grants no private access. Only an email-confirmed account already tied to the same gym’s billing membership auto-connects.
+- Membership confirmation rejects self-confirmation and requires `members:manage` at the explicit gym. Reminder cooldown and verification ownership are enforced in SECURITY DEFINER RPCs with explicit grants/revokes and RLS-backed tables.
+- Password changes through the recovery screen require a short-lived HMAC proof bound to the provider-confirmed user in an HTTP-only, same-site cookie; the completion endpoint clears it after use.
+
 ### Cohesive Auth & Assisted Gym Onboarding — 2.1.0
 
 #### Added

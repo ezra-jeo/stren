@@ -67,6 +67,38 @@
 }
 
 .form { margin-top: 2rem; display: grid; gap: 1rem; }
+.googleGroup { display: grid; gap: 0.75rem; }
+.googleButton {
+  display: flex;
+  min-height: 3.25rem;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 0.7rem;
+  border: 1px solid color-mix(in srgb, var(--color-primary) 62%, white);
+  border-radius: 0.8rem;
+  background: var(--color-white);
+  color: var(--color-text-primary);
+  font-weight: 650;
+  transition: border-color 160ms ease, background-color 160ms ease;
+}
+.googleButton:hover:not(:disabled) { border-color: var(--color-primary-dark); background: #fffaf6; }
+.googleButton:focus-visible { outline: 3px solid var(--color-primary-glow); outline-offset: 2px; }
+.googleButton:disabled { opacity: 0.62; }
+.googleButton svg { width: 1.25rem; height: 1.25rem; flex: 0 0 auto; }
+.comingSoon {
+  border-radius: 999px;
+  background: var(--color-background);
+  padding: 0.2rem 0.45rem;
+  color: var(--color-text-muted);
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.googleNotice { color: var(--color-text-secondary); font-size: 0.8rem; text-align: center; }
+.emailDivider { display: flex; align-items: center; gap: 0.75rem; color: var(--color-text-muted); font-size: 0.72rem; }
+.emailDivider::before, .emailDivider::after { content: ''; height: 1px; flex: 1; background: var(--color-surface); }
 .fieldGroup { display: grid; gap: 0.45rem; }
 .fieldGroup label { color: var(--color-text-primary); font-size: 0.875rem; font-weight: 600; }
 .fieldGroup input {
@@ -146,6 +178,34 @@
   gap: 0.8rem;
   background: color-mix(in srgb, var(--color-background) 94%, transparent);
   color: var(--color-text-primary);
+  font-weight: 700;
+}
+
+.postAuthRecovery {
+  position: fixed;
+  right: 1rem;
+  bottom: 1rem;
+  z-index: 30;
+  display: flex;
+  max-width: 30rem;
+  align-items: center;
+  gap: 0.8rem;
+  border: 1px solid color-mix(in srgb, var(--color-danger) 55%, white);
+  border-radius: 0.9rem;
+  background: var(--color-white);
+  padding: 0.9rem 1rem;
+  box-shadow: 0 0.8rem 2rem rgba(53, 39, 31, 0.14);
+  color: var(--color-text-primary);
+  font-size: 0.875rem;
+}
+
+.postAuthRecovery button {
+  min-height: 2.75rem;
+  flex: 0 0 auto;
+  border-radius: 0.7rem;
+  background: var(--color-primary);
+  padding: 0 1rem;
+  color: white;
   font-weight: 700;
 }
 

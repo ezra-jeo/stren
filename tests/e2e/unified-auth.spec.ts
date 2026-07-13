@@ -39,3 +39,27 @@ test('sign in and create account share one stateful auth surface', async ({ page
   await expect(page).toHaveURL(/\/auth\?mode=signup/);
   await expect(page.getByLabel('Full name')).toHaveValue('Alex Rivera');
 });
+
+test('Google sign-in preview is honest and does not start OAuth', async ({ page }) => {
+  await page.goto('/auth?mode=signin');
+  await page.getByRole('button', { name: /continue with google.*coming soon/i }).click();
+  await expect(page.getByRole('status')).toContainText('Google sign-in is coming soon.');
+  await expect(page).toHaveURL(/\/auth\?mode=signin/);
+});
+
+test('password reset requests an email and preserves enumeration-safe copy', async ({ page }) => {
+  await page.route('**/api/auth/password-reset', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        ok: true,
+        message: 'If an account exists for this email, we’ve sent password-reset instructions.',
+      }),
+    });
+  });
+  await page.goto('/reset-password');
+  await page.getByLabel('Email address').fill('alex@example.com');
+  await page.getByRole('button', { name: /send reset instructions/i }).click();
+  await expect(page.getByRole('status')).toContainText(/if an account exists.*password-reset instructions/i);
+});

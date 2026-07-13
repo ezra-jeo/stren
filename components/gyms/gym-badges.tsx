@@ -80,7 +80,7 @@ export function StatusChip({ status }: { status: GymUserStatus }) {
           : { backgroundColor: 'var(--color-surface)', color: 'var(--color-text-muted)' }
       }
     >
-      {isPending ? 'Waiting for approval' : 'Not joined'}
+      {isPending ? 'Verification pending' : 'Needs gym check'}
     </span>
   );
 }

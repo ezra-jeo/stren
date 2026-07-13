@@ -2,8 +2,10 @@
 
 import Link from 'next/link';
 import { track } from '@vercel/analytics';
+import { useAuth } from '@/lib/auth-context';
 
 export function LandingHero() {
+  const { user, isLoading } = useAuth();
   return (
     <section className="relative w-full h-screen flex items-center justify-center overflow-hidden">
       {/* Video Background */}
@@ -50,32 +52,37 @@ export function LandingHero() {
         </p>
 
         <div className="flex flex-col sm:flex-row sm:flex-wrap items-center justify-center gap-3">
-          <Link
-            href="/auth?mode=signin"
-            aria-label="Sign In"
-            onClick={() => track('hero_signin_click')}
-            className="group inline-flex items-center gap-2 px-8 py-4 rounded-full font-semibold text-sm uppercase tracking-widest transition-all duration-300 hover:gap-4"
-            style={{
-              backgroundColor: 'var(--color-primary)',
-              color: '#FFFFFF',
-              boxShadow: '0 4px 24px rgba(212, 149, 106, 0.35)',
-            }}
-          >
-            <span>Sign In</span>
-            <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
-          </Link>
-
-          <Link
-            href="/auth?mode=signup"
-            onClick={() => track('hero_signup_click')}
-            className="inline-flex items-center justify-center px-7 py-4 rounded-full font-semibold text-sm uppercase tracking-widest border transition-colors duration-300 hover:bg-white/10"
-            style={{
-              borderColor: 'rgba(255,255,255,0.55)',
-              color: '#FFFFFF',
-            }}
-          >
-            Create Account
-          </Link>
+          {!isLoading && (user ? (
+            <Link
+              href="/gyms"
+              className="group inline-flex items-center gap-2 rounded-full px-8 py-4 text-sm font-semibold uppercase tracking-widest transition-all duration-300 hover:gap-4"
+              style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF', boxShadow: '0 4px 24px rgba(212, 149, 106, 0.35)' }}
+            >
+              <span>Open Stren</span>
+              <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+            </Link>
+          ) : (
+            <>
+              <Link
+                href="/auth?mode=signin"
+                aria-label="Sign In"
+                onClick={() => track('hero_signin_click')}
+                className="group inline-flex items-center gap-2 px-8 py-4 rounded-full font-semibold text-sm uppercase tracking-widest transition-all duration-300 hover:gap-4"
+                style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF', boxShadow: '0 4px 24px rgba(212, 149, 106, 0.35)' }}
+              >
+                <span>Sign In</span>
+                <span className="transition-transform duration-300 group-hover:translate-x-1">→</span>
+              </Link>
+              <Link
+                href="/auth?mode=signup"
+                onClick={() => track('hero_signup_click')}
+                className="inline-flex items-center justify-center px-7 py-4 rounded-full font-semibold text-sm uppercase tracking-widest border transition-colors duration-300 hover:bg-white/10"
+                style={{ borderColor: 'rgba(255,255,255,0.55)', color: '#FFFFFF' }}
+              >
+                Create Account
+              </Link>
+            </>
+          ))}
 
           <Link
             href="/for-gym-owners"

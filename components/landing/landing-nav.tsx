@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
 import { track } from '@vercel/analytics';
+import { useAuth } from '@/lib/auth-context';
 
 const menuLinks = [
   { label: 'Getting Started', href: '#features' },
@@ -15,6 +16,7 @@ const menuLinks = [
 ];
 
 export function LandingNav() {
+  const { user, isLoading } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -198,28 +200,35 @@ export function LandingNav() {
               <div className="my-4 mx-6 border-t" style={{ borderColor: 'var(--color-surface)' }} />
 
               <div className="px-6 space-y-3">
-                <Link
-                  href="/auth?mode=signin"
-                  onClick={closeMenu}
-                  className="block w-full text-center px-6 py-3.5 rounded-full font-semibold text-sm uppercase tracking-wider transition-all duration-200 hover:scale-[1.02]"
-                  style={{
-                    backgroundColor: 'var(--color-primary)',
-                    color: '#FFFFFF',
-                  }}
-                >
-                  Sign In
-                </Link>
-                <Link
-                  href="/auth?mode=signup"
-                  onClick={closeMenu}
-                  className="block w-full text-center px-6 py-3.5 rounded-full font-semibold text-sm uppercase tracking-wider border-2 transition-all duration-200 hover:scale-[1.02]"
-                  style={{
-                    borderColor: 'var(--color-surface)',
-                    color: 'var(--color-text-primary)',
-                  }}
-                >
-                  Create Account
-                </Link>
+                {!isLoading && (user ? (
+                  <Link
+                    href="/gyms"
+                    onClick={closeMenu}
+                    className="block w-full rounded-full px-6 py-3.5 text-center text-sm font-semibold uppercase tracking-wider transition-all duration-200 hover:scale-[1.02]"
+                    style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
+                  >
+                    Open Stren
+                  </Link>
+                ) : (
+                  <>
+                    <Link
+                      href="/auth?mode=signin"
+                      onClick={closeMenu}
+                      className="block w-full text-center px-6 py-3.5 rounded-full font-semibold text-sm uppercase tracking-wider transition-all duration-200 hover:scale-[1.02]"
+                      style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
+                    >
+                      Sign In
+                    </Link>
+                    <Link
+                      href="/auth?mode=signup"
+                      onClick={closeMenu}
+                      className="block w-full text-center px-6 py-3.5 rounded-full font-semibold text-sm uppercase tracking-wider border-2 transition-all duration-200 hover:scale-[1.02]"
+                      style={{ borderColor: 'var(--color-surface)', color: 'var(--color-text-primary)' }}
+                    >
+                      Create Account
+                    </Link>
+                  </>
+                ))}
                 <Link
                   href="/for-gym-owners"
                   onClick={closeMenu}

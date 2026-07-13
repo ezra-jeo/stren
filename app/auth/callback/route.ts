@@ -1,6 +1,11 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase-server"
 import { resolvePostAuthDestination } from "@/lib/auth-actions"
+import {
+  PASSWORD_RECOVERY_COOKIE,
+  createPasswordRecoveryProof,
+  passwordRecoveryCookieOptions,
+} from "@/lib/password-recovery"
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -12,32 +17,49 @@ export async function GET(request: Request) {
 
   const supabase = await createServerSupabaseClient()
   let authError: string | null = null
+  let authenticatedUserId: string | null = null
 
   if (code) {
-    const { error } = await supabase.auth.exchangeCodeForSession(code)
+    const { data, error } = await supabase.auth.exchangeCodeForSession(code)
     if (error) authError = error.message
+    else authenticatedUserId = data.user?.id ?? null
   } else if (tokenHash && tokenType) {
     const otpType = tokenType as "magiclink" | "recovery" | "invite" | "email" | "signup" | "email_change"
-    const { error } = await supabase.auth.verifyOtp({
+    const { data, error } = await supabase.auth.verifyOtp({
       token_hash: tokenHash,
       type: otpType,
     })
     if (error) authError = error.message
+    else authenticatedUserId = data.user?.id ?? null
   } else {
     authError = "missing_code"
   }
 
   if (authError) {
+    if (next === "/reset-password" || tokenType === "recovery") {
+      return NextResponse.redirect(new URL('/reset-password?error=invalid_or_expired', requestUrl.origin))
+    }
     return NextResponse.redirect(new URL(`/auth?mode=signin&error=${encodeURIComponent(authError)}`, requestUrl.origin))
   }
 
-  // Password reset: forward to /reset-password so the user can set a new password.
-  // The session is now established (code was exchanged above), so the reset page
-  // will find a valid user via getUser() without needing to re-exchange anything.
-  if (next === "/reset-password") {
+  // Password reset: the provider exchange establishes the recovery session. A
+  // short-lived signed HTTP-only proof then distinguishes it from an ordinary
+  // signed-in session before the server accepts a new password.
+  if (next === "/reset-password" || tokenType === "recovery") {
+    if (!authenticatedUserId) {
+      return NextResponse.redirect(new URL('/reset-password?error=invalid_or_expired', requestUrl.origin))
+    }
+    let recoveryProof: string
+    try {
+      recoveryProof = createPasswordRecoveryProof(authenticatedUserId)
+    } catch {
+      return NextResponse.redirect(new URL('/reset-password?error=recovery_not_configured', requestUrl.origin))
+    }
     const resetParams = new URLSearchParams({ reset: "1" })
     if (gymCode) resetParams.set("gym", gymCode)
-    return NextResponse.redirect(new URL(`/reset-password?${resetParams.toString()}`, requestUrl.origin))
+    const response = NextResponse.redirect(new URL(`/reset-password?${resetParams.toString()}`, requestUrl.origin))
+    response.cookies.set(PASSWORD_RECOVERY_COOKIE, recoveryProof, passwordRecoveryCookieOptions)
+    return response
   }
 
   const destination = await resolvePostAuthDestination(gymCode ?? undefined)

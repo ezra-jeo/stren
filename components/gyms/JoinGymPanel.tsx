@@ -1,13 +1,17 @@
 'use client';
 
 import Link from 'next/link';
-import { Camera, MapPin } from 'lucide-react';
+import { Bookmark, BookmarkCheck, Camera, MapPin, Search } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase';
-import { joinGymAction, setActiveGymAction } from '@/lib/auth-actions';
+import {
+  saveGymAction,
+  setActiveGymAction,
+  verifyMembershipAction,
+} from '@/lib/auth-actions';
 import { useAuth } from '@/lib/auth-context';
-import { GymAvatar, StatusChip } from '@/components/gyms/gym-badges';
+import { GymAvatar } from '@/components/gyms/gym-badges';
 
 type Candidate = {
   id: string;
@@ -37,19 +41,47 @@ export function extractGymCodeFromQr(rawValue: string): string | null {
   return CODE_PATTERN.test(normalized) ? normalized : null;
 }
 
-export function JoinGymPanel({ initialCode, onJoined }: { initialCode?: string | null; onJoined: () => void }) {
+function toCandidate(row: Record<string, unknown>, fallbackCode = ''): Candidate | null {
+  if (typeof row.id !== 'string' || typeof row.name !== 'string') return null;
+  return {
+    id: row.id,
+    name: row.name,
+    code: typeof row.code === 'string' ? row.code : fallbackCode,
+    address: typeof row.address === 'string' ? row.address : null,
+    logoUrl: typeof row.logo_url === 'string' ? row.logo_url : null,
+  };
+}
+
+export function JoinGymPanel({
+  initialCode,
+  onJoined,
+  onSaved,
+  savedGymIds,
+}: {
+  initialCode?: string | null;
+  onJoined: () => void;
+  onSaved?: () => void;
+  savedGymIds?: ReadonlySet<string>;
+}) {
   const supabase = useMemo(() => createClient(), []);
   const router = useRouter();
   const { myGyms } = useAuth();
-  const [code, setCode] = useState(initialCode?.trim().toLowerCase() || '');
+  const [query, setQuery] = useState(initialCode?.trim().toLowerCase() || '');
   const [lookingUp, setLookingUp] = useState(false);
-  const [selected, setSelected] = useState<Candidate | null>(null);
-  const [joining, setJoining] = useState(false);
-  const [joinedName, setJoinedName] = useState<string | null>(null);
+  const [results, setResults] = useState<Candidate[]>([]);
+  const [verifyingId, setVerifyingId] = useState<string | null>(null);
+  const [savingId, setSavingId] = useState<string | null>(null);
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set());
+  const [verificationName, setVerificationName] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [cameraState, setCameraState] = useState<CameraState>('idle');
   const scannerRef = useRef<Scanner | null>(null);
   const resolvedInitial = useRef(false);
+
+  useEffect(() => {
+    if (savedGymIds) setSavedIds(new Set(savedGymIds));
+  }, [savedGymIds]);
 
   const stopScanner = useCallback(async () => {
     const scanner = scannerRef.current;
@@ -61,47 +93,66 @@ export function JoinGymPanel({ initialCode, onJoined }: { initialCode?: string |
 
   useEffect(() => () => { void stopScanner(); }, [stopScanner]);
 
-  const findGym = useCallback(async (rawCode: string) => {
+  const searchGyms = useCallback(async (rawQuery: string) => {
+    if (lookingUp) return;
     await stopScanner();
     setCameraState('idle');
-    const normalized = extractGymCodeFromQr(rawCode);
+    const trimmed = rawQuery.trim();
+    const normalized = trimmed.toLowerCase();
     setError(null);
-    setSelected(null);
-    if (!normalized) {
-      setError('Enter a valid gym code.');
+    setStatusMessage(null);
+    setVerificationName(null);
+    setResults([]);
+    if (trimmed.length < 2) {
+      setError('Enter at least two characters to search for a gym.');
       return;
     }
-    setCode(normalized);
+    setQuery(trimmed);
     setLookingUp(true);
-    const { data, error: lookupError } = await supabase.rpc('get_gym_by_code', { p_code: normalized });
-    setLookingUp(false);
-    if (lookupError) {
-      setError('We could not look up that gym right now. Please try again.');
-      return;
+    try {
+      // A valid shared code must keep working for unpublished gyms. Public name
+      // and location search intentionally returns published gyms only.
+      if (CODE_PATTERN.test(normalized)) {
+        const exact = await supabase.rpc('get_gym_by_code', { p_code: normalized });
+        const exactRow = exact.data && typeof exact.data === 'object' && !Array.isArray(exact.data)
+          ? toCandidate(exact.data as Record<string, unknown>, normalized)
+          : null;
+        if (exactRow) {
+          setResults([exactRow]);
+          return;
+        }
+      }
+
+      const searched = await supabase.rpc('search_gyms', { p_query: trimmed });
+      if (searched.error) {
+        setError('We could not search for gyms right now. Please try again.');
+        return;
+      }
+      const candidates = Array.isArray(searched.data)
+        ? searched.data.map((row) => toCandidate(row as Record<string, unknown>)).filter((row): row is Candidate => !!row)
+        : [];
+      if (candidates.length === 0) {
+        setError('We could not find a gym matching that search. Check the name, location, or code and try again.');
+        return;
+      }
+      setResults(candidates);
+    } catch {
+      setError('We could not search for gyms right now. Please try again.');
+    } finally {
+      setLookingUp(false);
     }
-    const gym = data && typeof data === 'object' && !Array.isArray(data) ? data as Record<string, unknown> : null;
-    if (!gym || typeof gym.id !== 'string' || typeof gym.name !== 'string') {
-      setError('We could not find a gym with that code. Check it and try again.');
-      return;
-    }
-    setSelected({
-      id: gym.id,
-      name: gym.name,
-      code: typeof gym.code === 'string' ? gym.code : normalized,
-      address: typeof gym.address === 'string' ? gym.address : null,
-      logoUrl: typeof gym.logo_url === 'string' ? gym.logo_url : null,
-    });
-  }, [stopScanner, supabase]);
+  }, [lookingUp, stopScanner, supabase]);
 
   useEffect(() => {
     if (!initialCode || resolvedInitial.current) return;
     resolvedInitial.current = true;
-    void findGym(initialCode);
-  }, [findGym, initialCode]);
+    void searchGyms(initialCode);
+  }, [initialCode, searchGyms]);
 
   async function startScanner() {
     if (cameraState === 'starting' || cameraState === 'scanning') return;
     setError(null);
+    setStatusMessage(null);
     setCameraState('starting');
     try {
       const { Html5Qrcode } = await import('html5-qrcode');
@@ -124,10 +175,10 @@ export function JoinGymPanel({ initialCode, onJoined }: { initialCode?: string |
           void stopScanner().then(() => {
             setCameraState('idle');
             if (!scannedCode) {
-              setError('That QR code is not a Stren gym code. Try another code or enter it below.');
+              setError('That QR code is not a Stren gym code. Try another code or search below.');
               return;
             }
-            void findGym(scannedCode);
+            void searchGyms(scannedCode);
           });
         },
         () => {},
@@ -141,101 +192,129 @@ export function JoinGymPanel({ initialCode, onJoined }: { initialCode?: string |
     }
   }
 
-  async function confirmJoin() {
-    if (!selected || joining) return;
-    setJoining(true);
+  async function verifyMembership(candidate: Candidate) {
+    if (verifyingId) return;
+    setVerifyingId(candidate.id);
     setError(null);
+    setStatusMessage(null);
     try {
-      const result = await joinGymAction(selected.id);
+      const result = await verifyMembershipAction(candidate.id);
       onJoined();
       if (result.status === 'active') {
-        const current = myGyms.find((gym) => gym.gymId === selected.id);
-        const { role } = await setActiveGymAction(selected.id);
-        router.push((current?.role || role) === 'member' ? '/member' : '/admin');
+        await setActiveGymAction(candidate.id);
+        router.push(result.role === 'member' ? '/member' : '/admin');
         router.refresh();
         return;
       }
-      setJoinedName(selected.name);
-      setSelected(null);
+      setVerificationName(candidate.name);
+      setResults([]);
     } catch {
-      setError('We could not send your request. Please try again.');
+      setError('We could not start membership verification. Please try again.');
     } finally {
-      setJoining(false);
+      setVerifyingId(null);
     }
   }
 
-  const existing = selected ? myGyms.find((gym) => gym.gymId === selected.id) : null;
-
-  if (joinedName) {
-    return (
-      <section role="status" className="rounded-2xl border p-6 text-center" style={{ backgroundColor: 'var(--color-warning-bg)', borderColor: 'var(--color-warning)' }}>
-        <h2 className="font-serif text-2xl font-semibold text-(--color-text-primary)">Request sent!</h2>
-        <p className="mt-2 text-sm leading-6 text-(--color-text-secondary)">Request sent to <strong>{joinedName}</strong>. We’ll let you know once the gym approves it.</p>
-      </section>
-    );
+  async function toggleSaved(candidate: Candidate) {
+    if (savingId) return;
+    const shouldSave = !savedIds.has(candidate.id);
+    setSavingId(candidate.id);
+    setError(null);
+    try {
+      await saveGymAction(candidate.id, shouldSave);
+      setSavedIds((current) => {
+        const next = new Set(current);
+        shouldSave ? next.add(candidate.id) : next.delete(candidate.id);
+        return next;
+      });
+      setStatusMessage(shouldSave ? `${candidate.name} saved.` : `${candidate.name} removed from saved gyms.`);
+      onSaved?.();
+    } catch {
+      setError('We could not update your saved gyms right now.');
+    } finally {
+      setSavingId(null);
+    }
   }
 
   return (
-    <section className="space-y-5 rounded-2xl border bg-white p-5 sm:p-6" style={{ borderColor: 'var(--color-surface)' }}>
+    <section aria-labelledby="gym-discovery-title" className="space-y-5 rounded-3xl border border-(--color-surface) bg-white p-5 shadow-sm sm:p-7">
       <div>
-        <h2 className="font-serif text-xl font-semibold text-(--color-text-primary)">Join a gym</h2>
-        <p className="mt-1 text-sm leading-6 text-(--color-text-secondary)">Use the Stren QR code from your gym, or enter its gym code.</p>
+        <p className="text-xs font-bold uppercase tracking-[0.14em] text-(--color-primary-dark)">Gym discovery</p>
+        <h2 id="gym-discovery-title" className="mt-1 font-serif text-2xl font-semibold text-(--color-text-primary)">Find your gym</h2>
+        <p className="mt-2 text-sm leading-6 text-(--color-text-secondary)">Search public gyms by name or location, enter a gym code, or scan the QR code provided by your gym.</p>
       </div>
 
-      <div className="rounded-xl border p-4" style={{ borderColor: 'var(--color-surface)' }}>
-        <button
-          type="button"
-          onClick={() => void startScanner()}
-          disabled={cameraState === 'starting' || cameraState === 'scanning'}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-lg border font-semibold text-(--color-text-primary) disabled:opacity-60"
-          style={{ borderColor: 'var(--color-primary)' }}
-        >
-          <Camera size={18} aria-hidden="true" />
-          {cameraState === 'starting' ? 'Starting camera…' : cameraState === 'scanning' ? 'Scanning…' : 'Scan gym QR code'}
-        </button>
-        <p className="mt-2 text-xs leading-5 text-(--color-text-muted)">We only use the camera while this scanner is open.</p>
-        {(cameraState === 'starting' || cameraState === 'scanning') && <div id="gym-qr-reader" className="mt-3 min-h-52 overflow-hidden rounded-lg bg-black" />}
-        {cameraState === 'denied' && <p role="alert" className="mt-2 text-sm text-(--color-danger)">Camera permission was denied. Allow it in your browser settings, or enter the gym code below.</p>}
-        {cameraState === 'unavailable' && <p role="alert" className="mt-2 text-sm text-(--color-danger)">No usable camera was found. Enter the gym code below.</p>}
-        {cameraState === 'unsupported' && <p role="alert" className="mt-2 text-sm text-(--color-danger)">This browser cannot scan QR codes here. Enter the gym code below.</p>}
-      </div>
-
-      <div className="flex items-center gap-3 text-xs uppercase tracking-[0.15em] text-(--color-text-muted)"><span className="h-px flex-1 bg-(--color-surface)" />or<span className="h-px flex-1 bg-(--color-surface)" /></div>
-
-      <form onSubmit={(event) => { event.preventDefault(); void findGym(code); }} className="grid gap-3">
-        <label htmlFor="gym-code" className="text-sm font-semibold text-(--color-text-primary)">Gym code</label>
-        <input
-          id="gym-code"
-          value={code}
-          onChange={(event) => { setCode(event.target.value.toLowerCase()); setError(null); }}
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck={false}
-          disabled={lookingUp || joining}
-          className="min-h-12 rounded-xl border px-4 outline-none focus:border-(--color-primary) focus:ring-3 focus:ring-(--color-primary-glow)"
-          placeholder="e.g. iron-house"
-        />
-        <button type="submit" disabled={lookingUp || joining || !code.trim()} className="min-h-12 rounded-xl bg-(--color-primary) font-bold text-white disabled:opacity-60" aria-busy={lookingUp}>
-          {lookingUp ? 'Finding gym…' : 'Find gym'}
-        </button>
+      <form onSubmit={(event) => { event.preventDefault(); void searchGyms(query); }} role="search" className="grid gap-3">
+        <label htmlFor="gym-search" className="text-sm font-semibold text-(--color-text-primary)">Search gyms</label>
+        <div className="relative">
+          <Search size={18} className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-(--color-text-muted)" aria-hidden="true" />
+          <input
+            id="gym-search"
+            type="search"
+            value={query}
+            onChange={(event) => { setQuery(event.target.value); setError(null); }}
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck={false}
+            disabled={lookingUp || !!verifyingId}
+            className="min-h-12 w-full rounded-xl border border-(--color-surface) bg-(--color-background) py-3 pl-11 pr-4 outline-none focus:border-(--color-primary) focus:ring-3 focus:ring-(--color-primary-glow)"
+            placeholder="Search by gym name, location, or code"
+          />
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          <button type="submit" disabled={lookingUp || !!verifyingId || !query.trim()} className="min-h-12 rounded-xl bg-(--color-primary) px-4 font-bold text-white disabled:opacity-60" aria-busy={lookingUp}>
+            {lookingUp ? 'Searching…' : 'Search gyms'}
+          </button>
+          <button type="button" onClick={() => void startScanner()} disabled={cameraState === 'starting' || cameraState === 'scanning' || lookingUp} className="flex min-h-12 items-center justify-center gap-2 rounded-xl border border-(--color-primary) px-4 font-semibold text-(--color-text-primary) disabled:opacity-60">
+            <Camera size={18} aria-hidden="true" />
+            {cameraState === 'starting' ? 'Starting camera…' : cameraState === 'scanning' ? 'Scanning…' : 'Scan gym QR code'}
+          </button>
+        </div>
       </form>
 
-      {error && <p role="alert" className="rounded-xl border border-(--color-danger) bg-(--color-danger-bg) px-4 py-3 text-sm text-(--color-text-primary)">{error}</p>}
+      <p className="text-xs leading-5 text-(--color-text-muted)">Camera access is requested only after you choose to scan, and only while the scanner is open.</p>
+      {(cameraState === 'starting' || cameraState === 'scanning') && <div id="gym-qr-reader" className="min-h-52 overflow-hidden rounded-xl bg-black" />}
+      {cameraState === 'denied' && <p role="alert" className="text-sm text-(--color-danger)">Camera permission was denied. Allow it in your browser settings, or use gym search instead.</p>}
+      {cameraState === 'unavailable' && <p role="alert" className="text-sm text-(--color-danger)">No usable camera was found. Use gym search instead.</p>}
+      {cameraState === 'unsupported' && <p role="alert" className="text-sm text-(--color-danger)">This browser cannot scan QR codes here. Use gym search instead.</p>}
 
-      {selected && (
-        <div className="rounded-2xl border p-5" style={{ borderColor: 'var(--color-primary)', backgroundColor: 'var(--color-background)' }}>
-          <div className="flex items-start gap-3">
-            <GymAvatar name={selected.name} logoUrl={selected.logoUrl} />
-            <div className="min-w-0 flex-1">
-              <p className="font-semibold text-(--color-text-primary)">{selected.name}</p>
-              {selected.address && <p className="mt-1 flex items-center gap-1 text-xs text-(--color-text-muted)"><MapPin size={13} />{selected.address}</p>}
-              {existing && <div className="mt-2"><StatusChip status={existing.status} /></div>}
-            </div>
-          </div>
-          {!existing && <button type="button" onClick={() => void confirmJoin()} disabled={joining} className="mt-4 min-h-12 w-full rounded-xl bg-(--color-primary) font-bold text-white disabled:opacity-60">{joining ? 'Sending request…' : 'Request to join'}</button>}
-          {existing?.status === 'pending' && <p className="mt-4 text-sm text-(--color-text-secondary)">Your request is waiting for gym staff approval.</p>}
-          {existing?.status === 'active' && <button type="button" onClick={() => void setActiveGymAction(existing.gymId).then(({ role }) => { router.push(role === 'member' ? '/member' : '/admin'); router.refresh(); })} className="mt-4 min-h-12 w-full rounded-xl bg-(--color-primary) font-bold text-white">Open gym</button>}
-          {existing?.status === 'rejected' && <p className="mt-4 text-sm text-(--color-text-secondary)">This request was not approved. Ask the gym’s staff if you need help.</p>}
+      {error && <p role="alert" className="rounded-xl border border-(--color-danger) bg-(--color-danger-bg) px-4 py-3 text-sm text-(--color-text-primary)">{error}</p>}
+      {statusMessage && <p role="status" className="rounded-xl bg-(--color-success-bg) px-4 py-3 text-sm text-(--color-text-primary)">{statusMessage}</p>}
+
+      {verificationName && (
+        <div role="status" className="rounded-2xl border border-(--color-primary) bg-(--color-primary-glow) p-5">
+          <h3 className="font-serif text-xl font-semibold text-(--color-text-primary)">Membership verification started</h3>
+          <p className="mt-2 text-sm leading-6 text-(--color-text-secondary)">We’re waiting for <strong>{verificationName}</strong> to confirm your membership. You can track this here and verify with other gyms too.</p>
+        </div>
+      )}
+
+      {results.length > 0 && (
+        <div aria-label="Gym search results" className="space-y-3">
+          {results.map((candidate) => {
+            const existing = myGyms.find((gym) => gym.gymId === candidate.id);
+            const saved = savedIds.has(candidate.id);
+            return (
+              <article key={candidate.id} className="rounded-2xl border border-(--color-primary) bg-(--color-background) p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <GymAvatar name={candidate.name} logoUrl={candidate.logoUrl} />
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-(--color-text-primary)">{candidate.name}</h3>
+                    {candidate.address && <p className="mt-1 flex items-center gap-1 text-xs text-(--color-text-muted)"><MapPin size={13} aria-hidden="true" />{candidate.address}</p>}
+                  </div>
+                  <button type="button" onClick={() => void toggleSaved(candidate)} disabled={savingId === candidate.id} aria-label={saved ? `Remove ${candidate.name} from saved gyms` : `Save ${candidate.name}`} className="flex min-h-11 min-w-11 items-center justify-center rounded-xl border border-(--color-surface) bg-white text-(--color-primary-dark) disabled:opacity-50">
+                    {saved ? <BookmarkCheck size={18} aria-hidden="true" /> : <Bookmark size={18} aria-hidden="true" />}
+                  </button>
+                </div>
+                <div className="mt-4 grid gap-2 sm:grid-cols-2">
+                  <Link href={`/gym/${candidate.code}`} className="inline-flex min-h-12 items-center justify-center rounded-xl border border-(--color-primary) px-4 font-semibold text-(--color-text-primary)">View gym profile</Link>
+                  {!existing && <button type="button" onClick={() => void verifyMembership(candidate)} disabled={!!verifyingId} className="min-h-12 rounded-xl bg-(--color-primary) px-4 font-bold text-white disabled:opacity-60">{verifyingId === candidate.id ? 'Checking membership…' : 'I’m already a member'}</button>}
+                  {existing?.status === 'pending' && <p className="sm:col-span-2 text-sm text-(--color-text-secondary)">We’re waiting for the gym to confirm your membership.</p>}
+                  {existing?.status === 'rejected' && <p className="sm:col-span-2 text-sm text-(--color-text-secondary)">The gym needs to check your member record. Open its profile for public contact details.</p>}
+                  {existing?.status === 'active' && <button type="button" onClick={() => void setActiveGymAction(existing.gymId).then(({ role }) => { router.push(role === 'member' ? '/member' : '/admin'); router.refresh(); })} className="min-h-12 rounded-xl bg-(--color-primary) px-4 font-bold text-white">Open gym</button>}
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
 

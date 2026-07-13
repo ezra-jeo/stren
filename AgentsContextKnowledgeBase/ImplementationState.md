@@ -2,7 +2,7 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-13 (**Cohesive Auth & Assisted Gym Onboarding implemented by Codex in the working tree.** One `/auth` surface, membership-aware post-auth routing, QR/code joining, assisted owner inquiry, and database-enforced platform-only gym provisioning are complete. Final gate results are recorded in the workstream table below.)
+Last updated: 2026-07-13 (**Member Onboarding & Auth Recovery is implemented and verified in the working tree.**)
 
 ---
 
@@ -21,7 +21,19 @@ Last updated: 2026-07-13 (**Cohesive Auth & Assisted Gym Onboarding implemented 
 | Phase 6 — Documentation completion | Queued |
 | Phase 7 — TDD as standing methodology | Queued |
 
-## Active workstream: Cohesive Auth & Assisted Gym Onboarding
+## Workstream (completed in working tree 2026-07-13): Member Onboarding & Auth Recovery
+
+Spec: [ImplementationPlan-MemberOnboardingRecovery.md](ImplementationPlan-MemberOnboardingRecovery.md) · decision: `docs/adr/0006-membership-verification-not-join-requests.md` · branch `auth/cohesive-auth-owner-onboarding`.
+
+| Unit | Scope | Status |
+|---|---|---|
+| M1 | Diagnose and bound credential exchange, session confirmation, post-auth membership resolution, and client navigation; honest Google preview in both auth modes | Implemented (Codex, working tree, 2026-07-13) — focused timeout/loading/auth UI tests green |
+| M2 | Official Supabase password-reset request, enumeration-safe API, recovery callback/session validation, signed HTTP-only completion proof, password update, used/expired handling, truthful email-configuration errors | Implemented (Codex, working tree, 2026-07-13) — request/page/callback/completion tests green |
+| M3 | Migration 021: saved gyms, deterministic membership match, multiple pending verifications, cooldown reminder, withdrawal, staff-only confirmation, in-app notifications; generated types and server actions | Implemented (Codex, working tree, 2026-07-13) — SQL/action contracts green |
+| M4 | Responsive no-gym member home, lean public gym discovery + QR, public profile save/verify actions, demo/beta/profile states, authenticated landing CTA correction | Implemented (Codex, working tree, 2026-07-13) — focused component and real-session bootstrap-policy tests green |
+| M5 | Full lint/typecheck/unit/build/E2E gates, reference-led responsive checks, documentation and environment handoff | Implemented (Codex, working tree, 2026-07-13) — lint/typecheck, 293 unit/integration tests, production build, and 12 public desktop/mobile E2E checks green; 8 credentialed E2E checks skipped; local DB apply blocked before migration 021 by the pre-existing migration-001 ordering defect |
+
+## Workstream (completed 2026-07-13): Cohesive Auth & Assisted Gym Onboarding
 
 Spec: [ImplementationPlan-CohesiveAuthOwnerOnboarding.md](ImplementationPlan-CohesiveAuthOwnerOnboarding.md) · decision: `docs/adr/0005-platform-managed-gym-provisioning.md` · branch `auth/cohesive-auth-owner-onboarding`.
 

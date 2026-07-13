@@ -81,6 +81,30 @@ export interface MyGym {
   status: GymUserStatus
 }
 
+/** A public gym the signed-in account bookmarked. Saving never grants access. */
+export interface SavedGym {
+  gymId: string
+  code: string
+  name: string
+  address: string | null
+  logoUrl: string | null
+  savedAt: string
+}
+
+/** Calm account-facing view of a pending membership record. */
+export interface MembershipVerification {
+  gymId: string
+  code: string
+  name: string
+  address: string | null
+  logoUrl: string | null
+  status: Extract<GymUserStatus, "pending" | "rejected">
+  submittedAt: string
+  lastRemindedAt: string | null
+  nextReminderAt: string | null
+  canRemind: boolean
+}
+
 export interface Membership {
   id: string
   memberId: string
