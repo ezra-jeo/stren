@@ -24,7 +24,16 @@ vi.mock('next/navigation', () => ({
 }));
 
 // ── auth-context ────────────────────────────────────────────────────────────
-let authValue: { myGyms: MyGym[]; activeGymId: string | null; isLoading: boolean; refreshMyGyms: () => void; profile: { name: string } | null };
+let authValue: {
+  myGyms: MyGym[];
+  activeGymId: string | null;
+  isLoading: boolean;
+  refreshMyGyms: () => void;
+  profile: { name: string } | null;
+  user: { email: string } | null;
+  gymAccessError: string | null;
+  signOut: () => Promise<void>;
+};
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => authValue }));
 
 // ── auth-actions ────────────────────────────────────────────────────────────
@@ -85,7 +94,11 @@ beforeEach(() => {
   scannerStopMock.mockReset();
   scannerStopMock.mockResolvedValue(undefined);
   scannerClearMock.mockReset();
-  authValue = { myGyms: [], activeGymId: null, isLoading: false, refreshMyGyms: refreshMyGymsMock, profile: { name: 'Alex Cruz' } };
+  authValue = {
+    myGyms: [], activeGymId: null, isLoading: false, refreshMyGyms: refreshMyGymsMock,
+    profile: { name: 'Alex Cruz' }, user: { email: 'alex@example.com' }, gymAccessError: null,
+    signOut: vi.fn().mockResolvedValue(undefined),
+  };
 });
 
 describe('gym hub — your gyms', () => {
@@ -125,9 +138,24 @@ describe('gym hub — your gyms', () => {
 });
 
 describe('gym hub — empty state', () => {
+  it('never presents onboarding when the gym access lookup failed', async () => {
+    const user = userEvent.setup();
+    authValue.myGyms = [];
+    authValue.gymAccessError = 'We could not load your gym access.';
+    refreshMyGymsMock.mockRejectedValueOnce(new Error('still unavailable'));
+    render(<GymHub />);
+
+    expect(screen.getByRole('heading', { name: /couldn.t load your gyms/i })).toBeInTheDocument();
+    expect(screen.getByText(/signed in as alex@example.com/i)).toBeInTheDocument();
+    expect(screen.queryByText(/not connected to a gym yet/i)).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /try again/i }));
+    expect(refreshMyGymsMock).toHaveBeenCalled();
+  });
+
   it('renders a useful no-gym member home instead of a mandatory join form', () => {
     render(<GymHub />);
     expect(screen.getByRole('heading', { level: 1, name: /hi, alex/i })).toBeInTheDocument();
+    expect(screen.getByText(/signed in as alex@example.com/i)).toBeInTheDocument();
     expect(screen.getByText(/you.re not connected to a gym yet/i)).toBeInTheDocument();
     expect(screen.getByRole('searchbox', { name: /search gyms/i })).toHaveAttribute('placeholder', expect.stringMatching(/name.*location.*code/i));
     expect(screen.getByRole('button', { name: /scan gym qr code/i })).toBeInTheDocument();

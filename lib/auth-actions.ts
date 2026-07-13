@@ -48,14 +48,17 @@ export async function resolvePostAuthDestination(gymCode?: string): Promise<stri
   const { data: userData } = await supabase.auth.getUser();
   if (!userData.user) return '/auth?mode=signin';
 
-  const [{ data: rows }, { data: profile }] = await Promise.all([
+  const [{ data: rows, error: gymsError }, { data: profile, error: profileError }] = await Promise.all([
     supabase.rpc('get_my_gyms'),
     supabase.from('profiles').select('active_gym_id').eq('id', userData.user.id).maybeSingle(),
   ]);
+  if (gymsError) throw new Error(`Gym access lookup failed: ${gymsError.message}`);
+  if (profileError) throw new Error(`Account profile lookup failed: ${profileError.message}`);
   const gyms = Array.isArray(rows) ? rows.map((row) => toMyGym(row as Record<string, unknown>)) : [];
   const destination = choosePostAuthDestination(gyms, profile?.active_gym_id ?? null, gymCode);
   if (destination.activateGymId) {
-    await supabase.rpc('set_active_gym', { p_gym_id: destination.activateGymId });
+    const { error } = await supabase.rpc('set_active_gym', { p_gym_id: destination.activateGymId });
+    if (error) throw new Error(`Active gym selection failed: ${error.message}`);
   }
   return destination.path;
 }

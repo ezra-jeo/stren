@@ -6,11 +6,9 @@ const refreshProfileMock = vi.fn();
 const profile = {
   id: 'u1', name: 'Alex Cruz', email: 'alex@example.com', contactNumber: null,
 };
+let authValue: Record<string, unknown>;
 vi.mock('@/lib/auth-context', () => ({
-  useAuth: () => ({
-    profile,
-    refreshProfile: refreshProfileMock,
-  }),
+  useAuth: () => authValue,
 }));
 
 const eqMock = vi.fn();
@@ -22,10 +20,39 @@ vi.mock('@/lib/supabase', () => ({
 import AccountProfilePage from '@/app/profile/page';
 
 beforeEach(() => {
+  authValue = {
+    user: { email: 'alex@example.com' },
+    profile,
+    isLoading: false,
+    profileError: null,
+    refreshProfile: refreshProfileMock,
+    signOut: vi.fn().mockResolvedValue(undefined),
+  };
   refreshProfileMock.mockReset();
   updateMock.mockClear();
   eqMock.mockReset();
   eqMock.mockResolvedValue({ error: null });
+});
+
+it('shows the authenticated account and recovery actions when its profile cannot be loaded', async () => {
+  const user = userEvent.setup();
+  authValue = {
+    user: { email: 'owner@example.com' },
+    profile: null,
+    isLoading: false,
+    profileError: 'We could not load your account profile.',
+    refreshProfile: refreshProfileMock,
+    signOut: vi.fn().mockResolvedValue(undefined),
+  };
+  refreshProfileMock.mockRejectedValueOnce(new Error('still unavailable'));
+
+  render(<AccountProfilePage />);
+
+  expect(screen.getByRole('heading', { name: /profile unavailable/i })).toBeInTheDocument();
+  expect(screen.getByText(/signed in as owner@example.com/i)).toBeInTheDocument();
+  expect(screen.queryByText(/loading your profile/i)).not.toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: /try again/i }));
+  expect(refreshProfileMock).toHaveBeenCalled();
 });
 
 it('lets a no-gym account update its own basic profile', async () => {

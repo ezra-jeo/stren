@@ -92,12 +92,18 @@ export async function middleware(request: NextRequest) {
   if (!user) return isAuthRoute ? finish(response) : finish(NextResponse.redirect(new URL('/auth?mode=signin', request.url)));
 
   if (isAuthRoute) {
-    const [{ data: rows }, { data: profile }] = await Promise.all([
+    const [{ data: rows, error: gymsError }, { data: profile, error: profileError }] = await Promise.all([
       supabase.rpc('get_my_gyms'),
       supabase.from('profiles').select('active_gym_id').eq('id', user.id).maybeSingle(),
     ]);
+    if (gymsError || profileError) {
+      return finish(NextResponse.redirect(new URL('/gyms?account_error=access', request.url)));
+    }
     const destination = choosePostAuthDestination(asMyGyms(rows), profile?.active_gym_id ?? null, request.nextUrl.searchParams.get('gym') ?? undefined);
-    if (destination.activateGymId) await supabase.rpc('set_active_gym', { p_gym_id: destination.activateGymId });
+    if (destination.activateGymId) {
+      const { error: activationError } = await supabase.rpc('set_active_gym', { p_gym_id: destination.activateGymId });
+      if (activationError) return finish(NextResponse.redirect(new URL('/gyms?account_error=access', request.url)));
+    }
     return finish(NextResponse.redirect(new URL(destination.path, request.url)));
   }
 
@@ -105,7 +111,8 @@ export async function middleware(request: NextRequest) {
 
   const { data, error } = await supabase.rpc('get_my_access');
   const access = data && typeof data === 'object' ? data as { role?: string; gym_id?: string; permissions?: string[]; features?: Record<string, boolean> } : null;
-  if (error || !access?.role || !access.gym_id) return finish(NextResponse.redirect(new URL('/gyms', request.url)));
+  if (error) return finish(NextResponse.redirect(new URL('/gyms?account_error=access', request.url)));
+  if (!access?.role || !access.gym_id) return finish(NextResponse.redirect(new URL('/gyms', request.url)));
 
   const manager = ['owner', 'admin', 'staff'].includes(access.role);
   const managerSurface = pathname.startsWith('/admin') || pathname.startsWith('/kiosk');

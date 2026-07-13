@@ -100,7 +100,7 @@ function PasswordField({
 export function UnifiedAuthSurface() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { signIn } = useAuth();
+  const { signIn, resolveSignedInDestination } = useAuth();
   const queryMode = modeFrom(searchParams.get('mode'));
   const gymCode = searchParams.get('gym')?.trim() || undefined;
   const [mode, setMode] = useState<AuthMode>(queryMode);
@@ -124,6 +124,8 @@ export function UnifiedAuthSurface() {
   const signInErrorRef = useRef<HTMLDivElement>(null);
   const signUpErrorRef = useRef<HTMLDivElement>(null);
   const navigationTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const postAuthSourceRef = useRef<'browser' | 'server'>('browser');
+  const authenticatedEmailRef = useRef<string | null>(null);
 
   useEffect(() => {
     setHydrated(true);
@@ -144,13 +146,13 @@ export function UnifiedAuthSurface() {
     if (signUpError) signUpErrorRef.current?.focus();
   }, [signUpError]);
 
-  async function finishAuthentication() {
+  async function finishAuthentication(source = postAuthSourceRef.current) {
     if (navigationTimerRef.current) clearTimeout(navigationTimerRef.current);
     setPostAuthError(null);
     setSettingUp(true);
     try {
       const destination = await withTimeout(
-        resolvePostAuthDestination(gymCode),
+        source === 'browser' ? resolveSignedInDestination(gymCode) : resolvePostAuthDestination(gymCode),
         10_000,
         'Loading your account timed out.',
       );
@@ -159,12 +161,12 @@ export function UnifiedAuthSurface() {
       navigationTimerRef.current = setTimeout(() => {
         setSettingUp(false);
         setSubmitting(null);
-        setPostAuthError('You’re signed in, but navigation didn’t finish. Please try again.');
+        setPostAuthError(`${authenticatedEmailRef.current ? `You’re signed in as ${authenticatedEmailRef.current}, but` : 'You’re signed in, but'} navigation didn’t finish. Please try again.`);
       }, 10_000);
     } catch {
       setSettingUp(false);
       setSubmitting(null);
-      setPostAuthError('You’re signed in, but we couldn’t finish loading your account. Please try again.');
+      setPostAuthError(`${authenticatedEmailRef.current ? `You’re signed in as ${authenticatedEmailRef.current}, but` : 'You’re signed in, but'} we couldn’t finish loading your account. Please try again.`);
     }
   }
 
@@ -173,7 +175,7 @@ export function UnifiedAuthSurface() {
     if (submitting) return;
     setSignInError(null);
     setSubmitting('signin');
-    let result: { error: string | null };
+    let result: { error: string | null; email?: string };
     try {
       result = await withTimeout(
         signIn(signInEmail.trim(), signInPassword),
@@ -190,7 +192,10 @@ export function UnifiedAuthSurface() {
       setSubmitting(null);
       return;
     }
-    await finishAuthentication();
+    const confirmedEmail = result.email ?? signInEmail.trim().toLowerCase();
+    authenticatedEmailRef.current = confirmedEmail;
+    postAuthSourceRef.current = 'browser';
+    await finishAuthentication('browser');
   }
 
   async function handleSignUp(event: React.FormEvent<HTMLFormElement>) {
@@ -213,7 +218,9 @@ export function UnifiedAuthSurface() {
       setSubmitting(null);
       return;
     }
-    await finishAuthentication();
+    authenticatedEmailRef.current = signUpEmail.trim().toLowerCase();
+    postAuthSourceRef.current = 'server';
+    await finishAuthentication('server');
   }
 
   function switchMode(next: AuthMode) {

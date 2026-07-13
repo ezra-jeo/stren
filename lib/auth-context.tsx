@@ -5,6 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import type { User } from '@supabase/supabase-js';
 import { createClient } from './supabase';
 import { withTimeout } from './async-guard';
+import { choosePostAuthDestination } from './post-auth-destination';
 import type { AccountProfile, MyGym } from './types';
 
 type AuthProfile = AccountProfile & {
@@ -23,10 +24,13 @@ export interface AuthContextValue {
   profile: AuthProfile | null;
   myGyms: MyGym[];
   activeGymId: string | null;
+  profileError: string | null;
+  gymAccessError: string | null;
   isLoading: boolean;
   isSigningOut: boolean;
   needsPasswordSetup: boolean;
-  signIn(email: string, password: string): Promise<{ error: string | null }>;
+  signIn(email: string, password: string): Promise<{ error: string | null; email?: string }>;
+  resolveSignedInDestination(gymCode?: string): Promise<string>;
   signOut(): Promise<void>;
   completePasswordSetup(userId?: string | null): void;
   refreshProfile(): Promise<void>;
@@ -34,9 +38,10 @@ export interface AuthContextValue {
 }
 
 const fallback: AuthContextValue = {
-  user: null, profile: null, myGyms: [], activeGymId: null,
+  user: null, profile: null, myGyms: [], activeGymId: null, profileError: null, gymAccessError: null,
   isLoading: false, isSigningOut: false, needsPasswordSetup: false,
   signIn: async () => ({ error: 'Authentication unavailable.' }),
+  resolveSignedInDestination: async () => '/auth?mode=signin',
   signOut: async () => {}, completePasswordSetup: () => {},
   refreshProfile: async () => {}, refreshMyGyms: async () => {},
 };
@@ -71,6 +76,8 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const [profile, setProfile] = useState<AuthProfile | null>(null);
   const [myGyms, setMyGyms] = useState<MyGym[]>([]);
   const [activeGymId, setActiveGymId] = useState<string | null>(null);
+  const [profileError, setProfileError] = useState<string | null>(null);
+  const [gymAccessError, setGymAccessError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
@@ -83,11 +90,13 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const fetchProfile = useCallback(async (userId: string, db = client()) => {
     try {
       const { data, error } = await withTimeout(db.from('profiles').select('id,email,name,contact_number,avatar_url,avatar_updated_at,avatar_change_locked_until,avatar_change_count,qr_code,created_at,active_gym_id').eq('id', userId).maybeSingle(), 7000, 'Profile lookup timed out.');
-      if (error || !data) { setProfile(null); setActiveGymId(null); return null; }
+      if (error) throw new Error(error.message);
+      if (!data) throw new Error('The authenticated account has no profile record.');
       const built: AuthProfile = { id: data.id, email: data.email, name: data.name, contactNumber: data.contact_number, avatarUrl: data.avatar_url, avatarUpdatedAt: data.avatar_updated_at, avatarChangeLockedUntil: data.avatar_change_locked_until, avatarChangeCount: data.avatar_change_count ?? 0, qrCode: data.qr_code ?? '', createdAt: data.created_at ?? new Date().toISOString(), gymId: data.active_gym_id ?? null, role: 'member' };
-      setProfile(built); setActiveGymId(data.active_gym_id ?? null); writeCache(userId, built); return built;
-    } catch {
-      setProfile(null); setActiveGymId(null); return null;
+      setProfile(built); setActiveGymId(data.active_gym_id ?? null); setProfileError(null); writeCache(userId, built); return built;
+    } catch (error) {
+      setProfileError('We could not load your account profile. Your signed-in session is still active.');
+      throw error;
     }
   }, [client]);
 
@@ -98,17 +107,20 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
         7000,
         'Gym access lookup timed out.',
       );
-      if (error || !Array.isArray(data)) { setMyGyms([]); return; }
-      setMyGyms(data.map((row: Record<string, unknown>) => ({ gymId: String(row.gym_id), code: String(row.code), name: String(row.name), logoUrl: typeof row.logo_url === 'string' ? row.logo_url : null, role: row.role as MyGym['role'], status: row.status as MyGym['status'] })));
-    } catch {
-      setMyGyms([]);
+      if (error) throw new Error(error.message);
+      if (!Array.isArray(data)) throw new Error('Gym access lookup returned an invalid response.');
+      const gyms = data.map((row: Record<string, unknown>) => ({ gymId: String(row.gym_id), code: String(row.code), name: String(row.name), logoUrl: typeof row.logo_url === 'string' ? row.logo_url : null, role: row.role as MyGym['role'], status: row.status as MyGym['status'] }));
+      setMyGyms(gyms); setGymAccessError(null); return gyms;
+    } catch (error) {
+      setGymAccessError('We could not load your gym access. Your account has not been treated as a new account.');
+      throw error;
     }
   }, [client]);
 
   const recover = useCallback(async (db = client()) => {
     if (recovering.current) return; recovering.current = true;
     try { await db.auth.signOut({ scope: 'local' }); } catch {}
-    setUser(null); setProfile(null); setMyGyms([]); setActiveGymId(null); setIsLoading(false); recovering.current = false;
+    setUser(null); setProfile(null); setMyGyms([]); setActiveGymId(null); setProfileError(null); setGymAccessError(null); setIsLoading(false); recovering.current = false;
     if (pathname !== '/auth') { router.replace('/auth?mode=signin'); router.refresh(); }
   }, [client, pathname, router]);
 
@@ -119,7 +131,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       history.replaceState({}, '', `${location.pathname}${location.search}`);
       if (error || !data.user) { router.replace(`/auth?mode=signin&error=${encodeURIComponent(error?.message ?? 'invalid_magic_link_session')}`); setIsLoading(false); return; }
       setUser(data.user); if (['recovery','magiclink','email','invite'].includes(tokens.type ?? '')) setStorageFlag(`${PASSWORD_SETUP_PENDING_PREFIX}${data.user.id}`, true);
-      setNeedsPasswordSetup(needsSetup(data.user.id)); await Promise.all([fetchProfile(data.user.id, db), fetchGyms(db)]); setIsLoading(false);
+      setNeedsPasswordSetup(needsSetup(data.user.id)); await Promise.allSettled([fetchProfile(data.user.id, db), fetchGyms(db)]); setIsLoading(false);
       if (tokens.type === 'recovery' && pathname !== '/reset-password') router.replace('/reset-password');
     });
   }, [fetchGyms, fetchProfile, pathname, router]);
@@ -127,7 +139,7 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (skipBootstrap || !supabase) { setIsLoading(false); return; }
     let active = true; setIsLoading(true);
-    const hydrate = async (current: User | null) => { if (!active) return; setUser(current); setNeedsPasswordSetup(needsSetup(current?.id ?? null)); if (!current) { setProfile(null); setMyGyms([]); setActiveGymId(null); setIsLoading(false); return; } const cached = readCache(current.id); if (cached) setProfile(cached); await Promise.all([fetchProfile(current.id, supabase), fetchGyms(supabase)]); if (active) setIsLoading(false); };
+    const hydrate = async (current: User | null) => { if (!active) return; setUser(current); setNeedsPasswordSetup(needsSetup(current?.id ?? null)); if (!current) { setProfile(null); setMyGyms([]); setActiveGymId(null); setProfileError(null); setGymAccessError(null); setIsLoading(false); return; } const cached = readCache(current.id); if (cached) setProfile(cached); await Promise.allSettled([fetchProfile(current.id, supabase), fetchGyms(supabase)]); if (active) setIsLoading(false); };
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { void hydrate(session?.user ?? null); });
     void retry(() => supabase.auth.getUser()).then(({ data, error }) => error && invalidRefresh(error) ? recover(supabase) : hydrate(data.user ?? null)).catch((error) => invalidRefresh(error) ? recover(supabase) : hydrate(null));
     return () => { active = false; subscription.unsubscribe(); };
@@ -155,18 +167,42 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       setUser(confirmed.user);
       setStorageFlag(`${PASSWORD_SETUP_DONE_PREFIX}${confirmed.user.id}`, true);
       setStorageFlag(`${PASSWORD_SETUP_PENDING_PREFIX}${confirmed.user.id}`, false);
-      void Promise.allSettled([fetchProfile(confirmed.user.id, db), fetchGyms(db)]);
-      return { error: null };
+      return { error: null, email: confirmed.user.email ?? email.trim().toLowerCase() };
     } catch (error) {
       return { error: error instanceof Error ? error.message : 'Sign in failed.' };
     }
   }
-  async function signOut() { if (isSigningOut) return; setIsSigningOut(true); const db = client(); try { await withTimeout(db.auth.signOut(), 10000, 'Sign-out timed out.'); } catch { await db.auth.signOut({ scope: 'local' }); } setUser(null); setProfile(null); setMyGyms([]); setActiveGymId(null); setIsSigningOut(false); router.replace('/auth?mode=signin'); router.refresh(); }
+  async function resolveSignedInDestination(gymCode?: string) {
+    const db = client();
+    setIsLoading(true);
+    try {
+      const { data, error } = await withTimeout(db.auth.getUser(), 5000, 'Session confirmation timed out.');
+      if (error || !data.user) throw new Error(error?.message ?? 'The signed-in session could not be confirmed.');
+      setUser(data.user);
+      const [gymsResult, profileResult] = await Promise.allSettled([fetchGyms(db), fetchProfile(data.user.id, db)]);
+      if (gymsResult.status === 'rejected') throw new Error('Gym access lookup failed.');
+      const resolvedActiveGymId = profileResult.status === 'fulfilled' ? profileResult.value.gymId : activeGymId;
+      const destination = choosePostAuthDestination(gymsResult.value, resolvedActiveGymId, gymCode);
+      if (destination.activateGymId) {
+        const { error: activationError } = await withTimeout(
+          db.rpc('set_active_gym', { p_gym_id: destination.activateGymId }),
+          7000,
+          'Gym selection timed out.',
+        );
+        if (activationError) throw new Error(activationError.message);
+        setActiveGymId(destination.activateGymId);
+      }
+      return destination.path;
+    } finally {
+      setIsLoading(false);
+    }
+  }
+  async function signOut() { if (isSigningOut) return; setIsSigningOut(true); const db = client(); try { await withTimeout(db.auth.signOut(), 10000, 'Sign-out timed out.'); } catch { await db.auth.signOut({ scope: 'local' }); } setUser(null); setProfile(null); setMyGyms([]); setActiveGymId(null); setProfileError(null); setGymAccessError(null); setIsSigningOut(false); router.replace('/auth?mode=signin'); router.refresh(); }
   async function refreshProfile() { if (user) await fetchProfile(user.id); }
   async function refreshMyGyms() { await fetchGyms(); }
   function completePasswordSetup(userId?: string | null) { const id = userId ?? user?.id; if (!id) return; setStorageFlag(`${PASSWORD_SETUP_DONE_PREFIX}${id}`, true); setStorageFlag(`${PASSWORD_SETUP_PENDING_PREFIX}${id}`, false); if (id === user?.id) setNeedsPasswordSetup(false); }
 
-  return <AuthContext.Provider value={{ user, profile, myGyms, activeGymId, isLoading, isSigningOut, needsPasswordSetup, signIn, signOut, completePasswordSetup, refreshProfile, refreshMyGyms }}>{children}</AuthContext.Provider>;
+  return <AuthContext.Provider value={{ user, profile, myGyms, activeGymId, profileError, gymAccessError, isLoading, isSigningOut, needsPasswordSetup, signIn, resolveSignedInDestination, signOut, completePasswordSetup, refreshProfile, refreshMyGyms }}>{children}</AuthContext.Provider>;
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) { return <AuthProviderInner>{children}</AuthProviderInner>; }

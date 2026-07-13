@@ -12,7 +12,7 @@
 
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { AlertCircle, ChevronRight, LogOut, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { setActiveGymAction } from '@/lib/auth-actions';
 import type { MyGym } from '@/lib/types';
@@ -88,13 +88,14 @@ function GymCard({
 }
 
 function HubInner() {
-  const { myGyms, activeGymId, refreshMyGyms, isLoading } = useAuth();
+  const { user, myGyms, activeGymId, refreshMyGyms, gymAccessError, isLoading, signOut } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const joinCode = params.get('join');
 
   const [enteringId, setEnteringId] = useState<string | null>(null);
   const [enterError, setEnterError] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   async function enterGym(gym: MyGym) {
     setEnteringId(gym.gymId);
@@ -110,6 +111,39 @@ function HubInner() {
   }
 
   const hasActiveGyms = myGyms.some((gym) => gym.status === 'active');
+  const routeAccessError = params.get('account_error') === 'access' && myGyms.length === 0;
+
+  async function retryAccess() {
+    if (retrying) return;
+    setRetrying(true);
+    try {
+      await refreshMyGyms();
+      router.replace('/gyms');
+      router.refresh();
+    } catch {
+      // The context keeps the actionable error visible; the account is never
+      // reclassified as a zero-gym account after a failed retry.
+    } finally {
+      setRetrying(false);
+    }
+  }
+
+  if (!isLoading && (gymAccessError || routeAccessError)) {
+    return (
+      <main className="mx-auto flex min-h-[70vh] w-full max-w-2xl items-center px-4 py-10 sm:px-6">
+        <section className="w-full rounded-3xl border border-(--color-primary) bg-white p-6 shadow-sm sm:p-8" aria-labelledby="gym-access-error-title">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--color-primary-glow) text-(--color-primary-dark)"><AlertCircle aria-hidden="true" /></span>
+          <h1 id="gym-access-error-title" className="mt-5 font-serif text-3xl font-semibold text-(--color-text-primary)">We couldn’t load your gyms</h1>
+          <p className="mt-3 leading-7 text-(--color-text-secondary)">Your sign-in worked, but Stren could not safely verify your gym access. We have not treated this account as a new account.</p>
+          {user?.email && <p className="mt-3 rounded-xl bg-(--color-background) px-4 py-3 text-sm font-semibold text-(--color-text-primary)">Signed in as {user.email}</p>}
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button type="button" onClick={() => void retryAccess()} disabled={retrying} aria-busy={retrying} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-(--color-primary) px-5 font-bold text-white disabled:opacity-60"><RefreshCw size={18} aria-hidden="true" />{retrying ? 'Checking again…' : 'Try again'}</button>
+            <button type="button" onClick={() => void signOut()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-(--color-surface) px-5 font-semibold text-(--color-text-primary)"><LogOut size={18} aria-hidden="true" />Sign out</button>
+          </div>
+        </section>
+      </main>
+    );
+  }
 
   if (!isLoading && !hasActiveGyms) {
     return (

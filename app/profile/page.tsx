@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowLeft, UserRound } from 'lucide-react';
+import { AlertCircle, ArrowLeft, LogOut, RefreshCw, UserRound } from 'lucide-react';
 import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { createClient } from '@/lib/supabase';
@@ -9,12 +9,13 @@ import { profileEditSchema } from '@/lib/validations';
 
 export default function AccountProfilePage() {
   const supabase = useMemo(() => createClient(), []);
-  const { profile, refreshProfile } = useAuth();
+  const { user, profile, profileError, isLoading, refreshProfile, signOut } = useAuth();
   const [name, setName] = useState('');
   const [mobile, setMobile] = useState('');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [status, setStatus] = useState<string | null>(null);
+  const [retrying, setRetrying] = useState(false);
 
   useEffect(() => {
     if (!profile) return;
@@ -48,8 +49,32 @@ export default function AccountProfilePage() {
     }
   }
 
-  if (!profile) {
+  async function retryProfile() {
+    if (retrying) return;
+    setRetrying(true);
+    try { await refreshProfile(); } catch { /* Context keeps the recovery state visible. */ }
+    finally { setRetrying(false); }
+  }
+
+  if (isLoading && !profile) {
     return <main className="mx-auto max-w-2xl px-4 py-10"><p className="text-sm text-(--color-text-muted)">Loading your profile…</p></main>;
+  }
+
+  if (!profile) {
+    return (
+      <main className="mx-auto flex min-h-[70vh] w-full max-w-2xl items-center px-4 py-10 sm:px-6">
+        <section className="w-full rounded-3xl border border-(--color-primary) bg-white p-6 shadow-sm sm:p-8" aria-labelledby="profile-error-title">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--color-primary-glow) text-(--color-primary-dark)"><AlertCircle aria-hidden="true" /></span>
+          <h1 id="profile-error-title" className="mt-5 font-serif text-3xl font-semibold text-(--color-text-primary)">Profile unavailable</h1>
+          <p className="mt-3 leading-7 text-(--color-text-secondary)">{profileError ?? 'We could not find the profile data for this authenticated account.'}</p>
+          {user?.email && <p className="mt-3 rounded-xl bg-(--color-background) px-4 py-3 text-sm font-semibold text-(--color-text-primary)">Signed in as {user.email}</p>}
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button type="button" onClick={() => void retryProfile()} disabled={retrying} aria-busy={retrying} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-(--color-primary) px-5 font-bold text-white disabled:opacity-60"><RefreshCw size={18} aria-hidden="true" />{retrying ? 'Checking again…' : 'Try again'}</button>
+            <button type="button" onClick={() => void signOut()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-(--color-surface) px-5 font-semibold text-(--color-text-primary)"><LogOut size={18} aria-hidden="true" />Sign out</button>
+          </div>
+        </section>
+      </main>
+    );
   }
 
   return (

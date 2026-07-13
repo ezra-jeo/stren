@@ -62,7 +62,12 @@ export async function GET(request: Request) {
     return response
   }
 
-  const destination = await resolvePostAuthDestination(gymCode ?? undefined)
+  let destination: string
+  try {
+    destination = await resolvePostAuthDestination(gymCode ?? undefined)
+  } catch {
+    return NextResponse.redirect(new URL('/gyms?account_error=access', requestUrl.origin))
+  }
   const shouldPromptPasswordSetup = tokenType === "magiclink" || tokenType === "email" || tokenType === "invite" || tokenType === "signup"
   const target = shouldPromptPasswordSetup && destination.startsWith('/member')
     ? `${destination}${destination.includes('?') ? '&' : '?'}first_login=1`
