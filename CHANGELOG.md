@@ -8,6 +8,18 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Member Area Redesign
+
+#### Added
+- A responsive member application shell: a quiet desktop sidebar, consistent mobile bottom navigation, one spacious content column, shared warm member surfaces, and visible keyboard focus states.
+- Migration `022_weekly_member_consistency.sql`, which recalculates consistency from qualifying attendance by calendar week in the application timezone and uses the same rule for the Ranks category.
+
+#### Changed
+- `/member` is now a focused home experience with a QR-backed Check in action, occupancy context, one unified weekly status strip, and three recommendations drawn only from existing Feed, Ranks, QR, and settings capabilities.
+- `/member/leaderboard`, `/member/profile`, and `/member/settings` now share the premium Stren member presentation. Ranks has accessible category tabs, an accurate personal position, highlighted member rows, and mobile-friendly rows.
+- Workout consistency language now refers to weeks rather than daily streaks. A current week with no visit remains open until it ends, so rest days cannot break a streak.
+- Settings now exposes only the notification preferences that are already persisted and respected; unsupported account deletion and speculative privacy/app-preference controls are not presented as functional.
+
 ### Auth Session & Account Access Recovery
 
 #### Changed
@@ -19,6 +31,15 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Failed `get_my_gyms`, profile, `get_my_access`, or active-gym calls are no longer collapsed into an empty affiliation list. Owners and members are not sent to onboarding when access resolution fails.
 - `/profile` no longer displays “Loading your profile…” forever after a missing/failed profile read; it now offers bounded retry and sign out while preserving the authenticated session.
 - Middleware, auth callback, and post-auth server resolution fail closed into an explicit account-recovery state instead of masking backend/schema failures as a new account.
+
+#### Hosted deployment recovery
+
+- Reconciled the hosted timestamped copy of migration 013 to its canonical repository version and applied migrations 014–021. Owner and member sign-in now resolve their backfilled `gym_users` affiliations and active gyms on the deployed app.
+- Fixed migration 019 so the longest-member leaderboard aliases its computed `value`, and all three hosted `gym-assets` owner policies are replaced before their legacy profile-column dependencies are dropped.
+- Disabled hosted Auth email auto-confirm. New accounts receive no authenticated session until email confirmation completes; production-volume delivery still requires custom SMTP.
+- Added `npm run verify:deployment`, wired before Netlify and production builds, to fail on Auth auto-confirm, missing unified-account RPCs/columns, or a missing membership-verification RPC without logging credentials or provider payloads.
+- Added a build-time compatibility mapping from Supabase's modern project ID/publishable-key environment names to the browser-safe `NEXT_PUBLIC_*` values. The server secret is never copied into the client bundle.
+- Bounded Vitest to four workers with a 30-second ceiling so the standard 310-test coverage run remains deterministic on constrained Windows and CI workers.
 
 ### Member Onboarding & Auth Recovery
 

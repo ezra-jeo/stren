@@ -1,80 +1,42 @@
-import { createClient } from "./supabase"
+import { createClient } from './supabase';
+import { bestWeeklyStreak, weeklyStreak } from './member-weekly-streak';
 
-const supabase = createClient()
+const supabase = createClient();
 
-export async function updateStreak(memberId: string): Promise<{
-  currentStreak: number
-  bestStreak: number
-  isNewBest: boolean
-}> {
-  const today = new Date().toISOString().split("T")[0]
+type StreakResult = { currentStreak: number; bestStreak: number; isNewBest: boolean };
 
-  // maybeSingle — new members won't have a streak row yet
-  const { data: streak } = await supabase
-    .from("streaks")
-    .select("*")
-    .eq("member_id", memberId)
-    .maybeSingle()
+/**
+ * Legacy client engagement helper. The kiosk is the source of truth, but this
+ * path keeps any client-side engagement hook on the same weekly contract.
+ */
+export async function updateStreak(memberId: string, gymId: string | null): Promise<StreakResult> {
+  if (!gymId) return { currentStreak: 0, bestStreak: 0, isNewBest: false };
 
-  if (!streak) {
-    await supabase.from("streaks").insert({
-      member_id: memberId,
-      current_streak: 1,
-      best_streak: 1,
-      last_visit_date: today,
-    })
-    return { currentStreak: 1, bestStreak: 1, isNewBest: true }
-  }
+  const [{ data: streak }, { data: attendance }] = await Promise.all([
+    supabase.from('streaks').select('*').eq('member_id', memberId).eq('gym_id', gymId).maybeSingle(),
+    supabase.from('attendance').select('check_in').eq('member_id', memberId).eq('gym_id', gymId),
+  ]);
+  const visits = (attendance ?? []).flatMap((visit) => visit.check_in ? [visit.check_in] : []);
+  const currentStreak = weeklyStreak(visits);
+  const bestStreak = bestWeeklyStreak(visits);
+  const isNewBest = bestStreak > (streak?.best_streak ?? 0);
 
-  // Null-coerce — DB columns are number | null per generated types
-  const currentStreak = streak.current_streak ?? 0
-  const bestStreak = streak.best_streak ?? 0
+  await supabase.from('streaks').upsert({
+    member_id: memberId,
+    gym_id: gymId,
+    current_streak: currentStreak,
+    best_streak: bestStreak,
+    last_visit_date: new Date().toISOString().slice(0, 10),
+  }, { onConflict: 'member_id,gym_id' });
 
-  // Already visited today — no change
-  if (streak.last_visit_date === today) {
-    return {
-      currentStreak,
-      bestStreak,
-      isNewBest: false,
-    }
-  }
-
-  const lastVisit = streak.last_visit_date ? new Date(streak.last_visit_date) : null
-  const todayDate = new Date(today)
-
-  let newStreak: number
-  if (lastVisit) {
-    const diffDays = Math.floor(
-      (todayDate.getTime() - lastVisit.getTime()) / (1000 * 60 * 60 * 24)
-    )
-    newStreak = diffDays === 1 ? currentStreak + 1 : 1
-  } else {
-    newStreak = 1
-  }
-
-  const newBest = Math.max(newStreak, bestStreak)
-  const isNewBest = newBest > bestStreak
-
-  await supabase
-    .from("streaks")
-    .update({ current_streak: newStreak, best_streak: newBest, last_visit_date: today })
-    .eq("member_id", memberId)
-
-  return { currentStreak: newStreak, bestStreak: newBest, isNewBest }
+  return { currentStreak, bestStreak, isNewBest };
 }
 
-export async function getStreak(memberId: string) {
-  const { data } = await supabase
-    .from("streaks")
-    .select("*")
-    .eq("member_id", memberId)
-    .maybeSingle()
-
+export async function getStreak(memberId: string, gymId?: string | null) {
+  let query = supabase.from('streaks').select('*').eq('member_id', memberId);
+  if (gymId) query = query.eq('gym_id', gymId);
+  const { data } = await query.maybeSingle();
   return data
-    ? {
-        currentStreak: data.current_streak ?? 0,
-        bestStreak: data.best_streak ?? 0,
-        lastVisitDate: data.last_visit_date,
-      }
-    : { currentStreak: 0, bestStreak: 0, lastVisitDate: null }
+    ? { currentStreak: data.current_streak ?? 0, bestStreak: data.best_streak ?? 0, lastVisitDate: data.last_visit_date }
+    : { currentStreak: 0, bestStreak: 0, lastVisitDate: null };
 }

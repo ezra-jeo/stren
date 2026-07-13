@@ -68,7 +68,7 @@ export async function handleScan(memberId: string): Promise<CheckInResult> {
     }
 
     // Run engagement hooks in parallel
-    const streakPromise = updateStreak(memberId)
+    const streakPromise = updateStreak(memberId, gymId)
     const feedPromise = memberFeedEnabled
       ? ignoreFeedFailure(postCheckInFeedItem(memberId, gymId))
       : Promise.resolve()
@@ -132,7 +132,7 @@ async function postCheckInFeedItem(memberId: string, gymId: string | null) {
     .maybeSingle()
 
   const streakText =
-    streak && (streak.current_streak ?? 0) > 1 ? ` 🔥 ${streak.current_streak}-day streak!` : ""
+    streak && (streak.current_streak ?? 0) > 1 ? ` 🔥 ${streak.current_streak}-week streak!` : ""
 
   const hour = new Date().getHours()
   const timeOfDay =
@@ -168,8 +168,8 @@ async function postStreakMilestoneFeedItem(
     member_id: memberId,
     gym_id: gymId,
     type: "streak_milestone",
-    title: `${profile?.name ?? "Someone"} hit a ${streak}-day streak! 🔥`,
-    description: `${streak} consecutive days at the gym`,
+    title: `${profile?.name ?? "Someone"} hit a ${streak}-week streak! 🔥`,
+    description: `${streak} consecutive weeks with a check-in`,
     metadata: { streak_count: streak },
   })
 }

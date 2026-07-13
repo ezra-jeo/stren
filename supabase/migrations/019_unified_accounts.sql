@@ -1491,7 +1491,7 @@ SET search_path = ''
 AS $$
   SELECT p.id, p.name, p.avatar_url,
     (extract(YEAR FROM age(CURRENT_DATE, gu.created_at::DATE)) * 12
-      + extract(MONTH FROM age(CURRENT_DATE, gu.created_at::DATE)))::INTEGER
+      + extract(MONTH FROM age(CURRENT_DATE, gu.created_at::DATE)))::INTEGER AS value
   FROM public.gym_users gu
   JOIN public.profiles p ON p.id = gu.user_id
   WHERE gu.gym_id = public.get_gym_id()
@@ -1727,6 +1727,39 @@ GRANT EXECUTE ON FUNCTION public.kiosk_checkout(UUID, UUID) TO authenticated, se
 GRANT EXECUTE ON FUNCTION public.kiosk_get_checked_in(UUID) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.kiosk_search_members(TEXT, UUID) TO authenticated, service_role;
 GRANT EXECUTE ON FUNCTION public.kiosk_update_streak(UUID, UUID) TO authenticated, service_role;
+
+-- Gym asset ownership follows the active gym affiliation. These policies were
+-- created outside the numbered baseline on the hosted project, so they must be
+-- replaced explicitly before profiles.role and profiles.gym_id are removed.
+DROP POLICY IF EXISTS gym_assets_owner_upload ON storage.objects;
+CREATE POLICY gym_assets_owner_upload ON storage.objects
+  FOR INSERT TO authenticated
+  WITH CHECK (
+    bucket_id = 'gym-assets'
+    AND auth.uid() IS NOT NULL
+    AND (storage.foldername(name))[1] = public.get_gym_id()::TEXT
+    AND public.is_gym_owner(auth.uid(), public.get_gym_id())
+  );
+
+DROP POLICY IF EXISTS gym_assets_owner_update ON storage.objects;
+CREATE POLICY gym_assets_owner_update ON storage.objects
+  FOR UPDATE TO authenticated
+  USING (
+    bucket_id = 'gym-assets'
+    AND auth.uid() IS NOT NULL
+    AND (storage.foldername(name))[1] = public.get_gym_id()::TEXT
+    AND public.is_gym_owner(auth.uid(), public.get_gym_id())
+  );
+
+DROP POLICY IF EXISTS gym_assets_owner_delete ON storage.objects;
+CREATE POLICY gym_assets_owner_delete ON storage.objects
+  FOR DELETE TO authenticated
+  USING (
+    bucket_id = 'gym-assets'
+    AND auth.uid() IS NOT NULL
+    AND (storage.foldername(name))[1] = public.get_gym_id()::TEXT
+    AND public.is_gym_owner(auth.uid(), public.get_gym_id())
+  );
 
 -- ---------------------------------------------------------------------------
 -- 8. Legacy identity columns are dropped only after the backfill and all

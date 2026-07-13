@@ -34,7 +34,7 @@ function monthsSince(iso: string | null): string | null {
 export function LapsedLockScreen({ gymName, summary }: { gymName?: string | null; summary: LapsedSummary }) {
   const since = monthsSince(summary.member_since);
   const savedStats: { icon: React.ReactNode; label: string; value: string }[] = [
-    { icon: <Flame size={18} />, label: 'Best streak', value: `${summary.best_streak} day${summary.best_streak === 1 ? '' : 's'}` },
+    { icon: <Flame size={18} />, label: 'Best streak', value: `${summary.best_streak} week${summary.best_streak === 1 ? '' : 's'}` },
     { icon: <CalendarCheck size={18} />, label: 'Total visits', value: `${summary.total_visits}` },
   ];
   if (since) {
