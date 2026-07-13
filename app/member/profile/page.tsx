@@ -329,7 +329,7 @@ function AvatarSection({ profile, refreshProfile }: { profile: Profile; refreshP
 }
 
 export default function ProfilePage() {
-  const { profile, signOut, isSigningOut, refreshProfile } = useAuth();
+  const { profile, signOut, isSigningOut, refreshProfile, myGyms, activeGymId } = useAuth();
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
@@ -433,16 +433,16 @@ export default function ProfilePage() {
     : null;
 
   if (!profile) return <PageSkeleton rows={3} height={96} />;
+  const currentGym = myGyms.find((gym) => gym.gymId === activeGymId) ?? null;
 
   return (
-    <div className="space-y-6">
+    <div className="member-page space-y-6">
       <div className="flex items-center justify-between">
-        <h1
-          className="text-2xl font-bold"
-          style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}
-        >
-          Profile
-        </h1>
+        <div>
+          <h1 className="member-page-title">Profile</h1>
+          <p className="mt-2 text-sm text-(--color-text-secondary)">Manage your account and gym identity.</p>
+          <p className="mt-1 text-xs font-medium text-(--color-text-muted)">{currentGym ? `Current gym: ${currentGym.name}` : 'No active gym'}</p>
+        </div>
         <button
           onClick={handleSignOut}
           disabled={isSigningOut}
@@ -454,9 +454,11 @@ export default function ProfilePage() {
         </button>
       </div>
 
+      <div className="grid gap-5 lg:grid-cols-[1.2fr_.8fr]">
       <AvatarSection profile={profile} refreshProfile={refreshProfile} />
 
       <div
+        id="member-qr"
         className="rounded-xl p-6 border text-center"
         style={{ backgroundColor: 'var(--color-white)', borderColor: 'var(--color-surface)' }}
       >
@@ -473,7 +475,9 @@ export default function ProfilePage() {
           Show this at the gym kiosk to check in
         </p>
       </div>
+      </div>
 
+      <div className="grid gap-5 lg:grid-cols-2">
       <div
         className="rounded-xl p-5 border"
         style={{ backgroundColor: 'var(--color-white)', borderColor: 'var(--color-surface)' }}
@@ -615,6 +619,7 @@ export default function ProfilePage() {
             No membership record found.
           </p>
         )}
+      </div>
       </div>
 
       <p className="text-center text-xs" style={{ color: 'var(--color-text-muted)' }}>
