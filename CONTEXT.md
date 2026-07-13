@@ -23,12 +23,20 @@ The shell control that swaps the active gym. Gyms switch — the account never d
 _Avoid_: account switcher
 
 **Gym hub**:
-The account's home at `/gyms`: your gyms with role/status and the authenticated QR/code join experience. Gym organizations are provisioned by Stren through assisted onboarding, never created here.
+The account's home at `/gyms`: active gyms with role/status, or a useful member home for an account that is not connected yet. It includes public gym discovery, saved gyms, and membership verification. Gym organizations are provisioned by Stren through assisted onboarding, never created here.
 _Avoid_: gym select, gym picker, dashboard
 
-**Join request**:
-A pending gym-user row created by self-serve joining, awaiting staff approval at People → pending.
-_Avoid_: application, signup request
+**Membership verification**:
+The process started when an account says “I’m already a member” at a gym. A verified existing member record connects immediately; otherwise the gym-user row stays pending while staff check the member record. The database may call the state `pending`, but member-facing copy is calm and factual.
+_Avoid_: join request, application, approval request, pending review
+
+**Saved gym**:
+A public gym bookmarked by an account for later. Saving is independent of gym-user access and can never unlock private gym data.
+_Avoid_: followed gym, joined gym
+
+**Demo member dashboard**:
+A clearly labeled, non-mutating preview made only from sample data. It shows what connection can unlock without representing the account or a real gym.
+_Avoid_: personal mode, trial gym, real dashboard
 
 **Lapsed member**:
 A member whose gym-user row is active but whose subscription has expired. Sees the renewal lock screen (saved stats named, never deleted), can't check in, off the leaderboard until renewal.

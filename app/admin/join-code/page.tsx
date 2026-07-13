@@ -18,7 +18,7 @@ export default function JoinCodePage() {
           Invite members
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          Print this poster for your front desk. Anyone can scan it to create an account and request to join your gym.
+          Print this poster for your front desk. Members can scan it to create an account and verify their membership with your gym.
         </p>
       </header>
 

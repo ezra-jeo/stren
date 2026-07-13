@@ -9,7 +9,7 @@
 1. **This file** — orientation + your update obligations.
 2. [AboutProject.md](AboutProject.md) — what Stren is, mission, north star, product principles. Read once per session; internalize before making any product-facing decision.
 3. [ImplementationState.md](ImplementationState.md) — what is shipped, in progress, and queued. Check before starting anything so you don't redo or collide.
-4. [ImplementationPlan-CohesiveAuthOwnerOnboarding.md](ImplementationPlan-CohesiveAuthOwnerOnboarding.md) — the completed contract for the latest workstream: one shared auth surface, membership-aware routing, authenticated QR/code joining, and platform-managed gym provisioning.
+4. [ImplementationPlan-MemberOnboardingRecovery.md](ImplementationPlan-MemberOnboardingRecovery.md) — the latest completed contract for bounded sign-in recovery, official password reset, the no-gym member home, saved gyms, and membership verification.
 5. [../CLAUDE.md](../CLAUDE.md) — coding conventions, commands, test policy, branch rules. **Applies to ALL agents, not just Claude.**
 6. [../CONTEXT.md](../CONTEXT.md) — the project vocabulary. Use these terms exactly; they are canonical.
 
@@ -20,6 +20,7 @@
 | File | What it is | Who updates it | Update trigger |
 |---|---|---|---|
 | `Catalog.md` | This index + the maintenance rules | Any agent | Any doc is added, moved, renamed, or goes stale |
+| `ImplementationPlan-MemberOnboardingRecovery.md` | **Latest completed plan**: bounded auth completion, secure recovery, useful no-gym home, saved gyms, membership verification | Implementing agent | Scope/decision changes |
 | `AboutProject.md` | Mission, north star, audience, product principles, roadmap teasers | User-approved changes only — agents propose, never silently rewrite | Product direction changes |
 | `ImplementationPlan-CohesiveAuthOwnerOnboarding.md` | **Latest completed plan**: cohesive `/auth`, membership-aware join routing, assisted owner onboarding, platform-only gym provisioning | Implementing agent | Scope/decision changes |
 | `ImplementationPlan-UnifiedAccounts.md` | Completed plan: Unified Accounts & Auth Rebuild (shipped to `main` 2026-07-13 via `f04fb2f`) | — | Historical; do not extend |

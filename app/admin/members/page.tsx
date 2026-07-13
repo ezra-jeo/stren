@@ -27,7 +27,7 @@ interface MemberRow {
   name: string
   email: string
   contact_number: string | null
-  profile_status: "active" | "rejected"
+  profile_status: "pending" | "active" | "rejected"
   membership_id: string | null
   plan_name: string | null
   start_date: string | null
@@ -222,7 +222,7 @@ export default function MembersPage() {
             name: p.name,
             email: p.email,
             contact_number: p.contact_number,
-            profile_status: gymUser.status === "rejected" ? "rejected" : "active",
+            profile_status: gymUser.status === "pending" ? "pending" : gymUser.status === "rejected" ? "rejected" : "active",
             membership_id: m?.id ?? null,
             plan_name: m ? ((m.membership_plans as unknown as { name: string })?.name ?? "Unknown") : null,
             start_date: m?.start_date ?? null,
@@ -266,7 +266,8 @@ export default function MembersPage() {
 
   const filtered = useMemo(() => {
     let list = [...members]
-    if (statusFilter === "banned") list = list.filter((m) => m.profile_status === "rejected")
+    if (statusFilter === "verification") list = list.filter((m) => m.profile_status === "pending")
+    else if (statusFilter === "banned") list = list.filter((m) => m.profile_status === "rejected")
     else if (statusFilter === "no_plan") list = list.filter((m) => m.membership_status === null)
     else if (statusFilter !== "all") list = list.filter((m) => m.membership_status === statusFilter)
     if (search.trim()) {
@@ -297,6 +298,20 @@ export default function MembersPage() {
       return
     }
     toast.success(status === "rejected" ? "Member has been banned." : "Member has been unbanned.")
+    void fetchMembers(true)
+  }
+
+  async function confirmMembershipVerification(memberId: string) {
+    if (!profile?.gymId) return
+    const { error } = await supabase.rpc("confirm_membership_verification", {
+      p_gym_id: profile.gymId,
+      p_user_id: memberId,
+    })
+    if (error) {
+      toast.error("Could not confirm this membership.")
+      return
+    }
+    toast.success("Membership confirmed. The member now has gym access.")
     void fetchMembers(true)
   }
 
@@ -357,7 +372,7 @@ export default function MembersPage() {
     void fetchMembers(true)
   }
 
-  const expiredMembers = members.filter((m) => m.profile_status !== "rejected" && m.membership_status === "expired")
+  const expiredMembers = members.filter((m) => m.profile_status === "active" && m.membership_status === "expired")
 
   if (isLoading) {
     return <LoadingSkeleton rows={6} h={68} />
@@ -405,6 +420,7 @@ export default function MembersPage() {
           style={{ backgroundColor: A.surface2, border: `1px solid ${A.border}`, color: A.text, minWidth: 170 }}
         >
           <option value="all">All Members</option>
+          <option value="verification">Membership Verification</option>
           <option value="active">Active Plan</option>
           <option value="expired">Expired</option>
           <option value="frozen">Frozen</option>
@@ -448,6 +464,14 @@ export default function MembersPage() {
                           Banned
                         </span>
                       )}
+                      {m.profile_status === "pending" && (
+                        <span
+                          className="inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide"
+                          style={{ backgroundColor: "var(--color-warning-bg)", color: "var(--color-warning)", border: "1px solid var(--color-warning)" }}
+                        >
+                          Verify membership
+                        </span>
+                      )}
                       <StatusPill status={m.membership_status} />
                     </div>
                     <p className="text-xs mt-0.5" style={{ color: A.muted }}>
@@ -459,9 +483,15 @@ export default function MembersPage() {
                 </div>
 
                 <div className="flex items-center gap-1 shrink-0 ml-3">
-                  <GhostBtn onClick={() => openRenewDialog(m)} color={A.primary} disabled={m.profile_status === "rejected"}>
-                    Renew
-                  </GhostBtn>
+                  {m.profile_status === "pending" ? (
+                    <PrimaryBtn onClick={() => confirmMembershipVerification(m.profile_id)}>
+                      Verify membership
+                    </PrimaryBtn>
+                  ) : (
+                    <GhostBtn onClick={() => openRenewDialog(m)} color={A.primary} disabled={m.profile_status === "rejected"}>
+                      Renew
+                    </GhostBtn>
+                  )}
                   {m.membership_id && m.membership_status === "active" && m.profile_status !== "rejected" && (
                     <GhostBtn onClick={() => handleStatusChange(m.membership_id!, "frozen")} color="var(--admin-frozen-text)">
                       <Snowflake className="h-3 w-3" />
@@ -474,7 +504,7 @@ export default function MembersPage() {
                       Activate
                     </GhostBtn>
                   )}
-                  {m.profile_status === "rejected" ? (
+                  {m.profile_status === "pending" ? null : m.profile_status === "rejected" ? (
                     <GhostBtn onClick={() => handleProfileStatusChange(m.profile_id, "active")} color="var(--admin-active-text)">
                       Unban
                     </GhostBtn>

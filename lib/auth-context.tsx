@@ -62,6 +62,10 @@ function readCache(userId: string): AuthProfile | null {
 }
 function writeCache(userId: string, profile: AuthProfile) { try { sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ userId, at: Date.now(), profile })); } catch {} }
 
+export function shouldSkipAuthBootstrap(pathname: string | null | undefined): boolean {
+  return pathname === '/' || pathname === '/auth' || pathname === '/reset-password';
+}
+
 function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<AuthProfile | null>(null);
@@ -72,21 +76,33 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
   const recovering = useRef(false);
   const router = useRouter(); const pathname = usePathname();
-  const skipBootstrap = useMemo(() => pathname === '/' || pathname?.startsWith('/landing') || pathname?.startsWith('/gym/') || pathname === '/auth' || pathname === '/reset-password', [pathname]);
+  const skipBootstrap = useMemo(() => shouldSkipAuthBootstrap(pathname), [pathname]);
   const supabase = useMemo(() => skipBootstrap ? null : createClient(), [skipBootstrap]);
   const client = useCallback(() => supabase ?? createClient(), [supabase]);
 
   const fetchProfile = useCallback(async (userId: string, db = client()) => {
-    const { data, error } = await withTimeout(db.from('profiles').select('id,email,name,contact_number,avatar_url,avatar_updated_at,avatar_change_locked_until,avatar_change_count,qr_code,created_at,active_gym_id').eq('id', userId).maybeSingle(), 7000, 'Profile lookup timed out.');
-    if (error || !data) { setProfile(null); setActiveGymId(null); return null; }
-    const built: AuthProfile = { id: data.id, email: data.email, name: data.name, contactNumber: data.contact_number, avatarUrl: data.avatar_url, avatarUpdatedAt: data.avatar_updated_at, avatarChangeLockedUntil: data.avatar_change_locked_until, avatarChangeCount: data.avatar_change_count ?? 0, qrCode: data.qr_code ?? '', createdAt: data.created_at ?? new Date().toISOString(), gymId: data.active_gym_id ?? null, role: 'member' };
-    setProfile(built); setActiveGymId(data.active_gym_id ?? null); writeCache(userId, built); return built;
+    try {
+      const { data, error } = await withTimeout(db.from('profiles').select('id,email,name,contact_number,avatar_url,avatar_updated_at,avatar_change_locked_until,avatar_change_count,qr_code,created_at,active_gym_id').eq('id', userId).maybeSingle(), 7000, 'Profile lookup timed out.');
+      if (error || !data) { setProfile(null); setActiveGymId(null); return null; }
+      const built: AuthProfile = { id: data.id, email: data.email, name: data.name, contactNumber: data.contact_number, avatarUrl: data.avatar_url, avatarUpdatedAt: data.avatar_updated_at, avatarChangeLockedUntil: data.avatar_change_locked_until, avatarChangeCount: data.avatar_change_count ?? 0, qrCode: data.qr_code ?? '', createdAt: data.created_at ?? new Date().toISOString(), gymId: data.active_gym_id ?? null, role: 'member' };
+      setProfile(built); setActiveGymId(data.active_gym_id ?? null); writeCache(userId, built); return built;
+    } catch {
+      setProfile(null); setActiveGymId(null); return null;
+    }
   }, [client]);
 
   const fetchGyms = useCallback(async (db = client()) => {
-    const { data, error } = await db.rpc('get_my_gyms');
-    if (error || !Array.isArray(data)) { setMyGyms([]); return; }
-    setMyGyms(data.map((row: Record<string, unknown>) => ({ gymId: String(row.gym_id), code: String(row.code), name: String(row.name), logoUrl: typeof row.logo_url === 'string' ? row.logo_url : null, role: row.role as MyGym['role'], status: row.status as MyGym['status'] })));
+    try {
+      const { data, error } = await withTimeout(
+        db.rpc('get_my_gyms'),
+        7000,
+        'Gym access lookup timed out.',
+      );
+      if (error || !Array.isArray(data)) { setMyGyms([]); return; }
+      setMyGyms(data.map((row: Record<string, unknown>) => ({ gymId: String(row.gym_id), code: String(row.code), name: String(row.name), logoUrl: typeof row.logo_url === 'string' ? row.logo_url : null, role: row.role as MyGym['role'], status: row.status as MyGym['status'] })));
+    } catch {
+      setMyGyms([]);
+    }
   }, [client]);
 
   const recover = useCallback(async (db = client()) => {
@@ -117,7 +133,34 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     return () => { active = false; subscription.unsubscribe(); };
   }, [fetchGyms, fetchProfile, recover, skipBootstrap, supabase]);
 
-  async function signIn(email: string, password: string) { const db = client(); const { data, error } = await db.auth.signInWithPassword({ email, password }); if (error || !data.user) return { error: error?.message ?? 'Sign in failed.' }; setUser(data.user); setStorageFlag(`${PASSWORD_SETUP_DONE_PREFIX}${data.user.id}`, true); setStorageFlag(`${PASSWORD_SETUP_PENDING_PREFIX}${data.user.id}`, false); await Promise.all([fetchProfile(data.user.id, db), fetchGyms(db)]); return { error: null }; }
+  async function signIn(email: string, password: string) {
+    const db = client();
+    try {
+      const { data, error } = await withTimeout(
+        db.auth.signInWithPassword({ email, password }),
+        8000,
+        'Sign in timed out.',
+      );
+      if (error || !data.user) return { error: error?.message ?? 'Sign in failed.' };
+
+      const { data: confirmed, error: confirmationError } = await withTimeout(
+        db.auth.getUser(),
+        5000,
+        'Session confirmation timed out.',
+      );
+      if (confirmationError || !confirmed.user || confirmed.user.id !== data.user.id) {
+        return { error: confirmationError?.message ?? 'Session confirmation failed.' };
+      }
+
+      setUser(confirmed.user);
+      setStorageFlag(`${PASSWORD_SETUP_DONE_PREFIX}${confirmed.user.id}`, true);
+      setStorageFlag(`${PASSWORD_SETUP_PENDING_PREFIX}${confirmed.user.id}`, false);
+      void Promise.allSettled([fetchProfile(confirmed.user.id, db), fetchGyms(db)]);
+      return { error: null };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : 'Sign in failed.' };
+    }
+  }
   async function signOut() { if (isSigningOut) return; setIsSigningOut(true); const db = client(); try { await withTimeout(db.auth.signOut(), 10000, 'Sign-out timed out.'); } catch { await db.auth.signOut({ scope: 'local' }); } setUser(null); setProfile(null); setMyGyms([]); setActiveGymId(null); setIsSigningOut(false); router.replace('/auth?mode=signin'); router.refresh(); }
   async function refreshProfile() { if (user) await fetchProfile(user.id); }
   async function refreshMyGyms() { await fetchGyms(); }

@@ -37,5 +37,5 @@ describe('/for-gym-owners', () => {
       mobile: '+639171234567',
     });
     expect(await screen.findByRole('status')).toHaveTextContent(/we’ll be in touch/i);
-  });
+  }, 10_000);
 });

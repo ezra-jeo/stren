@@ -18,6 +18,7 @@ import { setActiveGymAction } from '@/lib/auth-actions';
 import type { MyGym } from '@/lib/types';
 import { GymAvatar, RoleChip, StatusChip } from '@/components/gyms/gym-badges';
 import { JoinGymPanel } from '@/components/gyms/JoinGymPanel';
+import { NoGymMemberHome } from '@/components/gyms/NoGymMemberHome';
 
 function GymCard({
   gym,
@@ -46,8 +47,8 @@ function GymCard({
           </p>
           <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
             {gym.status === 'pending'
-              ? "We'll add this gym once staff approve your request."
-              : 'This request was not approved.'}
+              ? "We’re waiting for the gym to confirm your membership."
+              : 'The gym needs to check your member record.'}
           </p>
         </div>
         <StatusChip status={gym.status} />
@@ -108,26 +109,32 @@ function HubInner() {
     }
   }
 
-  const hasGyms = myGyms.length > 0;
+  const hasActiveGyms = myGyms.some((gym) => gym.status === 'active');
+
+  if (!isLoading && !hasActiveGyms) {
+    return (
+      <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <NoGymMemberHome initialCode={joinCode} />
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-xl px-4 py-8">
       <header className="mb-6">
         <h1 className="text-2xl font-bold" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}>
-          {hasGyms ? 'Your gyms' : 'Join a gym'}
+          Your gyms
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          {hasGyms
-            ? 'Choose a gym to enter, or request access to another.'
-            : 'Scan the QR code provided by your gym or enter its gym code.'}
+          Choose a gym to enter, or verify your membership with another.
         </p>
       </header>
 
-      {isLoading && !hasGyms ? (
+      {isLoading && !hasActiveGyms ? (
         <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
           Loading your gyms…
         </p>
-      ) : hasGyms ? (
+      ) : hasActiveGyms ? (
         <div className="space-y-6">
           <div className="space-y-3">
             {myGyms.map((gym) => (
@@ -150,9 +157,7 @@ function HubInner() {
           <JoinGymPanel initialCode={joinCode} onJoined={() => void refreshMyGyms()} />
 
         </div>
-      ) : (
-        <JoinGymPanel initialCode={joinCode} onJoined={() => void refreshMyGyms()} />
-      )}
+      ) : null}
     </main>
   );
 }

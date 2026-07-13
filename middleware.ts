@@ -101,7 +101,7 @@ export async function middleware(request: NextRequest) {
     return finish(NextResponse.redirect(new URL(destination.path, request.url)));
   }
 
-  if (pathname === '/gyms') return finish(response);
+  if (pathname === '/gyms' || pathname === '/profile') return finish(response);
 
   const { data, error } = await supabase.rpc('get_my_access');
   const access = data && typeof data === 'object' ? data as { role?: string; gym_id?: string; permissions?: string[]; features?: Record<string, boolean> } : null;

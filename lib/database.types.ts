@@ -866,6 +866,68 @@ export type Database = {
           { foreignKeyName: "gym_users_added_by_fkey"; columns: ["added_by"]; isOneToOne: false; referencedRelation: "profiles"; referencedColumns: ["id"] },
         ]
       }
+      gym_verification_reminders: {
+        Row: {
+          created_at: string
+          gym_id: string
+          last_sent_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          gym_id: string
+          last_sent_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          gym_id?: string
+          last_sent_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gym_verification_reminders_gym_user_fkey"
+            columns: ["gym_id", "user_id"]
+            isOneToOne: false
+            referencedRelation: "gym_users"
+            referencedColumns: ["gym_id", "user_id"]
+          },
+        ]
+      }
+      saved_gyms: {
+        Row: {
+          created_at: string
+          gym_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          gym_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          gym_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "saved_gyms_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "saved_gyms_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active_gym_id: string | null
@@ -1048,6 +1110,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      confirm_membership_verification: {
+        Args: { p_gym_id: string; p_user_id: string }
+        Returns: Json
+      }
       create_gym: { Args: { p_code: string; p_name: string }; Returns: Database["public"]["Tables"]["gyms"]["Row"] }
       create_member_notification: {
         Args: {
@@ -1067,6 +1133,30 @@ export type Database = {
       get_gym_by_code: { Args: { p_code: string }; Returns: Json }
       get_gym_id: { Args: never; Returns: string }
       get_my_access: { Args: never; Returns: Json }
+      get_my_membership_verifications: {
+        Args: never
+        Returns: {
+          address: string | null
+          code: string
+          gym_id: string
+          last_reminded_at: string | null
+          logo_url: string | null
+          name: string
+          status: Database["public"]["Enums"]["profile_status"]
+          submitted_at: string
+        }[]
+      }
+      get_my_saved_gyms: {
+        Args: never
+        Returns: {
+          address: string | null
+          code: string
+          gym_id: string
+          logo_url: string | null
+          name: string
+          saved_at: string
+        }[]
+      }
       get_my_gyms: {
         Args: never
         Returns: { gym_id: string; code: string; name: string; logo_url: string | null; role: Database["public"]["Enums"]["user_role"]; status: Database["public"]["Enums"]["profile_status"] }[]
@@ -1081,6 +1171,7 @@ export type Database = {
         Returns: boolean
       }
       is_platform_admin: { Args: never; Returns: boolean }
+      is_gym_saved: { Args: { p_gym_id: string }; Returns: boolean }
       is_manager: { Args: never; Returns: boolean }
       join_gym: { Args: { p_gym_id: string }; Returns: Json }
       kiosk_access_allowed: { Args: { p_gym_id: string }; Returns: boolean }
@@ -1152,6 +1243,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      save_gym: { Args: { p_gym_id: string }; Returns: Json }
       search_gyms: {
         Args: { p_query: string }
         Returns: {
@@ -1173,8 +1265,18 @@ export type Database = {
           updated: boolean
         }[]
       }
+      send_membership_verification_reminder: {
+        Args: { p_gym_id: string }
+        Returns: Json
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
+      unsave_gym: { Args: { p_gym_id: string }; Returns: Json }
+      verify_gym_membership: { Args: { p_gym_id: string }; Returns: Json }
+      withdraw_membership_verification: {
+        Args: { p_gym_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       feed_item_type:

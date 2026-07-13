@@ -6,7 +6,7 @@
  * An owner prints this and pins it at the front desk. The QR encodes the plain
  * `/auth?mode=signup&gym=CODE` URL — phone cameras open it natively,
  * landing a new member on account creation pre-flavored for this gym, which drops them
- * into a **join request** after they create their account.
+ * into **membership verification** after they create their account.
  */
 
 import { useEffect, useState } from 'react';
@@ -91,7 +91,7 @@ export function JoinQrPoster({
 
         <div className="mt-4 flex justify-center">
           {qrDataUrl ? (
-            <img src={qrDataUrl} alt={`QR code to join ${gymName}`} width={220} height={220} className="rounded-lg" />
+            <img src={qrDataUrl} alt={`QR code to verify membership with ${gymName}`} width={220} height={220} className="rounded-lg" />
           ) : (
             <div
               className="flex h-[220px] w-[220px] items-center justify-center rounded-lg text-sm"

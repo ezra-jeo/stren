@@ -1,10 +1,16 @@
 import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { LandingHero } from '@/components/landing/landing-hero';
 import { LandingNav } from '@/components/landing/landing-nav';
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }));
+let authValue: { user: { id: string } | null; isLoading: boolean };
+vi.mock('@/lib/auth-context', () => ({ useAuth: () => authValue }));
+
+beforeEach(() => {
+  authValue = { user: null, isLoading: false };
+});
 
 describe('landing authentication and owner calls to action', () => {
   it('routes people to the shared auth modes and owners to assisted onboarding', () => {
@@ -25,5 +31,19 @@ describe('landing authentication and owner calls to action', () => {
     expect(within(drawer).getByRole('link', { name: /^create account$/i })).toHaveAttribute('href', '/auth?mode=signup');
     expect(within(drawer).getByRole('link', { name: /bring stren to your gym/i })).toHaveAttribute('href', '/for-gym-owners');
     expect(within(drawer).queryByText(/register gym/i)).not.toBeInTheDocument();
+  });
+
+  it('replaces account-creation calls to action for an authenticated account', async () => {
+    const user = userEvent.setup();
+    authValue = { user: { id: 'u1' }, isLoading: false };
+    const { rerender } = render(<LandingHero />);
+    expect(screen.queryByRole('link', { name: /^create account$/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /open stren/i })).toHaveAttribute('href', '/gyms');
+
+    rerender(<LandingNav />);
+    await user.click(screen.getByRole('button', { name: /open menu/i }));
+    const drawer = screen.getByRole('dialog');
+    expect(within(drawer).queryByRole('link', { name: /^create account$/i })).not.toBeInTheDocument();
+    expect(within(drawer).getByRole('link', { name: /open stren/i })).toHaveAttribute('href', '/gyms');
   });
 });
