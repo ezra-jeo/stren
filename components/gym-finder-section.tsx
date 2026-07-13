@@ -133,7 +133,10 @@ export function GymFinderSection() {
                   className="rounded-xl border p-4 text-sm"
                   style={{ backgroundColor: 'var(--color-background)', borderColor: 'var(--color-surface)', color: 'var(--color-text-secondary)' }}
                 >
-                  No gyms found. Ask your gym owner to join Stren.
+                  No gyms found. Ask your gym owner for their Stren code, or{' '}
+                  <Link href="/for-gym-owners" className="font-semibold" style={{ color: 'var(--color-primary)' }}>
+                    tell your gym about Stren
+                  </Link>.
                 </div>
               )}
             </div>

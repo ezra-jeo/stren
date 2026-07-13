@@ -6,6 +6,7 @@ import { canPreviewUnpublishedGym, type GymViewerRole } from '@/lib/gym-visibili
 import { GymLandingPreview, type GymPreviewData } from '@/components/gym/GymLandingPreview';
 import { normalizeFocal } from '@/lib/focal';
 import type { Json } from '@/lib/database.types';
+import { GymProfileActions } from '@/components/gyms/GymProfileActions';
 
 export const revalidate = 3600;
 
@@ -101,7 +102,7 @@ export default async function GymPage({ params }: PageProps) {
     sectionVisibility: toSectionVisibility(rpcData.section_visibility),
   };
 
-  return <GymLandingPage preview={preview} isManagementPreview={!gym.is_published && canManagementPreview} />;
+  return <GymLandingPage gym={{ gymId: gym.id, code: gym.code, name: gym.name }} preview={preview} isManagementPreview={!gym.is_published && canManagementPreview} />;
 }
 
 function ComingSoonPage({ gym }: { gym: GymData }) {
@@ -134,20 +135,20 @@ function ComingSoonPage({ gym }: { gym: GymData }) {
             This gym has not published its public landing page yet, but staff can still log in.
           </p>
           <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:justify-center">
-            <Link href={`/gym/${encodeURIComponent(gym.code)}/login?from=landing`}>
+            <Link href={`/auth?mode=signin&gym=${encodeURIComponent(gym.code)}`}>
               <button
                 className="w-full rounded-full px-8 py-4 text-base font-semibold sm:w-auto sm:px-10"
                 style={{ backgroundColor: 'var(--color-primary)', color: 'var(--color-white)' }}
               >
-                Log In
+                Sign in
               </button>
             </Link>
-            <Link href={`/gym/${encodeURIComponent(gym.code)}/signup`}>
+            <Link href={`/auth?mode=signup&gym=${encodeURIComponent(gym.code)}`}>
               <button
                 className="w-full rounded-full border px-8 py-4 text-base font-semibold sm:w-auto sm:px-10"
                 style={{ borderColor: 'rgba(255,255,255,0.35)', backgroundColor: 'rgba(255,255,255,0.08)', color: 'var(--color-white)' }}
               >
-                Join {gym.name}
+                Create an account
               </button>
             </Link>
           </div>
@@ -157,7 +158,7 @@ function ComingSoonPage({ gym }: { gym: GymData }) {
   );
 }
 
-function GymLandingPage({ preview, isManagementPreview }: { preview: GymPreviewData; isManagementPreview?: boolean }) {
+function GymLandingPage({ gym, preview, isManagementPreview }: { gym: { gymId: string; code: string; name: string }; preview: GymPreviewData; isManagementPreview?: boolean }) {
   return (
     <>
       {isManagementPreview && (
@@ -165,6 +166,7 @@ function GymLandingPage({ preview, isManagementPreview }: { preview: GymPreviewD
           Admin preview mode: this gym page is currently unpublished for public visitors.
         </div>
       )}
+      {!isManagementPreview && <GymProfileActions gym={gym} />}
       <GymLandingPreview gym={preview} view="home" interactive />
     </>
   );

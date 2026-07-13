@@ -9,7 +9,7 @@
 1. **This file** — orientation + your update obligations.
 2. [AboutProject.md](AboutProject.md) — what Stren is, mission, north star, product principles. Read once per session; internalize before making any product-facing decision.
 3. [ImplementationState.md](ImplementationState.md) — what is shipped, in progress, and queued. Check before starting anything so you don't redo or collide.
-4. [ImplementationPlan-UnifiedAccounts.md](ImplementationPlan-UnifiedAccounts.md) — the full spec of the **active workstream** (Unified Accounts & Auth Rebuild: one account for all of Stren, `gym_users`, gym hub + switcher, auth routes rebuilt). Read the sections relevant to your role (§9 points each agent to its packaged prompt).
+4. [ImplementationPlan-AccountSessionRecovery.md](ImplementationPlan-AccountSessionRecovery.md) — the latest completed corrective contract for confirmed-session routing, fail-closed gym access, and profile recovery.
 5. [../CLAUDE.md](../CLAUDE.md) — coding conventions, commands, test policy, branch rules. **Applies to ALL agents, not just Claude.**
 6. [../CONTEXT.md](../CONTEXT.md) — the project vocabulary. Use these terms exactly; they are canonical.
 
@@ -20,8 +20,11 @@
 | File | What it is | Who updates it | Update trigger |
 |---|---|---|---|
 | `Catalog.md` | This index + the maintenance rules | Any agent | Any doc is added, moved, renamed, or goes stale |
+| `ImplementationPlan-AccountSessionRecovery.md` | **Latest completed plan**: browser-session post-auth routing and fail-closed account/profile recovery | Implementing agent | Scope/decision changes |
+| `ImplementationPlan-MemberOnboardingRecovery.md` | **Latest completed plan**: bounded auth completion, secure recovery, useful no-gym home, saved gyms, membership verification | Implementing agent | Scope/decision changes |
 | `AboutProject.md` | Mission, north star, audience, product principles, roadmap teasers | User-approved changes only — agents propose, never silently rewrite | Product direction changes |
-| `ImplementationPlan-UnifiedAccounts.md` | **Active plan**: Unified Accounts & Auth Rebuild — one account, `gym_users`, active gym, auth routes rebuilt (spec, migration 019, contracts, tests, prompts) | The planning agent, with user sign-off | Scope/decision changes (record decisions in `docs/adr/` when they qualify) |
+| `ImplementationPlan-CohesiveAuthOwnerOnboarding.md` | **Latest completed plan**: cohesive `/auth`, membership-aware join routing, assisted owner onboarding, platform-only gym provisioning | Implementing agent | Scope/decision changes |
+| `ImplementationPlan-UnifiedAccounts.md` | Completed plan: Unified Accounts & Auth Rebuild (shipped to `main` 2026-07-13 via `f04fb2f`) | — | Historical; do not extend |
 | `ImplementationPlan.md` | Completed plan: Gym Page Studio + permissions & feature toggles (shipped to `main` 2026-07-11; kept per rule 6) | — | Historical; do not extend |
 | `ImplementationState.md` | Live status of every phase and work unit | **The agent that ships the work, in the same PR** | Every merged PR |
 | `prompts/` | Packaged, paste-ready prompts for implementation agents | Planning agent | When the plan's §10 prompts change |

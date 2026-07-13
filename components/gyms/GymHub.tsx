@@ -4,21 +4,21 @@
  * Gym hub — the account's home at `/gyms` (§2.3, §5 U2).
  *
  * Lists the account's gyms with role/status chips (tap an active one to enter
- * it), offers a **join a gym** panel and an **I run a gym** path, and — when the
+ * it), and offers the authenticated **join a gym** QR/code flow. When the
  * account has no gyms yet — shows the two-choice empty state that is the
  * onboarding moment. Everything reads from the frozen auth-context interface
  * (`myGyms`, `refreshMyGyms`) and the frozen `setActiveGymAction`.
  */
 
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useState } from 'react';
-import { ChevronRight, PlusCircle } from 'lucide-react';
+import { AlertCircle, ChevronRight, LogOut, RefreshCw } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { setActiveGymAction } from '@/lib/auth-actions';
 import type { MyGym } from '@/lib/types';
 import { GymAvatar, RoleChip, StatusChip } from '@/components/gyms/gym-badges';
 import { JoinGymPanel } from '@/components/gyms/JoinGymPanel';
+import { NoGymMemberHome } from '@/components/gyms/NoGymMemberHome';
 
 function GymCard({
   gym,
@@ -47,8 +47,8 @@ function GymCard({
           </p>
           <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
             {gym.status === 'pending'
-              ? "We'll add this gym once staff approve your request."
-              : 'This request was not approved.'}
+              ? "We’re waiting for the gym to confirm your membership."
+              : 'The gym needs to check your member record.'}
           </p>
         </div>
         <StatusChip status={gym.status} />
@@ -88,14 +88,14 @@ function GymCard({
 }
 
 function HubInner() {
-  const { myGyms, activeGymId, refreshMyGyms, isLoading } = useAuth();
+  const { user, myGyms, activeGymId, refreshMyGyms, gymAccessError, isLoading, signOut } = useAuth();
   const router = useRouter();
   const params = useSearchParams();
   const joinCode = params.get('join');
 
   const [enteringId, setEnteringId] = useState<string | null>(null);
   const [enterError, setEnterError] = useState<string | null>(null);
-  const [showJoin, setShowJoin] = useState<boolean>(!!joinCode);
+  const [retrying, setRetrying] = useState(false);
 
   async function enterGym(gym: MyGym) {
     setEnteringId(gym.gymId);
@@ -110,7 +110,48 @@ function HubInner() {
     }
   }
 
-  const hasGyms = myGyms.length > 0;
+  const hasActiveGyms = myGyms.some((gym) => gym.status === 'active');
+  const routeAccessError = params.get('account_error') === 'access' && myGyms.length === 0;
+
+  async function retryAccess() {
+    if (retrying) return;
+    setRetrying(true);
+    try {
+      await refreshMyGyms();
+      router.replace('/gyms');
+      router.refresh();
+    } catch {
+      // The context keeps the actionable error visible; the account is never
+      // reclassified as a zero-gym account after a failed retry.
+    } finally {
+      setRetrying(false);
+    }
+  }
+
+  if (!isLoading && (gymAccessError || routeAccessError)) {
+    return (
+      <main className="mx-auto flex min-h-[70vh] w-full max-w-2xl items-center px-4 py-10 sm:px-6">
+        <section className="w-full rounded-3xl border border-(--color-primary) bg-white p-6 shadow-sm sm:p-8" aria-labelledby="gym-access-error-title">
+          <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--color-primary-glow) text-(--color-primary-dark)"><AlertCircle aria-hidden="true" /></span>
+          <h1 id="gym-access-error-title" className="mt-5 font-serif text-3xl font-semibold text-(--color-text-primary)">We couldn’t load your gyms</h1>
+          <p className="mt-3 leading-7 text-(--color-text-secondary)">Your sign-in worked, but Stren could not safely verify your gym access. We have not treated this account as a new account.</p>
+          {user?.email && <p className="mt-3 rounded-xl bg-(--color-background) px-4 py-3 text-sm font-semibold text-(--color-text-primary)">Signed in as {user.email}</p>}
+          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+            <button type="button" onClick={() => void retryAccess()} disabled={retrying} aria-busy={retrying} className="inline-flex min-h-12 flex-1 items-center justify-center gap-2 rounded-xl bg-(--color-primary) px-5 font-bold text-white disabled:opacity-60"><RefreshCw size={18} aria-hidden="true" />{retrying ? 'Checking again…' : 'Try again'}</button>
+            <button type="button" onClick={() => void signOut()} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl border border-(--color-surface) px-5 font-semibold text-(--color-text-primary)"><LogOut size={18} aria-hidden="true" />Sign out</button>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
+  if (!isLoading && !hasActiveGyms) {
+    return (
+      <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-8 lg:px-8">
+        <NoGymMemberHome initialCode={joinCode} />
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto max-w-xl px-4 py-8">
@@ -119,15 +160,15 @@ function HubInner() {
           Your gyms
         </h1>
         <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          Pick a gym to enter, or add another.
+          Choose a gym to enter, or verify your membership with another.
         </p>
       </header>
 
-      {isLoading && !hasGyms ? (
+      {isLoading && !hasActiveGyms ? (
         <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>
           Loading your gyms…
         </p>
-      ) : hasGyms ? (
+      ) : hasActiveGyms ? (
         <div className="space-y-6">
           <div className="space-y-3">
             {myGyms.map((gym) => (
@@ -149,87 +190,9 @@ function HubInner() {
 
           <JoinGymPanel initialCode={joinCode} onJoined={() => void refreshMyGyms()} />
 
-          <Link
-            href="/gyms/new"
-            className="flex items-center gap-3 rounded-2xl border border-dashed p-4 transition-colors hover:border-(--color-primary)"
-            style={{ borderColor: 'var(--color-surface)' }}
-          >
-            <PlusCircle size={22} style={{ color: 'var(--color-primary)' }} />
-            <div>
-              <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-                I run a gym
-              </p>
-              <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                Create your own gym on Stren.
-              </p>
-            </div>
-          </Link>
         </div>
-      ) : (
-        <EmptyState showJoin={showJoin} onChooseJoin={() => setShowJoin(true)} joinCode={joinCode} onJoined={() => void refreshMyGyms()} />
-      )}
+      ) : null}
     </main>
-  );
-}
-
-function EmptyState({
-  showJoin,
-  onChooseJoin,
-  joinCode,
-  onJoined,
-}: {
-  showJoin: boolean;
-  onChooseJoin: () => void;
-  joinCode: string | null;
-  onJoined: () => void;
-}) {
-  return (
-    <div className="space-y-5">
-      <div
-        className="rounded-2xl border p-6 text-center"
-        style={{ backgroundColor: 'var(--color-white)', borderColor: 'var(--color-surface)' }}
-      >
-        <p className="text-base font-semibold" style={{ color: 'var(--color-text-primary)', fontFamily: 'var(--font-heading)' }}>
-          Welcome to Stren
-        </p>
-        <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-          You&apos;re not part of a gym yet. What brings you here?
-        </p>
-      </div>
-
-      {showJoin ? (
-        <JoinGymPanel initialCode={joinCode} onJoined={onJoined} />
-      ) : (
-        <div className="grid gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={onChooseJoin}
-            className="rounded-2xl border p-6 text-left transition-colors hover:border-(--color-primary)"
-            style={{ backgroundColor: 'var(--color-white)', borderColor: 'var(--color-surface)' }}
-          >
-            <p className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-              Join your gym
-            </p>
-            <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-              Use the gym code your gym gave you, or search by name.
-            </p>
-          </button>
-
-          <Link
-            href="/gyms/new"
-            className="rounded-2xl border p-6 text-left transition-colors hover:border-(--color-primary)"
-            style={{ backgroundColor: 'var(--color-white)', borderColor: 'var(--color-surface)' }}
-          >
-            <p className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-              I run a gym
-            </p>
-            <p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>
-              Set up your own gym on Stren in a minute.
-            </p>
-          </Link>
-        </div>
-      )}
-    </div>
   );
 }
 

@@ -6,7 +6,7 @@ const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD;
 test("admin can open gym landing page preview from gym profile", async ({ page, context }) => {
   test.skip(!ADMIN_EMAIL || !ADMIN_PASSWORD, "Set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD to run this test.");
 
-  await page.goto("/login");
+  await page.goto("/auth?mode=signin");
   await page.getByLabel(/email/i).fill(ADMIN_EMAIL!);
   await page.getByLabel(/password/i).fill(ADMIN_PASSWORD!);
   await page.getByRole("button", { name: /sign in/i }).click();
@@ -39,7 +39,7 @@ test("admin can open gym landing page preview from gym profile", async ({ page, 
 test("gym page studio loads, previews live, and gates publish on a tagline", async ({ page }) => {
   test.skip(!ADMIN_EMAIL || !ADMIN_PASSWORD, "Set E2E_ADMIN_EMAIL and E2E_ADMIN_PASSWORD to run this test.");
 
-  await page.goto("/login");
+  await page.goto("/auth?mode=signin");
   await page.getByLabel(/email/i).fill(ADMIN_EMAIL!);
   await page.getByLabel(/password/i).fill(ADMIN_PASSWORD!);
   await page.getByRole("button", { name: /sign in/i }).click();

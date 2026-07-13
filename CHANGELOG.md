@@ -8,6 +8,60 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Auth Session & Account Access Recovery
+
+#### Changed
+- Password sign-in now resolves gym-aware navigation through the same provider-confirmed browser session, avoiding the mobile race where a new session was not yet visible to the immediate server action.
+- Account hydration tracks profile and gym-access failures independently. A valid gym affiliation can still route to the owner/member surface when optional profile metadata is unavailable.
+- Genuine no-gym home and recovery screens identify the authenticated email so the user can verify which account is active.
+
+#### Fixed
+- Failed `get_my_gyms`, profile, `get_my_access`, or active-gym calls are no longer collapsed into an empty affiliation list. Owners and members are not sent to onboarding when access resolution fails.
+- `/profile` no longer displays “Loading your profile…” forever after a missing/failed profile read; it now offers bounded retry and sign out while preserving the authenticated session.
+- Middleware, auth callback, and post-auth server resolution fail closed into an explicit account-recovery state instead of masking backend/schema failures as a new account.
+
+### Member Onboarding & Auth Recovery
+
+#### Added
+- A useful responsive no-gym member home at `/gyms`: one supported name/location/code search, explicit QR scanning, multiple calm membership-verification cards, saved gyms, profile completion, an isolated sample-data demo, and visibly explained beta tools. Unsupported filters and Personal Mode are intentionally absent.
+- Public gym profile actions for authenticated accounts to save a published gym or identify as an existing member without exposing private gym data.
+- Migration `021_membership_verification.sql`: separate `saved_gyms`, deterministic email-confirmed membership connection, pending verification list, seven-day reminder cooldown, withdrawal, permission-checked staff confirmation, and member/staff in-app notifications. Database types and server actions cover every new RPC.
+- Honest “Continue with Google” preview controls in both auth modes; no OAuth request or callback is started.
+- A no-gym-safe `/profile` page for basic account details.
+
+#### Changed
+- Member-facing gym connection now uses **membership verification**, not join-request/application language. An existing verified billing record connects immediately; otherwise staff calmly check the member record. Phone matching remains deferred until phone ownership can be verified.
+- Landing and public gym pages now hydrate the real browser session before rendering account-sensitive actions. Signed-in landing visitors see “Open Stren” instead of Sign In/Create Account, while public gym save/verify controls recognize the signed-in account. Direct `/auth` visits still resolve through the account’s active gym state.
+- Password recovery now starts with an email field and uses Supabase Auth’s official reset link, PKCE/session validation, a ten-minute server-signed HTTP-only completion proof, password update, and local recovery-session sign-out.
+
+#### Fixed
+- Successful sign-in can no longer remain behind “Setting things up for you…” indefinitely: credential exchange, server-side destination resolution, and client navigation each have bounded, interactive recovery states, and navigation begins only after the provider confirms the user session.
+- Password reset no longer presents an unvalidated new-password form to an ordinary signed-in or anonymous visitor, trusts a query flag or ordinary session as recovery proof, swallows recovery errors, or implies that email was delivered when required site/provider configuration is missing.
+
+#### Security
+- Saving a gym never writes `gym_users`; possession of a gym code/QR grants no private access. Only an email-confirmed account already tied to the same gym’s billing membership auto-connects.
+- Membership confirmation rejects self-confirmation and requires `members:manage` at the explicit gym. Reminder cooldown and verification ownership are enforced in SECURITY DEFINER RPCs with explicit grants/revokes and RLS-backed tables.
+- Password changes through the recovery screen require a short-lived HMAC proof bound to the provider-confirmed user in an HTTP-only, same-site cookie; the completion endpoint clears it after use.
+
+### Cohesive Auth & Assisted Gym Onboarding — 2.1.0
+
+#### Added
+- One responsive `/auth?mode=signin|signup` experience: stationary two-pane card, restrained 600 ms Stren-panel transition, URL/Back synchronization, state preservation, reduced-motion behavior, non-tabbable covered form, generic credential errors, and explicit email-verification completion.
+- Authenticated Join a gym onboarding at `/gyms` with user-initiated QR scanning, normalized code fallback, trusted gym confirmation, pending/existing affiliation states, and camera/error cleanup.
+- `/for-gym-owners` assisted-onboarding form and validated, honeypot-protected, rate-limited Resend delivery through `/api/owner-inquiries`.
+- Migration `020_platform_admin_gym_creation.sql`: `create_gym` now requires server-controlled `app_metadata.platform_role = 'platform_admin'`; ADR 0005 records the provisioning decision.
+
+#### Changed
+- Landing and drawer actions are now Sign In, Create Account, and For Gym Owners / Bring Stren to Your Gym. Auth callback, password reset, account emails, public gym Join links, join posters, auth context, and E2E helpers all point to the shared auth route.
+- Post-auth routing opens a single active gym directly, keeps multi-gym accounts on the selector, and shows Join/pending states for accounts without an active gym.
+- Service-worker cache version advanced to v6; `/auth` and `/gyms` are network-only. Next development allows the test host so server-rendered controls cannot remain non-interactive during local browser verification.
+
+#### Removed
+- Public `/gyms/new`, `createGymAction`, self-serve gym creation UI/copy, separate `/login` and `/signup` pages, and the superseded auth shell/tests. Legacy bookmarks permanently redirect to the appropriate shared auth or owner-inquiry destination.
+
+#### Fixed
+- The captured `public.create_gym(p_code, p_name)` schema-cache error can no longer occur through a public workflow: the stale UI/RPC coupling was removed and direct ordinary-user RPC calls are denied in the database.
+
 ### Unified Accounts & Auth Rebuild — Agent C (backend, units C1–C3 + fix pass) — 2.0.0
 
 One account for all of Stren: per-gym roles live in `gym_users`, context comes from a server-side active gym, and the legacy per-gym auth stack is deleted. Backend + logic only (Codex 5.6 Sol, one-shot; Fable review fix pass 2026-07-12). Version bumped to **2.0.0** — the `profiles.role`/`gym_id`/`status` drops and the auth-route map are breaking changes.

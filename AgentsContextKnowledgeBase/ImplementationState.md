@@ -2,7 +2,7 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-12 (**Agent C fix pass complete** — all 6 Fable pickup items resolved in the working tree: approval-stamp `COALESCE`, owner-promotion `WITH CHECK` guard, `set-active-gym.test.ts` reconciled to the REVOKE+trigger design, onboard email lookup case-insensitive (`ilike` + escaped input, `handle_new_user` lowercases storage), `OTP-AUTH-GUIDE.md` moved to the Catalog Stale table, cache-key audit verified clean (all `unstable_cache` keys carry gym code/id; no admin/member data in cross-request caches). Gate: lint ✅ · typecheck ✅ · unit/integration **249/249** · production build ✅ with CI-style env (`NEXT_PUBLIC_SUPABASE_URL=https://example.supabase.co`, `NEXT_PUBLIC_SUPABASE_ANON_KEY=test-anon-key` — CI always injects these fallbacks; env-less local builds were never supported). E2E not run locally: no `E2E_*` credentials available. Version 2.0.0 + CHANGELOG in tree; awaiting developer commit → PR to `qa`.)
+Last updated: 2026-07-13 (**Auth Session & Account Access Recovery is implemented and verified in the working tree.**)
 
 ---
 
@@ -21,7 +21,42 @@ Last updated: 2026-07-12 (**Agent C fix pass complete** — all 6 Fable pickup i
 | Phase 6 — Documentation completion | Queued |
 | Phase 7 — TDD as standing methodology | Queued |
 
-## Active workstream: Unified Accounts & Auth Rebuild
+## Workstream (completed in working tree 2026-07-13): Auth Session & Account Access Recovery
+
+Spec: [ImplementationPlan-AccountSessionRecovery.md](ImplementationPlan-AccountSessionRecovery.md) · branch `auth/cohesive-auth-owner-onboarding`.
+
+| Unit | Scope | Status |
+|---|---|---|
+| R1 | Reproduce false no-gym routing, profile infinite loading, and mobile post-sign-in server-cookie race with red regressions | Implemented (Codex, working tree, 2026-07-13) — regressions fail on the previous implementation and pass after correction |
+| R2 | Resolve sign-in through the confirmed browser session; separate profile and gym-access errors; fail closed in server action, middleware, and callback | Implemented (Codex, working tree, 2026-07-13) — one active owner routes to `/admin`, member to `/member`, multi-gym to `/gyms` |
+| R3 | Add explicit `/gyms` and `/profile` recovery states with real account email, retry, and sign out; identify the signed-in account on genuine no-gym home | Implemented (Codex, working tree, 2026-07-13) — no placeholder identity and no error-as-onboarding fallback |
+| R4 | Final verification and deployment handoff | Implemented (Codex, working tree, 2026-07-13) — lint/typecheck, 298 unit/integration tests, focused public E2E checks, and CI-placeholder production build green; full E2E command timed out after all 12 public checks passed and 8 credentialed checks skipped; remote migration status remains unverified without `SUPABASE_ACCESS_TOKEN` |
+
+## Workstream (completed in working tree 2026-07-13): Member Onboarding & Auth Recovery
+
+Spec: [ImplementationPlan-MemberOnboardingRecovery.md](ImplementationPlan-MemberOnboardingRecovery.md) · decision: `docs/adr/0006-membership-verification-not-join-requests.md` · branch `auth/cohesive-auth-owner-onboarding`.
+
+| Unit | Scope | Status |
+|---|---|---|
+| M1 | Diagnose and bound credential exchange, session confirmation, post-auth membership resolution, and client navigation; honest Google preview in both auth modes | Implemented (Codex, working tree, 2026-07-13) — focused timeout/loading/auth UI tests green |
+| M2 | Official Supabase password-reset request, enumeration-safe API, recovery callback/session validation, signed HTTP-only completion proof, password update, used/expired handling, truthful email-configuration errors | Implemented (Codex, working tree, 2026-07-13) — request/page/callback/completion tests green |
+| M3 | Migration 021: saved gyms, deterministic membership match, multiple pending verifications, cooldown reminder, withdrawal, staff-only confirmation, in-app notifications; generated types and server actions | Implemented (Codex, working tree, 2026-07-13) — SQL/action contracts green |
+| M4 | Responsive no-gym member home, lean public gym discovery + QR, public profile save/verify actions, demo/beta/profile states, authenticated landing CTA correction | Implemented (Codex, working tree, 2026-07-13) — focused component and real-session bootstrap-policy tests green |
+| M5 | Full lint/typecheck/unit/build/E2E gates, reference-led responsive checks, documentation and environment handoff | Implemented (Codex, working tree, 2026-07-13) — lint/typecheck, 293 unit/integration tests, production build, and 12 public desktop/mobile E2E checks green; 8 credentialed E2E checks skipped; local DB apply blocked before migration 021 by the pre-existing migration-001 ordering defect |
+
+## Workstream (completed 2026-07-13): Cohesive Auth & Assisted Gym Onboarding
+
+Spec: [ImplementationPlan-CohesiveAuthOwnerOnboarding.md](ImplementationPlan-CohesiveAuthOwnerOnboarding.md) · decision: `docs/adr/0005-platform-managed-gym-provisioning.md` · branch `auth/cohesive-auth-owner-onboarding`.
+
+| Unit | Scope | Status |
+|---|---|---|
+| A1 | Shared `/auth?mode=signin\|signup` surface, responsive sliding panel, URL/history state, accessible errors/focus/inert panes, automatic signup session or honest verification state | Implemented (Codex, working tree, 2026-07-13) — focused component + browser coverage green |
+| A2 | Membership-aware post-auth routing and `/gyms` Join a gym experience with explicit QR camera activation, code fallback, trusted confirmation, pending/error states | Implemented (Codex, working tree, 2026-07-13) — routing and QR/code tests green |
+| A3 | Remove public gym creation; permanent legacy redirects; migration 020 platform-admin authorization; assisted `/for-gym-owners` inquiry using validated/rate-limited Resend delivery | Implemented (Codex, working tree, 2026-07-13) — public action/page removed and database guard test-pinned |
+| A4 | Landing/drawer CTA rewrite, callback/reset/auth-context/QR-poster re-pointing, service-worker cache audit, E2E auth helper rewrite | Implemented (Codex, working tree, 2026-07-13) |
+| A5 | Full verification, docs, migration/env handoff, version 2.1.0 | Implemented (Codex, working tree, 2026-07-13) — lint ✅ · typecheck ✅ · unit/integration **257/257** ✅ (incl. migration-020 authorization contract) · production build ✅ · public E2E desktop/mobile **8/8** ✅; 8 credentialed E2E cases skipped (no `E2E_*` credentials); real local migration apply could not reach 020 because the existing migration 001 fails first (`public.profiles` absent when `get_gym_id()` is created) |
+
+## Workstream (shipped 2026-07-13): Unified Accounts & Auth Rebuild
 
 Spec: [ImplementationPlan-UnifiedAccounts.md](ImplementationPlan-UnifiedAccounts.md) · decision: `docs/adr/0004-one-account-many-gyms.md` · prompts: `prompts/Codex-Backend-UnifiedAccounts-OneShot.md`, `prompts/Opus48-UI-UnifiedAccounts-OneShot.md`. Agent C = Codex 5.6 Sol, effort xhigh (backend, ships first). Agent U = Claude Opus 4.8, effort high (UI, ships second, reskins C's minimal pages — handlers verbatim). Branch `auth/unified-accounts` → `qa`.
 

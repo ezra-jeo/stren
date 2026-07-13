@@ -1,6 +1,6 @@
 # Unified Accounts & Auth Rebuild — Implementation Guide
 
-_Active workstream plan. Agent C = Codex 5.6 Sol (backend/logic, units C1–C3, ships first). Agent U = Claude Opus 4.8 (UI/UX, units U1–U3, ships second). Status lives in `ImplementationState.md`; decision record in `docs/adr/0004-one-account-many-gyms.md`; paste-ready prompts in `prompts/`. On divergence, this plan wins._
+_✅ Completed 2026-07-13 and shipped to `main` via `f04fb2f`. Agent C = Codex 5.6 Sol; Agent U = Claude Opus 4.8. Kept as historical contract per Catalog rule 6._
 
 ---
 
