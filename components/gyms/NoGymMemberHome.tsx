@@ -168,7 +168,7 @@ function DemoPreview({ onExit }: { onExit: () => void }) {
 
 export function NoGymMemberHome({ initialCode }: { initialCode?: string | null }) {
   const supabase = useMemo(() => createClient(), []);
-  const { profile, refreshMyGyms } = useAuth();
+  const { user, profile, refreshMyGyms } = useAuth();
   const [savedGyms, setSavedGyms] = useState<SavedGym[]>([]);
   const [verifications, setVerifications] = useState<MembershipVerification[]>([]);
   const [showDemo, setShowDemo] = useState(false);
@@ -209,6 +209,7 @@ export function NoGymMemberHome({ initialCode }: { initialCode?: string | null }
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-(--color-primary-dark)">Member home</p>
         <h1 className="mt-2 font-serif text-4xl font-semibold tracking-tight text-(--color-text-primary) sm:text-5xl">Hi, {firstName}</h1>
         <p className="mt-3 max-w-2xl text-base leading-7 text-(--color-text-secondary)">Everything you need to connect with your gym, in one place.</p>
+        {user?.email && <p className="mt-2 text-sm font-medium text-(--color-text-muted)">Signed in as {user.email}</p>}
       </header>
 
       <section aria-label="Gym connection status" className="relative overflow-hidden rounded-3xl border border-(--color-primary) bg-(--color-primary-glow) p-5 sm:p-7">

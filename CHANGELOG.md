@@ -8,6 +8,18 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Auth Session & Account Access Recovery
+
+#### Changed
+- Password sign-in now resolves gym-aware navigation through the same provider-confirmed browser session, avoiding the mobile race where a new session was not yet visible to the immediate server action.
+- Account hydration tracks profile and gym-access failures independently. A valid gym affiliation can still route to the owner/member surface when optional profile metadata is unavailable.
+- Genuine no-gym home and recovery screens identify the authenticated email so the user can verify which account is active.
+
+#### Fixed
+- Failed `get_my_gyms`, profile, `get_my_access`, or active-gym calls are no longer collapsed into an empty affiliation list. Owners and members are not sent to onboarding when access resolution fails.
+- `/profile` no longer displays “Loading your profile…” forever after a missing/failed profile read; it now offers bounded retry and sign out while preserving the authenticated session.
+- Middleware, auth callback, and post-auth server resolution fail closed into an explicit account-recovery state instead of masking backend/schema failures as a new account.
+
 ### Member Onboarding & Auth Recovery
 
 #### Added
