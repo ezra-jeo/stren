@@ -300,7 +300,7 @@ export default function KioskPage() {
         await withTimeout(
           scanner.start(
             constraints,
-            { fps: 10, qrbox: { width: 300, height: 300 }, aspectRatio: 1.25 },
+            { fps: 10, qrbox: { width: 300, height: 300 }, aspectRatio: 1 },
             (decodedText) => {
               const current = runtimeRef.current
               if (!current.enabled || !current.online || current.mode !== "qr" || current.presentation !== "idle") return
