@@ -2,7 +2,7 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-14 (**Auth Session & Account Access Recovery remains implemented and verified against the linked hosted project; Perceived Performance & Navigation Continuity is complete and verified in the unshipped working tree.**)
+Last updated: 2026-07-14 (**Auth Session & Account Access Recovery remains implemented and verified against the linked hosted project; Perceived Performance & Navigation Continuity and the Kiosk Redesign & Scanner Safety work are complete and verified in the unshipped working tree.**)
 
 ---
 
@@ -15,6 +15,16 @@ Spec: [ImplementationPlan-GoogleOAuth.md](ImplementationPlan-GoogleOAuth.md) - b
 | G1 | Working Google sign-in controls, PKCE callback, gym-context preservation, bounded launch/callback recovery | Implemented (Codex, working tree, 2026-07-14) - focused component/callback regressions green |
 | G2 | Local Supabase provider configuration, hosted deployment contract, and environment handoff | Implemented (Codex, 2026-07-14) - hosted Google Auth is enabled, deployment preflight passes, and the authorization endpoint redirects to Google without exposing credentials |
 | G3 | Hosted Google provider enablement and real-browser verification | In progress (Codex, 2026-07-14) - the feature branch must be deployed before a real browser exchange can reach the new `/auth` client handler; hosted app currently serves the prior preview UI |
+
+## Workstream (implemented in working tree 2026-07-14): Kiosk Redesign & Scanner Safety
+
+| Unit | Scope | Status |
+|---|---|---|
+| K1 | Bright, responsive Stren kiosk surface using the official mark, real camera feed, Scan/Search tabs, occupancy-only utility row, phone-safe account QR, distinct success/failure/camera/offline states, focus/live regions, and reduced-motion crossfades | Implemented (Codex, working tree, 2026-07-14) - desktop through mobile CSS adapts the single central panel without exposing the public checked-in roster |
+| K2 | Correct QR check-in/check-out state machine, scan lock/rearm contract, retained camera stream, membership/offline handling, bounded processing state, restrained audio/haptic feedback, and safe manual lookup | Implemented (Codex, working tree, 2026-07-14) - the stale pinned-gym callback and repeat-scan checkout path are corrected; a result is visible immediately after confirmation and returns to the warm scanner in 1,300 ms |
+| K3 | Migration `023_kiosk_privacy_and_scan_integrity.sql`: count-only occupancy RPC, minimum-three-character name/email lookup with a reduced response, `members:manage` protection for manual toggle RPC use, and per-member/gym advisory-lock serialization | Implemented (Codex, working tree, 2026-07-14) - generated database function types and source-contract regressions are included; migration must be applied with the release |
+
+Verification: `npm run lint`, `npm run typecheck`, production build, and **371/371** unit/integration tests pass. The complete Playwright command reached its 120-second local shell ceiling after public checks began completing; the isolated Chromium auth check passes in 2.4 s but the local Playwright development-server process did not exit. There is no credentialed kiosk E2E fixture in this workspace; scanner/RPC/camera/offline/timing behavior is regression-covered in `kiosk-terminal.test.tsx`.
 
 ## Workstream (completed in working tree 2026-07-14): Perceived Performance & Navigation Continuity
 
