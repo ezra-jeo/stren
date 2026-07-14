@@ -99,6 +99,19 @@ describe('GymSwitcher', () => {
     expect(screen.getByRole('menuitem', { name: /member view/i })).toBeInTheDocument();
   });
 
+  it('opens the other view directly without treating it as a private-scope switch', async () => {
+    const user = userEvent.setup();
+    authValue.myGyms = [gym({})];
+    render(<GymSwitcher variant="admin" />);
+
+    await user.click(screen.getByRole('button', { name: /current gym/i }));
+    await user.click(screen.getByRole('menuitem', { name: /member view/i }));
+
+    expect(pushMock).toHaveBeenCalledWith('/member');
+    expect(refreshMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
   it('offers Admin view in the member shell only for managers', async () => {
     const user = userEvent.setup();
     authValue.myGyms = [gym({ role: 'owner' })];

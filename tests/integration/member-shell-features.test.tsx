@@ -23,6 +23,12 @@ const stats: MemberStats = {
 } as unknown as MemberStats;
 
 describe('MemberShell — feature-gated nav (§8.5)', () => {
+  it('opens the member profile from the account pill in the desktop sidebar', () => {
+    render(<MemberShell gymBranding={null} hasServerUser>content</MemberShell>);
+
+    expect(screen.getByRole('link', { name: /open your profile/i })).toHaveAttribute('href', '/member/profile');
+  });
+
   it('shows Feed and Ranks by default (features on)', () => {
     render(<MemberShell gymBranding={null} hasServerUser>content</MemberShell>);
     expect(screen.getAllByText('Feed').length).toBeGreaterThan(0);

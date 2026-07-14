@@ -40,6 +40,8 @@ describe('Stren loading experience', () => {
     const curtain = await screen.findByRole('dialog', { name: 'Switching gyms…' });
     expect(curtain).toHaveFocus();
     expect(privateAction.closest('div')).toHaveAttribute('inert');
+    expect(curtain.querySelectorAll('img[src="/stren-logo.svg"]')).toHaveLength(2);
+    expect(curtain.querySelector('.stren-bootstrap-progress')).toBeInTheDocument();
   });
 
   it('announces the auth route fallback', () => {
