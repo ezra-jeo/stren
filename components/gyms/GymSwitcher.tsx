@@ -34,7 +34,6 @@ export function GymSwitcher({ variant }: { variant: 'admin' | 'member' }) {
   const [open, setOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [busyGym, setBusyGym] = useState<MyGym | null>(null);
-  const [surfaceBusy, setSurfaceBusy] = useState<'Admin' | 'Member' | null>(null);
   const [switchError, setSwitchError] = useState<string | null>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -138,19 +137,17 @@ export function GymSwitcher({ variant }: { variant: 'admin' | 'member' }) {
   }
 
   function goToSurface(surface: '/admin' | '/member') {
-    setSurfaceBusy(surface === '/admin' ? 'Admin' : 'Member');
     setOpen(false);
     router.push(surface);
-    router.refresh();
   }
 
   if (!current) {
     // No active gym resolved yet — a quiet neutral anchor, no menu.
     return (
       <div>
-        {(busyGym || surfaceBusy) && (
+        {busyGym && (
           <PrivacyCurtain
-            message={busyGym ? `Switching to ${busyGym.name}â€¦` : `Opening ${surfaceBusy} viewâ€¦`}
+            message={`Switching to ${busyGym.name}â€¦`}
             detail="Keeping your account and gym data separate"
           />
         )}
@@ -168,9 +165,9 @@ export function GymSwitcher({ variant }: { variant: 'admin' | 'member' }) {
 
   return (
     <div className="relative">
-      {(busyGym || surfaceBusy) && (
+      {busyGym && (
         <PrivacyCurtain
-          message={busyGym ? `Switching to ${busyGym.name}…` : `Opening ${surfaceBusy} view…`}
+          message={`Switching to ${busyGym.name}…`}
           detail="Keeping your account and gym data separate"
         />
       )}

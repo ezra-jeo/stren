@@ -312,11 +312,6 @@ export function UnifiedAuthSurface() {
 
   return (
     <main className={styles.page}>
-      <Link href="/landing" className={styles.backLink}>
-        <Image src="/stren-logo.png" alt="" width={28} height={28} />
-        <span>Stren</span>
-      </Link>
-
       <div className={`${styles.card} ${mode === 'signup' ? styles.signupMode : ''}`} data-mode={mode}>
         <section
           data-testid="signin-pane"
@@ -441,8 +436,10 @@ export function UnifiedAuthSurface() {
 
         <aside className={styles.brandPanel} aria-live="polite">
           <div className={styles.brandContent}>
-            <Image src="/stren-logo.png" alt="Stren" width={62} height={62} priority />
-            <p className={styles.wordmark}>stren</p>
+            <Link href="/landing" className={styles.brandHomeLink} aria-label="Return to Stren home">
+              <Image src="/stren-logo.png" alt="" width={62} height={62} priority />
+              <p className={styles.wordmark}>stren</p>
+            </Link>
             <div key={mode} className={styles.brandCopy}>
               <h2>{mode === 'signin' ? 'Hey there!' : 'Welcome back!'}</h2>
               <p>{mode === 'signin' ? 'Create an account to get started with Stren.' : 'Sign in to continue your Stren journey.'}</p>

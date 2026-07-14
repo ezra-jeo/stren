@@ -21,31 +21,37 @@ export function LoadingScreen({
       aria-atomic="true"
       className={cn('stren-bootstrap', overlay && 'stren-bootstrap-overlay')}
     >
-      <div className="stren-bootstrap-mark" aria-hidden="true">
-        <Image
-          src="/stren-logo.svg"
-          alt=""
-          width={86}
-          height={90}
-          priority
-          unoptimized
-          className="stren-mark-reveal"
-        />
-        <Image
-          src="/stren-logo.svg"
-          alt=""
-          width={86}
-          height={90}
-          priority
-          unoptimized
-          className="stren-mark-lockup"
-        />
-      </div>
+      <StrenLoaderMark />
       <div className="stren-bootstrap-copy">
         <p>{message}</p>
         {detail && <span>{detail}</span>}
       </div>
       <div className="stren-bootstrap-progress" aria-hidden="true"><span /></div>
+    </div>
+  );
+}
+
+function StrenLoaderMark() {
+  return (
+    <div className="stren-bootstrap-mark" aria-hidden="true">
+      <Image
+        src="/stren-logo.svg"
+        alt=""
+        width={86}
+        height={90}
+        priority
+        unoptimized
+        className="stren-mark-reveal"
+      />
+      <Image
+        src="/stren-logo.svg"
+        alt=""
+        width={86}
+        height={90}
+        priority
+        unoptimized
+        className="stren-mark-lockup"
+      />
     </div>
   );
 }
@@ -94,10 +100,13 @@ export function PrivacyCurtain({ message, detail }: { message: string; detail?: 
       aria-labelledby={labelId}
       tabIndex={-1}
     >
-      <div role="status" aria-live="polite" aria-atomic="true">
-        <Image src="/stren-logo.svg" alt="" width={54} height={56} unoptimized aria-hidden="true" />
-        <p id={labelId}>{message}</p>
-        {detail && <span>{detail}</span>}
+      <div className="stren-privacy-curtain-content" role="status" aria-live="polite" aria-atomic="true">
+        <StrenLoaderMark />
+        <div className="stren-bootstrap-copy">
+          <p id={labelId}>{message}</p>
+          {detail && <span>{detail}</span>}
+        </div>
+        <div className="stren-bootstrap-progress" aria-hidden="true"><span /></div>
       </div>
     </div>,
     document.body,
