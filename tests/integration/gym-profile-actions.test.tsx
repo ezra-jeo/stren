@@ -12,12 +12,8 @@ const refreshMyGymsMock = vi.fn();
 let authValue: Record<string, unknown>;
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => authValue }));
 
-const saveGymActionMock = vi.fn();
-const verifyMembershipActionMock = vi.fn();
 const setActiveGymActionMock = vi.fn();
 vi.mock('@/lib/auth-actions', () => ({
-  saveGymAction: (...args: unknown[]) => saveGymActionMock(...args),
-  verifyMembershipAction: (...args: unknown[]) => verifyMembershipActionMock(...args),
   setActiveGymAction: (...args: unknown[]) => setActiveGymActionMock(...args),
 }));
 
@@ -32,8 +28,6 @@ beforeEach(() => {
   pushMock.mockReset();
   refreshMock.mockReset();
   refreshMyGymsMock.mockReset();
-  saveGymActionMock.mockReset();
-  verifyMembershipActionMock.mockReset();
   setActiveGymActionMock.mockReset();
   rpcMock.mockReset();
   rpcMock.mockResolvedValue({ data: false, error: null });
@@ -50,11 +44,13 @@ describe('public gym profile actions', () => {
   it('saves a public gym without refreshing or granting gym membership', async () => {
     const user = userEvent.setup();
     authValue = { user: { id: 'u1' }, myGyms: [], isLoading: false, refreshMyGyms: refreshMyGymsMock };
-    saveGymActionMock.mockResolvedValue({ saved: true });
+    rpcMock.mockImplementation((name: string) => Promise.resolve(
+      name === 'save_gym' ? { data: { saved: true }, error: null } : { data: false, error: null },
+    ));
     render(<GymProfileActions gym={gym} />);
 
     await user.click(await screen.findByRole('button', { name: /save iron house/i }));
-    await waitFor(() => expect(saveGymActionMock).toHaveBeenCalledWith('g1', true));
+    await waitFor(() => expect(rpcMock).toHaveBeenCalledWith('save_gym', { p_gym_id: 'g1' }));
     expect(refreshMyGymsMock).not.toHaveBeenCalled();
     expect(screen.getByText(/saved for later/i)).toBeInTheDocument();
   });
@@ -62,10 +58,15 @@ describe('public gym profile actions', () => {
   it('uses membership verification language for an unmatched member', async () => {
     const user = userEvent.setup();
     authValue = { user: { id: 'u1' }, myGyms: [], isLoading: false, refreshMyGyms: refreshMyGymsMock };
-    verifyMembershipActionMock.mockResolvedValue({ status: 'pending', role: 'member', matched: false });
+    rpcMock.mockImplementation((name: string) => Promise.resolve(
+      name === 'verify_gym_membership'
+        ? { data: { status: 'pending', role: 'member', matched: false }, error: null }
+        : { data: false, error: null },
+    ));
     render(<GymProfileActions gym={gym} />);
 
     await user.click(await screen.findByRole('button', { name: /i.m already a member/i }));
+    await waitFor(() => expect(rpcMock).toHaveBeenCalledWith('verify_gym_membership', { p_gym_id: 'g1' }));
     expect(await screen.findByText(/waiting for the gym to confirm your membership/i)).toBeInTheDocument();
     expect(refreshMyGymsMock).toHaveBeenCalled();
   });

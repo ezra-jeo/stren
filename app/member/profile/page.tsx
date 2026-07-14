@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
 import { createClient } from '@/lib/supabase';
 import { Camera, Edit2, Lock, LogOut, RotateCcw, Save, Upload, X } from 'lucide-react';
-import { useRouter } from 'next/navigation';
 import QRCode from 'qrcode';
 import { toast } from 'sonner';
 import { PageSkeleton } from '@/components/ui/loading-screen';
@@ -330,7 +329,6 @@ function AvatarSection({ profile, refreshProfile }: { profile: Profile; refreshP
 
 export default function ProfilePage() {
   const { profile, signOut, isSigningOut, refreshProfile, myGyms, activeGymId } = useAuth();
-  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const qrCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -365,7 +363,7 @@ export default function ProfilePage() {
       name: profile.name,
       contact_number: profile.contactNumber ?? '',
     });
-  }, [profile, reset, router]);
+  }, [profile, reset]);
 
   async function generateQR() {
     if (!qrCanvasRef.current || !profile) return;
@@ -418,9 +416,9 @@ export default function ProfilePage() {
       return;
     }
 
+    await refreshProfile();
     toast.success('Profile updated!');
     setIsEditing(false);
-    router.refresh();
   };
 
   const handleSignOut = async () => {

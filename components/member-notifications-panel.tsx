@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Bell, Flame, Calendar, Megaphone, Activity, X, CheckCheck, BadgeCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { privateCacheKey } from '@/lib/private-cache';
+import { ViewportOverlay } from '@/components/ui/viewport-overlay';
 
 type MemberNotificationKind =
   | 'membership_expiry_7d'
@@ -84,7 +85,6 @@ export function MemberNotificationsPanel() {
   const supabase = useMemo(() => createClient(), []);
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<MemberNotification[]>([]);
-  const panelRef = useRef<HTMLDivElement>(null);
   const loadScopeRef = useRef<string | null>(null);
   const [notificationsScopeKey, setNotificationsScopeKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -159,16 +159,7 @@ export function MemberNotificationsPanel() {
     };
   }, [activeScope, supabase]);
 
-  // Close on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    if (open) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
+  const close = useCallback(() => setOpen(false), []);
 
   async function markAllRead() {
     if (!activeScope) return;
@@ -197,10 +188,10 @@ export function MemberNotificationsPanel() {
   }
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative">
       {/* Bell button */}
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => setOpen((value) => !value)}
         className="relative p-2 rounded-lg transition-colors"
         style={{ color: 'var(--color-text-secondary)' }}
         aria-label="Notifications"
@@ -218,22 +209,17 @@ export function MemberNotificationsPanel() {
 
       {/* Dropdown */}
       {open && (
-        <>
-          <div
-            className="fixed inset-0 z-40"
-            style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
-            onClick={() => setOpen(false)}
-          />
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-            <div
-              className="w-[calc(100vw-2rem)] max-w-sm rounded-2xl shadow-xl overflow-hidden"
-              style={{ backgroundColor: 'var(--color-white)', border: '1px solid var(--color-surface)' }}
-            >
+        <ViewportOverlay
+          onClose={close}
+          labelledBy="member-notifications-title"
+          panelClassName="w-[calc(100vw-2rem)] max-w-sm rounded-2xl shadow-xl overflow-hidden"
+          panelStyle={{ backgroundColor: 'var(--color-white)', border: '1px solid var(--color-surface)' }}
+        >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--color-surface)' }}>
                 <div className="flex items-center gap-2">
                   <Bell size={16} style={{ color: 'var(--color-primary)' }} />
-                  <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Notifications</span>
+                  <span id="member-notifications-title" className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>Notifications</span>
                   {unreadCount > 0 && (
                     <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: 'var(--color-primary-glow)', color: 'var(--color-primary)' }}>
                       {unreadCount} new
@@ -246,7 +232,7 @@ export function MemberNotificationsPanel() {
                       <CheckCheck size={14} />
                     </button>
                   )}
-                  <button onClick={() => setOpen(false)} className="p-1.5 rounded-lg hover:bg-black/5" style={{ color: 'var(--color-text-muted)' }}>
+                  <button aria-label="Close notifications" onClick={close} className="p-1.5 rounded-lg hover:bg-black/5" style={{ color: 'var(--color-text-muted)' }}>
                     <X size={14} />
                   </button>
                 </div>
@@ -286,9 +272,7 @@ export function MemberNotificationsPanel() {
                   ))
                 )}
               </div>
-            </div>
-          </div>
-        </>
+        </ViewportOverlay>
       )}
     </div>
   );

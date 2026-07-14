@@ -39,7 +39,17 @@ export function GymProfileActions({ gym }: { gym: PublicGym }) {
     setSaving(true);
     setMessage(null);
     try {
-      const result = await saveGymAction(gym.gymId, !saved);
+      let result: { saved: boolean };
+      try {
+        result = await saveGymAction(gym.gymId, !saved);
+      } catch {
+        // The public page deliberately hydrates auth in the browser. If its
+        // server cookie lags behind that confirmed browser session, execute the
+        // same database-enforced RPC with the browser token instead.
+        const { data, error } = await supabase.rpc(saved ? 'unsave_gym' : 'save_gym', { p_gym_id: gym.gymId });
+        if (error) throw error;
+        result = { saved: Boolean((data as { saved?: boolean } | null)?.saved) };
+      }
       setSaved(result.saved);
       setMessage(result.saved ? `${gym.name} is saved for later.` : `${gym.name} was removed from saved gyms.`);
     } catch {
@@ -54,10 +64,22 @@ export function GymProfileActions({ gym }: { gym: PublicGym }) {
     setVerifying(true);
     setMessage(null);
     try {
-      const result = await verifyMembershipAction(gym.gymId);
+      let result: { status: string; role: string; matched: boolean };
+      try {
+        result = await verifyMembershipAction(gym.gymId);
+      } catch {
+        const { data, error } = await supabase.rpc('verify_gym_membership', { p_gym_id: gym.gymId });
+        if (error || !data) throw error ?? new Error('Membership verification did not return a result.');
+        result = data as { status: string; role: string; matched: boolean };
+      }
       await refreshMyGyms();
       if (result.status === 'active') {
-        await setActiveGymAction(gym.gymId);
+        try {
+          await setActiveGymAction(gym.gymId);
+        } catch {
+          const { error } = await supabase.rpc('set_active_gym', { p_gym_id: gym.gymId });
+          if (error) throw error;
+        }
         router.push(result.role === 'member' ? '/member' : '/admin');
         router.refresh();
         return;

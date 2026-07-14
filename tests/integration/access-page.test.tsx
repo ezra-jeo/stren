@@ -7,6 +7,8 @@ const h = vi.hoisted(() => ({
   listAccessPeople: vi.fn(),
   saveOverridesBatch: vi.fn(),
   fetchPersonOverrides: vi.fn(),
+  addTeamPerson: vi.fn(),
+  removeTeamPerson: vi.fn(),
   access: { current: null as ReturnType<typeof accessFromRoleDefaults> | null },
 }));
 
@@ -23,6 +25,8 @@ vi.mock('@/lib/access-data', async (importOriginal) => {
     listAccessPeople: h.listAccessPeople,
     saveOverridesBatch: h.saveOverridesBatch,
     fetchPersonOverrides: h.fetchPersonOverrides,
+    addTeamPerson: h.addTeamPerson,
+    removeTeamPerson: h.removeTeamPerson,
   };
 });
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
@@ -35,6 +39,12 @@ beforeEach(() => {
   ]);
   h.saveOverridesBatch.mockReset().mockResolvedValue(undefined);
   h.fetchPersonOverrides.mockReset().mockResolvedValue([]);
+  h.addTeamPerson.mockReset().mockResolvedValue({
+    person: { userId: 's2', name: 'Nina Staff', email: 'nina@grove.co', role: 'staff', overrides: [] },
+    createdAccount: false,
+    magicLink: null,
+  });
+  h.removeTeamPerson.mockReset().mockResolvedValue(undefined);
 });
 
 async function expandAdmin() {
@@ -101,12 +111,22 @@ describe('People & access (§7.9)', () => {
     );
   });
 
-  it('staff rows are static with a caption and no switches', async () => {
+  it('lets the owner customise a staff member’s access too', async () => {
     render(<AccessClient />);
-    expect(await screen.findByText('Sam Staff')).toBeInTheDocument();
-    expect(screen.getByText('Staff can use the kiosk and look up members.')).toBeInTheDocument();
-    // Sam's row is not an expandable button.
-    expect(screen.getByText('Sam Staff').closest('button')).toBeNull();
+    const staff = await screen.findByText('Sam Staff');
+    fireEvent.click(staff.closest('button')!);
+    expect(await screen.findByRole('switch', { name: 'Can manage members' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /remove staff/i })).toBeInTheDocument();
+  });
+
+  it('gives the owner a clear way to add a teammate', async () => {
+    render(<AccessClient />);
+    fireEvent.click(await screen.findByRole('button', { name: /add teammate/i }));
+    fireEvent.change(screen.getByRole('textbox', { name: /teammate name/i }), { target: { value: 'Nina Staff' } });
+    fireEvent.change(screen.getByRole('textbox', { name: /teammate email/i }), { target: { value: 'nina@grove.co' } });
+    fireEvent.click(screen.getByRole('button', { name: /^add to team$/i }));
+    await waitFor(() => expect(h.addTeamPerson).toHaveBeenCalledWith({ name: 'Nina Staff', email: 'nina@grove.co', role: 'staff' }));
+    expect(await screen.findByText('Nina Staff')).toBeInTheDocument();
   });
 
   it('renders the owner-only state for a viewer without roles:manage', async () => {

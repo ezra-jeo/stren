@@ -107,6 +107,17 @@ function canRetryWithDefaultCamera(error: unknown): boolean {
   return !/notallowed|permission|securityerror|notreadable|busy|in use|timeout|timed out/i.test(errorMessage(error))
 }
 
+async function warmCameraForScanner(): Promise<void> {
+  let stream: MediaStream | null = null
+  try {
+    // Some Windows camera drivers do not complete html5-qrcode's first video
+    // transition unless permission and the physical device are activated once.
+    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+  } finally {
+    stream?.getTracks().forEach((track) => track.stop())
+  }
+}
+
 function cameraFailureCopy(state: CameraState): string {
   if (state === "denied") return "Camera permission was denied. Allow camera access for this site, then try again."
   if (state === "unavailable") return "No usable camera is available. Another tab or app may already be using it."
@@ -283,6 +294,7 @@ export default function KioskPage() {
     isStartingScannerRef.current = true
     setCameraState("starting")
     try {
+      await warmCameraForScanner()
       const { Html5Qrcode } = await import("html5-qrcode")
       const startCamera = async (scanner: Html5QrcodeType, constraints: MediaTrackConstraints) => {
         await withTimeout(

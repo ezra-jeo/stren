@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v8';
+const CACHE_VERSION = 'v9';
 const STATIC_CACHE = `stren-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `stren-runtime-${CACHE_VERSION}`;
 

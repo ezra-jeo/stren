@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { PageSkeleton } from '@/components/ui/loading-screen';
+import { ViewportOverlay } from '@/components/ui/viewport-overlay';
 
 interface NotificationPreferences {
   inactivity_nudges_enabled: boolean;
@@ -178,7 +179,8 @@ export default function SettingsPage() {
       .from('member_notification_preferences')
       .select('inactivity_nudges_enabled, streak_notifications_enabled')
       .eq('member_id', profile.id)
-      .single();
+      .eq('gym_id', profile.gymId)
+      .maybeSingle();
     
     if (data) {
       setNotifPrefs({
@@ -203,23 +205,20 @@ export default function SettingsPage() {
     setNotifPrefs(prev => ({ ...prev, [key]: newValue }));
     setSavingPrefs(true);
 
+    const nextPrefs = { ...notifPrefs, [key]: newValue };
     const payload: MemberNotificationPreferencesInsert = {
       member_id: profile.id,
       gym_id: profile.gymId,
+      inactivity_nudges_enabled: nextPrefs.inactivity_nudges_enabled,
+      streak_notifications_enabled: nextPrefs.streak_notifications_enabled,
       updated_at: new Date().toISOString(),
     };
-
-    if (key === 'inactivity_nudges_enabled') {
-      payload.inactivity_nudges_enabled = newValue;
-    } else {
-      payload.streak_notifications_enabled = newValue;
-    }
     
     // Upsert preference
     const { error } = await supabase
       .from('member_notification_preferences')
       .upsert(payload, {
-        onConflict: 'member_id',
+        onConflict: 'member_id,gym_id',
       });
     
     setSavingPrefs(false);
@@ -407,18 +406,14 @@ export default function SettingsPage() {
       </p>
 
       {showPasswordModal && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-          onClick={() => setShowPasswordModal(false)}
+        <ViewportOverlay
+          onClose={() => setShowPasswordModal(false)}
+          labelledBy="change-password-title"
+          panelClassName="w-full max-w-sm rounded-2xl p-6 space-y-4"
+          panelStyle={{ backgroundColor: 'var(--color-white)' }}
         >
-          <div
-            className="w-full max-w-sm rounded-2xl p-6 space-y-4"
-            style={{ backgroundColor: 'var(--color-white)' }}
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div>
-              <p className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>Change Password</p>
+          <div>
+              <p id="change-password-title" className="font-semibold" style={{ color: 'var(--color-text-primary)' }}>Change Password</p>
               <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>
                 Choose a new password for email sign-in. This replaces the temporary login link.
               </p>
@@ -474,8 +469,7 @@ export default function SettingsPage() {
                 {isSavingPassword ? 'Saving...' : 'Save Password'}
               </button>
             </div>
-          </div>
-        </div>
+        </ViewportOverlay>
       )}
     </div>
   );
