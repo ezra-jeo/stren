@@ -2,7 +2,10 @@
 
 import Link from 'next/link';
 import type { LucideIcon } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { browserAllowsPrefetch } from '@/lib/navigation-performance';
 
 type NavTone = 'dark' | 'light' | 'muted';
 type NavLayout = 'row' | 'column';
@@ -15,7 +18,7 @@ interface NavLinkProps {
   tone?: NavTone;
   layout?: NavLayout;
   className?: string;
-  onClick?: () => void;
+  onClick?: (event: React.MouseEvent<HTMLAnchorElement>) => void;
   prefetch?: boolean;
 }
 
@@ -31,6 +34,39 @@ export function NavLinkItem({
   prefetch,
 }: NavLinkProps) {
   const isColumn = layout === 'column';
+  const pathname = usePathname();
+  const router = useRouter();
+  const [pending, setPending] = useState(false);
+  const prefetched = useRef(false);
+  const pendingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const visualActive = active || pending;
+
+  useEffect(() => {
+    if (active || pathname === href) {
+      setPending(false);
+      if (pendingTimer.current) clearTimeout(pendingTimer.current);
+      pendingTimer.current = null;
+    }
+  }, [active, href, pathname]);
+
+  useEffect(() => () => {
+    if (pendingTimer.current) clearTimeout(pendingTimer.current);
+  }, []);
+
+  function isPrimarySameTabNavigation(event: React.MouseEvent<HTMLAnchorElement>) {
+    return event.button === 0 &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.shiftKey &&
+      !event.altKey &&
+      event.currentTarget.target !== '_blank';
+  }
+
+  function prefetchOnIntent() {
+    if (prefetch === false || prefetched.current || !browserAllowsPrefetch()) return;
+    prefetched.current = true;
+    router.prefetch(href);
+  }
 
   const colorsByTone: Record<NavTone, { activeText: string; idleText: string; activeBg: string }> = {
     dark: {
@@ -55,18 +91,38 @@ export function NavLinkItem({
   return (
     <Link
       href={href}
-      prefetch={prefetch}
-      onClick={onClick}
+      prefetch={false}
+      onPointerEnter={prefetchOnIntent}
+      onFocus={prefetchOnIntent}
+      onTouchStart={prefetchOnIntent}
+      onClick={(event) => {
+        onClick?.(event);
+        if (event.defaultPrevented || !isPrimarySameTabNavigation(event)) return;
+        if (pending) {
+          event.preventDefault();
+          return;
+        }
+        if (!active && pathname !== href) {
+          setPending(true);
+          pendingTimer.current = setTimeout(() => {
+            setPending(false);
+            pendingTimer.current = null;
+          }, 4_000);
+        }
+      }}
+      aria-current={active ? 'page' : undefined}
+      aria-busy={pending || undefined}
+      data-navigation-pending={pending ? 'true' : undefined}
       className={cn(
-        'transition-all rounded-lg',
+        'rounded-lg transition-[color,background-color,transform] duration-100 active:scale-[0.98]',
         isColumn
           ? 'flex flex-col items-center gap-0.5 px-3 py-1'
           : 'flex items-center gap-2 px-3 py-2 text-sm font-medium',
         className,
       )}
       style={{
-        color: active ? toneStyles.activeText : toneStyles.idleText,
-        backgroundColor: active ? toneStyles.activeBg : 'transparent',
+        color: visualActive ? toneStyles.activeText : toneStyles.idleText,
+        backgroundColor: visualActive ? toneStyles.activeBg : 'transparent',
       }}
     >
       <Icon size={isColumn ? 22 : 18} />

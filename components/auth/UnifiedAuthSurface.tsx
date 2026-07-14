@@ -10,10 +10,34 @@ import { resolvePostAuthDestination, signUpAccount } from '@/lib/auth-actions';
 import { readableAuthError } from '@/lib/auth-error-copy';
 import { withTimeout } from '@/lib/async-guard';
 import { createClient } from '@/lib/supabase';
+import { LoadingScreen } from '@/components/ui/loading-screen';
 import styles from './unified-auth.module.css';
 
 type AuthMode = 'signin' | 'signup';
 type Submission = AuthMode | 'google';
+const AUTH_DRAFT_KEY = 'stren.auth.formDraft.v1';
+const AUTH_DRAFT_TTL_MS = 20 * 60_000;
+
+type AuthDraft = {
+  version: 1;
+  savedAt: number;
+  signInEmail: string;
+  fullName: string;
+  signUpEmail: string;
+};
+
+function readAuthDraft(): AuthDraft | null {
+  try {
+    const draft = JSON.parse(sessionStorage.getItem(AUTH_DRAFT_KEY) ?? 'null') as AuthDraft | null;
+    return draft?.version === 1 && Date.now() - draft.savedAt < AUTH_DRAFT_TTL_MS ? draft : null;
+  } catch {
+    return null;
+  }
+}
+
+function clearAuthDraft() {
+  try { sessionStorage.removeItem(AUTH_DRAFT_KEY); } catch {}
+}
 
 function GoogleButton({
   id,
@@ -107,13 +131,14 @@ export function UnifiedAuthSurface() {
   const { signIn, resolveSignedInDestination } = useAuth();
   const queryMode = modeFrom(searchParams.get('mode'));
   const gymCode = searchParams.get('gym')?.trim() || undefined;
+  const [initialDraft] = useState<AuthDraft | null>(() => typeof window === 'undefined' ? null : readAuthDraft());
   const [mode, setMode] = useState<AuthMode>(queryMode);
   const [hydrated, setHydrated] = useState(false);
   const [transitioning, setTransitioning] = useState(false);
-  const [signInEmail, setSignInEmail] = useState('');
+  const [signInEmail, setSignInEmail] = useState(() => initialDraft?.signInEmail ?? '');
   const [signInPassword, setSignInPassword] = useState('');
-  const [fullName, setFullName] = useState('');
-  const [signUpEmail, setSignUpEmail] = useState('');
+  const [fullName, setFullName] = useState(() => initialDraft?.fullName ?? '');
+  const [signUpEmail, setSignUpEmail] = useState(() => initialDraft?.signUpEmail ?? '');
   const [signUpPassword, setSignUpPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [signInError, setSignInError] = useState<string | null>(() => readableAuthError(searchParams.get('error')));
@@ -141,6 +166,18 @@ export function UnifiedAuthSurface() {
   useEffect(() => {
     setMode(queryMode);
   }, [queryMode]);
+
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(AUTH_DRAFT_KEY, JSON.stringify({
+        version: 1,
+        savedAt: Date.now(),
+        signInEmail,
+        fullName,
+        signUpEmail,
+      } satisfies AuthDraft));
+    } catch {}
+  }, [fullName, signInEmail, signUpEmail]);
 
   useEffect(() => {
     if (signInError) signInErrorRef.current?.focus();
@@ -198,6 +235,7 @@ export function UnifiedAuthSurface() {
       return;
     }
     const confirmedEmail = result.email ?? signInEmail.trim().toLowerCase();
+    clearAuthDraft();
     authenticatedEmailRef.current = confirmedEmail;
     postAuthSourceRef.current = 'browser';
     await finishAuthentication('browser');
@@ -225,6 +263,7 @@ export function UnifiedAuthSurface() {
       return;
     }
     authenticatedEmailRef.current = signUpEmail.trim().toLowerCase();
+    clearAuthDraft();
     postAuthSourceRef.current = 'server';
     await finishAuthentication('server');
   }
@@ -268,7 +307,7 @@ export function UnifiedAuthSurface() {
       return;
     }
     setTransitioning(true);
-    window.setTimeout(settle, 600);
+    window.setTimeout(settle, 220);
   }
 
   return (
@@ -434,10 +473,7 @@ export function UnifiedAuthSurface() {
         </div>
       )}
       {settingUp && (
-        <div className={styles.settingUp} role="status" aria-live="polite">
-          <Image src="/stren-logo.png" alt="" width={42} height={42} />
-          <span>Setting things up for you…</span>
-        </div>
+        <LoadingScreen overlay detail="Preparing your gym access" />
       )}
     </main>
   );

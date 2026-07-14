@@ -133,4 +133,4 @@ export async function middleware(request: NextRequest) {
   return finish(response);
 }
 
-export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|webm)$).*)'] };
+export const config = { matcher: ['/((?!_next/static|_next/image|_vercel/|favicon.ico|sw.js|manifest.webmanifest|.*\\.(?:svg|png|jpg|jpeg|gif|webp|mp4|webm)$).*)'] };

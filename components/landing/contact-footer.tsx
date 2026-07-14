@@ -5,9 +5,10 @@ import Link from 'next/link';
 import { Mail, Phone, MapPin } from 'lucide-react';
 import { track } from '@vercel/analytics';
 import { useAuth } from '@/lib/auth-context';
+import { IntentLink } from '@/components/layout/intent-link';
 
 export function ContactFooter() {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
   const authLink = user
     ? { label: 'Open Stren', href: '/gyms' }
     : { label: 'Sign In', href: '/auth?mode=signin' };
@@ -85,7 +86,7 @@ export function ContactFooter() {
                 { label: 'About Stren', href: '#about' },
                 { label: 'Features', href: '#features' },
                 { label: 'Contact Us', href: '#contact' },
-                ...(!isLoading ? [authLink] : []),
+                authLink,
                 { label: 'Bring Stren to Your Gym', href: '/for-gym-owners' },
               ].map((link) =>
                 link.href.startsWith('#') ? (
@@ -97,6 +98,16 @@ export function ContactFooter() {
                   >
                     {link.label}
                   </a>
+                ) : link.href.startsWith('/auth') ? (
+                  <IntentLink
+                    key={link.label}
+                    href={link.href}
+                    transitionKind="public-auth"
+                    className="block text-sm transition-colors duration-200 hover:opacity-80"
+                    style={{ color: 'var(--color-gray)' }}
+                  >
+                    {link.label}
+                  </IntentLink>
                 ) : (
                   <Link
                     key={link.label}

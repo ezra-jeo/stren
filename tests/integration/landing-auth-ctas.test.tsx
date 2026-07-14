@@ -5,6 +5,7 @@ import { LandingHero } from '@/components/landing/landing-hero';
 import { LandingNav } from '@/components/landing/landing-nav';
 
 vi.mock('@vercel/analytics', () => ({ track: vi.fn() }));
+vi.mock('next/navigation', () => ({ useRouter: () => ({ prefetch: vi.fn() }) }));
 let authValue: { user: { id: string } | null; isLoading: boolean };
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => authValue }));
 

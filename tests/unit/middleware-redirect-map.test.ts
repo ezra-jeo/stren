@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { LEGACY_AUTH_REDIRECTS } from '@/middleware';
+import { config, LEGACY_AUTH_REDIRECTS } from '@/middleware';
 
 describe('legacy auth redirect map', () => {
   it.each([
@@ -17,5 +17,14 @@ describe('legacy auth redirect map', () => {
     const redirect = LEGACY_AUTH_REDIRECTS.find((entry) => source.match(entry.pattern));
     const match = redirect ? source.match(redirect.pattern) : null;
     expect(redirect && match ? redirect.target(match, new URL(`https://stren.app${source}`)) : null).toBe(expected);
+  });
+});
+
+describe('middleware matcher', () => {
+  it('does not intercept Vercel telemetry assets', () => {
+    const matcher = new RegExp(`^${config.matcher[0]}$`);
+
+    expect(matcher.test('/_vercel/insights/script.js')).toBe(false);
+    expect(matcher.test('/admin/members')).toBe(true);
   });
 });

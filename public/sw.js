@@ -1,10 +1,9 @@
-const CACHE_VERSION = 'v6';
+const CACHE_VERSION = 'v7';
 const STATIC_CACHE = `stren-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `stren-runtime-${CACHE_VERSION}`;
 
 const APP_SHELL_URLS = [
   '/landing',
-  '/auth?mode=signin',
   '/manifest.webmanifest',
   '/stren-logo.png'
 ];

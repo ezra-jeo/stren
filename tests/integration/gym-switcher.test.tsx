@@ -4,9 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MyGym } from '@/lib/types';
 
 const pushMock = vi.fn();
+const replaceMock = vi.fn();
 const refreshMock = vi.fn();
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: pushMock, refresh: refreshMock }),
+  useRouter: () => ({ push: pushMock, replace: replaceMock, refresh: refreshMock }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 let authValue: {
@@ -16,6 +18,7 @@ let authValue: {
   isSigningOut: boolean;
   refreshProfile: () => Promise<void>;
   refreshMyGyms: () => Promise<void>;
+  beginPrivateScopeChange: () => void;
 };
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => authValue }));
 
@@ -30,6 +33,7 @@ function gym(o: Partial<MyGym>): MyGym {
 
 beforeEach(() => {
   pushMock.mockReset();
+  replaceMock.mockReset();
   refreshMock.mockReset();
   setActiveGymActionMock.mockReset();
   authValue = {
@@ -39,6 +43,7 @@ beforeEach(() => {
     isSigningOut: false,
     refreshProfile: vi.fn().mockResolvedValue(undefined),
     refreshMyGyms: vi.fn().mockResolvedValue(undefined),
+    beginPrivateScopeChange: vi.fn(),
   };
 });
 
@@ -60,8 +65,30 @@ describe('GymSwitcher', () => {
     await user.click(within(menu).getByRole('menuitem', { name: /bay strength/i }));
 
     await waitFor(() => expect(setActiveGymActionMock).toHaveBeenCalledWith('g2'));
-    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/member'));
+    expect(screen.getByRole('status')).toHaveTextContent(/switching to bay strength/i);
+    expect(authValue.beginPrivateScopeChange).toHaveBeenCalled();
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/member?scope=g2'));
     expect(refreshMock).toHaveBeenCalled();
+  });
+
+  it('rolls back the previous gym if post-switch hydration fails', async () => {
+    const user = userEvent.setup();
+    authValue.myGyms = [gym({}), gym({ gymId: 'g2', name: 'Bay Strength', code: 'bay', role: 'owner' })];
+    setActiveGymActionMock
+      .mockResolvedValueOnce({ role: 'owner' })
+      .mockResolvedValueOnce({ role: 'owner' });
+    vi.mocked(authValue.refreshProfile)
+      .mockRejectedValueOnce(new Error('new scope unavailable'))
+      .mockResolvedValueOnce(undefined);
+    render(<GymSwitcher variant="admin" />);
+
+    await user.click(screen.getByRole('button', { name: /current gym/i }));
+    await user.click(screen.getByRole('menuitem', { name: /bay strength/i }));
+
+    await waitFor(() => expect(setActiveGymActionMock).toHaveBeenNthCalledWith(2, 'g1'));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/could not switch gyms/i);
+    expect(pushMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
   it('offers Member view in the admin shell', async () => {

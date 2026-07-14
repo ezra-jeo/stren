@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
 import { track } from '@vercel/analytics';
 import { useAuth } from '@/lib/auth-context';
+import { IntentLink } from '@/components/layout/intent-link';
 
 const menuLinks = [
   { label: 'Getting Started', href: '#features' },
@@ -16,7 +17,7 @@ const menuLinks = [
 ];
 
 export function LandingNav() {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [hydrated, setHydrated] = useState(false);
@@ -96,7 +97,7 @@ export function LandingNav() {
             {/* Center: Logo */}
             <Link href="/landing" className="flex items-center gap-2 absolute left-1/2 -translate-x-1/2">
               <div className="h-8 w-8 relative">
-                <Image src="/stren-logo.png" alt="Stren" fill className="object-contain" loading="eager" priority />
+                <Image src="/stren-logo.png" alt="Stren" fill sizes="32px" className="object-contain" loading="eager" priority />
               </div>
               <span
                 className="text-xl font-bold transition-colors duration-300"
@@ -160,7 +161,7 @@ export function LandingNav() {
           <div className="flex items-center justify-between px-5 h-16 border-b" style={{ borderColor: 'var(--color-surface)' }}>
             <Link href="/landing" className="flex items-center gap-2" onClick={closeMenu}>
               <div className="h-7 w-7 relative">
-                <Image src="/stren-logo.png" alt="Stren" fill className="object-contain" />
+                <Image src="/stren-logo.png" alt="Stren" fill sizes="28px" className="object-contain" />
               </div>
               <span
                 className="text-lg font-bold"
@@ -200,7 +201,7 @@ export function LandingNav() {
               <div className="my-4 mx-6 border-t" style={{ borderColor: 'var(--color-surface)' }} />
 
               <div className="px-6 space-y-3">
-                {!isLoading && (user ? (
+                {user ? (
                   <Link
                     href="/gyms"
                     onClick={closeMenu}
@@ -211,24 +212,26 @@ export function LandingNav() {
                   </Link>
                 ) : (
                   <>
-                    <Link
+                    <IntentLink
                       href="/auth?mode=signin"
+                      transitionKind="public-auth"
                       onClick={closeMenu}
                       className="block w-full text-center px-6 py-3.5 rounded-full font-semibold text-sm uppercase tracking-wider transition-all duration-200 hover:scale-[1.02]"
                       style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF' }}
                     >
                       Sign In
-                    </Link>
-                    <Link
+                    </IntentLink>
+                    <IntentLink
                       href="/auth?mode=signup"
+                      transitionKind="public-auth"
                       onClick={closeMenu}
                       className="block w-full text-center px-6 py-3.5 rounded-full font-semibold text-sm uppercase tracking-wider border-2 transition-all duration-200 hover:scale-[1.02]"
                       style={{ borderColor: 'var(--color-surface)', color: 'var(--color-text-primary)' }}
                     >
                       Create Account
-                    </Link>
+                    </IntentLink>
                   </>
-                ))}
+                )}
                 <Link
                   href="/for-gym-owners"
                   onClick={closeMenu}

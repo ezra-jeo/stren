@@ -36,6 +36,7 @@ vi.mock('@/lib/auth-actions', () => ({
 import AuthPage from '@/app/auth/page';
 
 beforeEach(() => {
+  sessionStorage.clear();
   currentSearch = 'mode=signin';
   pushMock.mockReset();
   replaceMock.mockReset();
@@ -52,6 +53,18 @@ afterEach(() => {
 });
 
 describe('/auth shared surface', () => {
+  it('restores non-sensitive form identity fields after a short back-navigation round trip', async () => {
+    const user = userEvent.setup();
+    const first = render(<AuthPage />);
+
+    await user.type(screen.getByLabelText('Email address', { selector: '#signin-email' }), 'alex@example.com');
+    first.unmount();
+    render(<AuthPage />);
+
+    expect(screen.getByLabelText('Email address', { selector: '#signin-email' })).toHaveValue('alex@example.com');
+    expect(screen.getByLabelText('Password', { selector: '#signin-password' })).toHaveValue('');
+  });
+
   it('switches modes in place, hides the covered form, updates the URL, and preserves typed values', async () => {
     const user = userEvent.setup();
     render(<AuthPage />);
