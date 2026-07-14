@@ -88,6 +88,8 @@ describe('kiosk terminal', () => {
     await act(async () => { mocks.emitScan('member-qr'); });
 
     await screen.findByRole('heading', { name: 'Checked in successfully' });
+    expect(screen.getByText('Welcome in')).toBeInTheDocument();
+    expect(screen.getByText(/your visit is active/i)).toBeInTheDocument();
     expect(mocks.rpc).toHaveBeenCalledWith('kiosk_checkin', { p_qr_code: 'member-qr', p_gym_id: 'gym-1' });
     expect(screen.getByText((_content, element) => element?.tagName === 'P' && element.textContent?.includes('Bon checked in at') === true)).toBeInTheDocument();
     expect(screen.getByText('25')).toBeInTheDocument();
@@ -122,6 +124,20 @@ describe('kiosk terminal', () => {
       await Promise.resolve();
     });
     expect(screen.getByRole('heading', { name: 'Checked out successfully' })).toBeInTheDocument();
+    expect(screen.getByText('Visit complete')).toBeInTheDocument();
+    expect(screen.getByText(/you’re all set/i)).toBeInTheDocument();
+  });
+
+  it('does not misreport missing occupancy data as zero', async () => {
+    mocks.rpc.mockImplementation((name: string) => {
+      if (name === 'kiosk_access_allowed') return Promise.resolve({ data: true, error: null });
+      if (name === 'kiosk_get_occupancy') return Promise.resolve({ data: null, error: { code: 'PGRST202', message: 'function not found' } });
+      return Promise.resolve({ data: null, error: null });
+    });
+    render(<KioskPage />);
+
+    expect(await screen.findByText('Occupancy unavailable')).toBeInTheDocument();
+    expect(screen.queryByText(/^0 currently in the gym$/i)).not.toBeInTheDocument();
   });
 
   it('shows inactive membership without treating it as a successful attendance action', async () => {

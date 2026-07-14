@@ -115,17 +115,28 @@
 .secondaryAction:hover { background: #f8f1eb; }
 
 .resultCard { width: min(100%, 34rem); padding: clamp(1.35rem, 4vw, 2rem); border: 1px solid var(--kiosk-line); border-radius: 1.4rem; background: #fffdfa; text-align: center; box-shadow: 0 14px 28px rgba(76, 50, 32, .08); }
-.resultSymbol { display: grid; width: 5.1rem; height: 5.1rem; margin: 0 auto 1.1rem; place-items: center; border-radius: 999px; }
-.resultCard[data-kind='checked_in'] .resultSymbol, .resultCard[data-kind='checked_out'] .resultSymbol { background: #e7f5e4; color: var(--kiosk-success); box-shadow: 0 0 0 10px rgba(126, 191, 112, .11); }
+.resultCard[data-kind='checked_in'] { border-color: #bfddba; background: #fbfff9; box-shadow: 0 14px 32px rgba(74, 125, 63, .12); }
+.resultCard[data-kind='checked_out'] { border-color: #efc7aa; background: #fffaf5; box-shadow: 0 14px 32px rgba(178, 101, 45, .13); }
+.resultSymbol { position: relative; display: grid; width: 5.1rem; height: 5.1rem; margin: 0 auto 1.1rem; place-items: center; border-radius: 999px; }
+.resultCard[data-kind='checked_in'] .resultSymbol { background: #e7f5e4; color: var(--kiosk-success); box-shadow: 0 0 0 10px rgba(126, 191, 112, .11); }
+.resultCard[data-kind='checked_out'] .resultSymbol { background: #fff0e4; color: var(--kiosk-peach-deep); box-shadow: 0 0 0 10px rgba(222, 133, 72, .11); }
+.resultCheck { position: absolute; right: -.15rem; bottom: -.1rem; display: grid; width: 1.7rem; height: 1.7rem; place-items: center; border: 3px solid #fffdfa; border-radius: 999px; background: var(--kiosk-success); color: white; }
 .resultCard[data-kind='unknown'] .resultSymbol, .resultCard[data-kind='inactive'] .resultSymbol { background: #fff0ed; color: var(--kiosk-danger); }
 .resultCard[data-kind='offline'] .resultSymbol { background: #fff3e5; color: var(--kiosk-peach-deep); }
+.resultKicker { margin: 0 0 .4rem; font-size: .76rem; font-weight: 850; letter-spacing: .12em; text-transform: uppercase; }
+.resultCard[data-kind='checked_in'] .resultKicker { color: #4f8545; }
+.resultCard[data-kind='checked_out'] .resultKicker { color: var(--kiosk-peach-deep); }
 .resultCard h2 { font-size: clamp(1.7rem, 3.7vw, 2.35rem); line-height: 1.08; }
 .resultDetail { margin: .7rem 0 0; color: #605a57; font-size: 1.05rem; line-height: 1.5; }
 .resultDetail strong { color: var(--kiosk-peach-deep); }
+.resultCard[data-kind='checked_in'] .resultDetail strong { color: #4f8545; }
 .resultDivider { width: min(100%, 18rem); margin: 1.1rem auto; border: 0; border-top: 1px solid var(--kiosk-line); }
 .resultOccupancy { display: inline-flex; align-items: center; justify-content: center; gap: .5rem; color: var(--kiosk-success); font-weight: 800; }
+.resultCard[data-kind='checked_out'] .resultOccupancy { color: var(--kiosk-peach-deep); }
 .resultOccupancy span { color: #595350; font-weight: 600; }
-.resultReassurance { display: flex; align-items: center; justify-content: center; gap: .45rem; margin: 1rem 0 0; color: var(--kiosk-muted); font-size: .9rem; line-height: 1.45; }
+.resultReassurance { display: flex; align-items: center; justify-content: center; gap: .55rem; margin: 1rem 0 0; border-radius: .85rem; padding: .7rem .85rem; color: var(--kiosk-muted); font-size: .9rem; line-height: 1.45; }
+.resultCard[data-kind='checked_in'] .resultReassurance { background: #eff8ec; color: #46663f; }
+.resultCard[data-kind='checked_out'] .resultReassurance { background: #fff0e5; color: #865233; }
 .reconnect { display: inline-flex; align-items: center; gap: .55rem; margin-top: 1.1rem; color: var(--kiosk-peach-deep); font-weight: 750; }
 
 .searchPanel { width: min(100%, 39rem); margin: 0 auto; }

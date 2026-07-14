@@ -9,6 +9,8 @@ import {
   CircleAlert,
   Info,
   Loader2,
+  LogIn,
+  LogOut,
   QrCode,
   RefreshCw,
   Search,
@@ -591,7 +593,6 @@ export default function KioskPage() {
   if (kioskEnabled === false) return <KioskDisabledState />
 
   const hasCameraFailure = cameraState === "denied" || cameraState === "unavailable" || cameraState === "unsupported"
-  const isSuccess = result?.kind === "checked_in" || result?.kind === "checked_out"
   const resultTitle = result?.kind === "checked_in"
     ? "Checked in successfully"
     : result?.kind === "checked_out"
@@ -681,8 +682,17 @@ export default function KioskPage() {
               {result && (
                 <div className={styles.resultCard} data-kind={result.kind}>
                   <div className={styles.resultSymbol}>
-                    {isSuccess ? <Check size={45} strokeWidth={3} aria-hidden="true" /> : result.kind === "offline" ? <WifiOff size={39} aria-hidden="true" /> : <CircleAlert size={39} aria-hidden="true" />}
+                    {result.kind === "checked_in"
+                      ? <LogIn size={42} strokeWidth={2.5} aria-hidden="true" />
+                      : result.kind === "checked_out"
+                        ? <LogOut size={42} strokeWidth={2.5} aria-hidden="true" />
+                        : result.kind === "offline"
+                          ? <WifiOff size={39} aria-hidden="true" />
+                          : <CircleAlert size={39} aria-hidden="true" />}
+                    {(result.kind === "checked_in" || result.kind === "checked_out") && <span className={styles.resultCheck}><Check size={16} strokeWidth={3} aria-hidden="true" /></span>}
                   </div>
+                  {result.kind === "checked_in" && <p className={styles.resultKicker}>Welcome in</p>}
+                  {result.kind === "checked_out" && <p className={styles.resultKicker}>Visit complete</p>}
                   <h2>{resultTitle}</h2>
                   {result.kind === "checked_in" && <p className={styles.resultDetail}><strong>{result.memberName}</strong> checked in at <strong>{formatTime(result.time)}</strong>.</p>}
                   {result.kind === "checked_out" && <p className={styles.resultDetail}><strong>{result.memberName}</strong> checked out at <strong>{formatTime(result.time)}</strong>.</p>}
@@ -696,8 +706,8 @@ export default function KioskPage() {
                       <div className={styles.resultOccupancy}><Users size={22} aria-hidden="true" />{result.occupancy}<span>currently in the gym</span></div>
                     </>
                   )}
-                  {result.kind === "checked_in" && <p className={styles.resultReassurance}><Info size={16} aria-hidden="true" />Scan this QR code again to check out when you’re done.</p>}
-                  {result.kind === "checked_out" && <p className={styles.resultReassurance}><Info size={16} aria-hidden="true" />Thanks! Scan again next time to check in.</p>}
+                  {result.kind === "checked_in" && <p className={styles.resultReassurance}><LogOut size={17} aria-hidden="true" />Your visit is active. Scan this QR again when you’re ready to leave.</p>}
+                  {result.kind === "checked_out" && <p className={styles.resultReassurance}><LogIn size={17} aria-hidden="true" />You’re all set. Scan again next time to check in.</p>}
                   {result.kind === "inactive" && <p className={styles.resultReassurance}><ShieldCheck size={16} aria-hidden="true" />Manual search is available for staff verification.</p>}
                   {result.kind === "offline" && <p className={styles.reconnect}><RefreshCw size={17} className="animate-spin" aria-hidden="true" />Reconnecting…</p>}
                   {(result.kind === "unknown" || result.kind === "inactive" || result.kind === "error") && (
