@@ -2,9 +2,19 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-14 (**Account & Team Access Recovery, Perceived Performance & Navigation Continuity, and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
+Last updated: 2026-07-15 (**Member Experience Visual Reliability, Account & Team Access Recovery, Perceived Performance & Navigation Continuity, and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
 
 ---
+
+## Workstream (implemented in working tree 2026-07-15): Member Experience Visual Reliability
+
+| Unit | Scope | Status |
+|---|---|---|
+| V1 | Per-gym notification preference persistence and immediate shared-profile refresh after personal-info edits | Implemented (Codex, working tree, 2026-07-15) - notification writes match the `(member_id, gym_id)` database key and saved identity fields update every current consumer without a tab change |
+| V2 | Shared full-viewport overlays for settings, member notifications, and a pre-generated home check-in QR | Implemented (Codex, working tree, 2026-07-15) - dialogs portal above transformed route content and the mobile navigation; Check in opens the ready QR in place rather than redirecting to Profile |
+| V3 | Compact mobile home hero, reduced-size canonical logo/photo assets, and service-worker image-cache rollover | Implemented (Codex, working tree, 2026-07-15) - the narrow hero is 352 px high, logo/photo payloads are reduced from 536 KB/3.58 MB to 94 KB/607 KB, and cache v9 replaces stale or invalid image responses |
+
+Verification: `npm run lint`, `npm run typecheck`, production build, and **382/382** unit/integration tests pass. A local Chromium probe at 390 x 844 confirmed the 352 px hero, overlay layer 100 above mobile navigation layer 40, and HTTP 200 `image/png` responses for both direct and optimized logo requests.
 
 ## Workstream (implemented in working tree 2026-07-14): Account & Team Access Recovery
 
@@ -30,10 +40,10 @@ Spec: [ImplementationPlan-GoogleOAuth.md](ImplementationPlan-GoogleOAuth.md) - b
 | Unit | Scope | Status |
 |---|---|---|
 | K1 | Bright, responsive Stren kiosk surface using the official mark, real camera feed, Scan/Search tabs, occupancy-only utility row, phone-safe account QR, distinct success/failure/camera/offline states, focus/live regions, and reduced-motion crossfades | Implemented (Codex, working tree, 2026-07-14) - desktop through mobile CSS adapts the single central panel without exposing the public checked-in roster |
-| K2 | Correct QR check-in/check-out state machine, scan lock/rearm contract, retained camera stream, membership/offline handling, bounded processing state, restrained audio/haptic feedback, and safe manual lookup | Implemented (Codex, working tree, 2026-07-14) - the stale pinned-gym callback and repeat-scan checkout path are corrected; a result is visible immediately after confirmation and returns to the warm scanner in 1,300 ms; devices that reject rear-camera preference retry once with default camera constraints |
+| K2 | Correct QR check-in/check-out state machine, scan lock/rearm contract, retained camera stream, membership/offline handling, bounded processing state, restrained audio/haptic feedback, and safe manual lookup | Implemented (Codex, working tree, 2026-07-15) - the stale pinned-gym callback and repeat-scan checkout path are corrected; a result is visible immediately after confirmation and returns to the warm scanner in 1,300 ms; camera permission/device warm-up is restored for Windows driver compatibility, with a default-constraint retry when rear-camera preference is rejected |
 | K3 | Migration `023_kiosk_privacy_and_scan_integrity.sql`: count-only occupancy RPC, minimum-three-character name/email lookup with a reduced response, `members:manage` protection for manual toggle RPC use, and per-member/gym advisory-lock serialization | Implemented (Codex, working tree, 2026-07-14) - generated database function types and source-contract regressions are included; migration must be applied with the release |
 
-Verification: `npm run lint`, `npm run typecheck`, production build, and **372/372** unit/integration tests pass. The complete Playwright command reached its 120-second local shell ceiling after public checks began completing; the isolated Chromium auth check passes in 2.4 s but the local Playwright development-server process did not exit. There is no credentialed kiosk E2E fixture in this workspace; scanner/RPC/camera/offline/timing behavior is regression-covered in `kiosk-terminal.test.tsx`.
+Verification: `npm run lint`, `npm run typecheck`, production build, and **383/383** unit/integration tests pass. The complete Playwright command reached its 120-second local shell ceiling after public checks began completing; the isolated Chromium auth check passes in 2.4 s but the local Playwright development-server process did not exit. There is no credentialed kiosk E2E fixture in this workspace; scanner/RPC/camera/offline/timing behavior is regression-covered in `kiosk-terminal.test.tsx`.
 
 ## Workstream (completed in working tree 2026-07-14): Perceived Performance & Navigation Continuity
 

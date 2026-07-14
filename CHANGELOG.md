@@ -8,6 +8,25 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Member Experience Visual Reliability
+
+#### Added
+- The member-home Check in control now opens a pre-generated account QR in a full-viewport dialog, with Profile retained as a fallback only if QR generation fails.
+- Settings, member notifications, and the home QR use one accessible portaled overlay that supports Escape, backdrop dismissal, and body-scroll locking above the persistent mobile navigation.
+
+#### Changed
+- The member-home hero is shorter on phones, with tighter spacing that keeps the greeting, Check in control, and availability message visible without consuming most of the first screen.
+- The canonical logo and member-home photograph are dimensioned and compressed for their rendered sizes, reducing their payloads from roughly 536 KB and 3.58 MB to 94 KB and 607 KB. Service-worker cache version v9 retires older cached image responses.
+
+#### Fixed
+- Notification switches persist independently for the active member and gym by using the database's composite preference key; failed writes still restore the prior visible value.
+- Settings and notification dialogs no longer inherit a transformed route container, appear as a clipped dark rectangle, or sit underneath a highlighted mobile navigation item.
+- Saving a member's name or contact number refreshes the shared authenticated profile immediately, so headers and other views update without changing tabs.
+- A stale cached logo response with a non-image content type is discarded and replaced instead of being reused by Brave or another standards-strict browser.
+
+#### Verification
+- Lint, typecheck, production build, and **382** unit/integration tests pass. A local Chromium check at 390 x 844 confirms the compact hero, correct overlay layering, and successful direct and optimized PNG logo responses.
+
 ### Account & Team Access Recovery
 
 #### Added
@@ -31,7 +50,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Account connection now opens a QR code on the kiosk so a member can continue on their own phone rather than entering a password on the shared device.
 
 #### Fixed
-- Scanner callbacks now read the current pinned gym rather than the initial null state, and camera startup no longer opens and closes a separate preflight stream before the scanner starts.
+- Scanner callbacks now read the current pinned gym rather than the initial null state. Camera startup performs a short permission/device warm-up before handing the camera to the retained scanner, restoring compatibility with drivers that otherwise stall during the first video transition.
 - Camera startup now retries once without a rear-camera preference when a device rejects `facingMode`; permission-denied, insecure-context, and camera-busy failures remain explicit rather than being retried.
 - One continuously visible QR cannot immediately toggle a confirmed check-in back out: decoding locks through the result, then re-arms the same payload only after four empty camera frames. The camera stays warm during a 160 ms entrance, 1,000 ms readable hold, and 140 ms exit.
 - Confirmed occupancy updates only after the mutation succeeds; stale refresh responses cannot overwrite a newer confirmed count, and unavailable data is never displayed as zero.

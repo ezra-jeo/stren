@@ -13,6 +13,8 @@ const mocks = vi.hoisted(() => {
   });
   const scannerStop = vi.fn(async () => undefined);
   const scannerClear = vi.fn();
+  const cameraTrackStop = vi.fn();
+  const getUserMedia = vi.fn(async () => ({ getTracks: () => [{ stop: cameraTrackStop }] }));
   const rpc = vi.fn();
   const feedback = vi.fn();
 
@@ -27,6 +29,8 @@ const mocks = vi.hoisted(() => {
     scannerStart,
     scannerStop,
     scannerClear,
+    cameraTrackStop,
+    getUserMedia,
     rpc,
     feedback,
     emitScan: (value: string) => success?.(value),
@@ -61,12 +65,14 @@ describe('kiosk terminal', () => {
     mocks.scannerStart.mockClear();
     mocks.scannerStop.mockClear();
     mocks.scannerClear.mockClear();
+    mocks.cameraTrackStop.mockClear();
+    mocks.getUserMedia.mockClear();
     mocks.feedback.mockClear();
     mocks.resetCallbacks();
     mocks.nextCheckin = { data: { action: 'checked_in', attendance_id: 'attendance-1', member_name: 'Bon Aquino' }, error: null };
     configureRpc();
     Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true });
-    Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: vi.fn() }, configurable: true });
+    Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: mocks.getUserMedia }, configurable: true });
     Object.defineProperty(navigator, 'onLine', { value: true, configurable: true });
   });
 
@@ -167,6 +173,18 @@ describe('kiosk terminal', () => {
     expect(mocks.scannerStart.mock.calls[0]?.[0]).toEqual({ facingMode: { ideal: 'environment' } });
     expect(mocks.scannerStart.mock.calls[1]?.[0]).toEqual({});
     expect(screen.getByText('Camera ready')).toBeInTheDocument();
+  });
+
+  it('warms and releases the browser camera before starting the QR scanner', async () => {
+    mocks.scannerStart.mockImplementationOnce(async () => {
+      if (mocks.getUserMedia.mock.calls.length === 0) throw new Error('Camera initialization timed out.');
+      return null;
+    });
+    render(<KioskPage />);
+
+    expect(await screen.findByText('Camera ready')).toBeInTheDocument();
+    expect(mocks.getUserMedia).toHaveBeenCalledWith({ video: true, audio: false });
+    expect(mocks.cameraTrackStop).toHaveBeenCalledTimes(1);
   });
 
   it('explains when a camera is unavailable or already in use', async () => {
