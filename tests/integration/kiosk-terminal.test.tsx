@@ -170,7 +170,7 @@ describe('kiosk terminal', () => {
     render(<KioskPage />);
 
     await waitFor(() => expect(mocks.scannerStart).toHaveBeenCalledTimes(2));
-    expect(mocks.scannerStart.mock.calls[0]?.[0]).toEqual({ facingMode: { ideal: 'environment' } });
+    expect(mocks.scannerStart.mock.calls[0]?.[0]).toEqual({ facingMode: 'environment' });
     expect(mocks.scannerStart.mock.calls[1]?.[0]).toEqual({});
     expect(screen.getByText('Camera ready')).toBeInTheDocument();
   });
@@ -183,13 +183,24 @@ describe('kiosk terminal', () => {
     render(<KioskPage />);
 
     expect(await screen.findByText('Camera ready')).toBeInTheDocument();
-    expect(mocks.getUserMedia).toHaveBeenCalledWith({ video: true, audio: false });
+    expect(mocks.getUserMedia).toHaveBeenCalledWith({ video: { facingMode: 'environment' }, audio: false });
     expect(mocks.cameraTrackStop).toHaveBeenCalledTimes(1);
   });
 
-  it('uses the camera-compatible square stream ratio from the working kiosk', async () => {
-    mocks.scannerStart.mockImplementationOnce(async (_source, config) => {
-      if ((config as { aspectRatio?: number }).aspectRatio !== 1) {
+  it('falls back to any available camera when the warm-up cannot select a rear camera', async () => {
+    mocks.getUserMedia.mockRejectedValueOnce(new Error('OverconstrainedError: no rear camera'));
+    render(<KioskPage />);
+
+    expect(await screen.findByText('Camera ready')).toBeInTheDocument();
+    expect(mocks.getUserMedia.mock.calls[0]?.[0]).toEqual({ video: { facingMode: 'environment' }, audio: false });
+    expect(mocks.getUserMedia.mock.calls[1]?.[0]).toEqual({ video: true, audio: false });
+  });
+
+  it('uses the exact camera source and scan configuration from the working kiosk', async () => {
+    mocks.scannerStart.mockImplementationOnce(async (source, config) => {
+      const cameraConfig = config as { aspectRatio?: number; qrbox?: { width?: number; height?: number } };
+      const sourceConfig = source as { facingMode?: unknown };
+      if (sourceConfig.facingMode !== 'environment' || cameraConfig.aspectRatio !== 1 || cameraConfig.qrbox?.width !== 250) {
         throw new Error('Camera initialization timed out.');
       }
       return null;
@@ -197,7 +208,27 @@ describe('kiosk terminal', () => {
     render(<KioskPage />);
 
     expect(await screen.findByText('Camera ready')).toBeInTheDocument();
-    expect(mocks.scannerStart.mock.calls[0]?.[1]).toMatchObject({ aspectRatio: 1 });
+    expect(mocks.scannerStart.mock.calls[0]?.[0]).toEqual({ facingMode: 'environment' });
+    expect(mocks.scannerStart.mock.calls[0]?.[1]).toEqual({ fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1 });
+  });
+
+  it('shows a stable diagnostic code when camera startup times out', async () => {
+    mocks.scannerStart.mockRejectedValueOnce(new Error('Camera initialization timed out.'));
+    render(<KioskPage />);
+
+    expect(await screen.findByText('Diagnostic code: START_TIMEOUT')).toBeInTheDocument();
+  });
+
+  it('waits for the scanner host to remount before retrying the camera', async () => {
+    mocks.scannerStart.mockRejectedValueOnce(new Error('Camera initialization timed out.'));
+    render(<KioskPage />);
+    const retry = await screen.findByRole('button', { name: 'Retry camera' });
+
+    fireEvent.click(retry);
+
+    expect(await screen.findByText('Camera ready')).toBeInTheDocument();
+    expect(document.getElementById('kiosk-qr-reader')).not.toBeNull();
+    expect(mocks.scannerStart).toHaveBeenCalledTimes(2);
   });
 
   it('explains when a camera is unavailable or already in use', async () => {

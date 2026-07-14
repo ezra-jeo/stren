@@ -106,6 +106,7 @@
 .cameraFailureIcon { margin: 0 auto; color: var(--kiosk-danger); }
 .cameraFailure h2, .resultCard h2 { margin: 0; font-family: var(--font-heading); letter-spacing: -.045em; }
 .cameraFailure p { max-width: 29rem; margin: 0; color: var(--kiosk-muted); line-height: 1.55; }
+.cameraDiagnostic { color: #8c645b; font-size: .72rem; font-weight: 700; letter-spacing: .06em; }
 .inlineActions, .resultActions { display: flex; flex-wrap: wrap; justify-content: center; gap: .75rem; margin-top: .35rem; }
 .primaryAction, .secondaryAction { min-height: 2.8rem; border-radius: .8rem; padding: .55rem 1rem; font: inherit; font-weight: 750; cursor: pointer; }
 .primaryAction { border: 1px solid var(--kiosk-peach); background: var(--kiosk-peach); color: white; }
