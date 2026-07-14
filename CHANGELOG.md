@@ -8,6 +8,23 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Kiosk Redesign & Scanner Safety
+
+#### Added
+- A bright, responsive Stren Kiosk surface with the official Stren mark, a large retained live-camera viewport, QR Scan and Search modes, safe phone-based account connection, occupancy-only utility context, and clear touch/keyboard controls from desktop monitors through compact phones.
+- Distinct accessible in-panel states for processing, check-in and check-out success, unrecognized QR, inactive membership, offline recovery, camera permission denial, and unavailable/unsupported camera hardware. Reduced-motion users receive the same bounded sequence with opacity-only transitions.
+- Migration `023_kiosk_privacy_and_scan_integrity.sql`: count-only occupancy, a minimum-three-character name/email lookup returning only the required identity fields, manager-only manual attendance toggles, and a per-member/gym advisory lock around QR toggle transactions.
+- Regression coverage for the scanner callback, pinned gym, scan rearm, check-in/out, result timing, camera cleanup, offline/inactive states, private lookup, feedback, and database contracts.
+
+#### Changed
+- The public kiosk no longer retrieves or renders the detailed checked-in member list. Manual search masks email and directs any attendance action through an authorized manager/Admin confirmation.
+- Account connection now opens a QR code on the kiosk so a member can continue on their own phone rather than entering a password on the shared device.
+
+#### Fixed
+- Scanner callbacks now read the current pinned gym rather than the initial null state, and camera startup no longer opens and closes a separate preflight stream before the scanner starts.
+- One continuously visible QR cannot immediately toggle a confirmed check-in back out: decoding locks through the result, then re-arms the same payload only after four empty camera frames. The camera stays warm during a 160 ms entrance, 1,000 ms readable hold, and 140 ms exit.
+- Confirmed occupancy updates only after the mutation succeeds; stale refresh responses cannot overwrite a newer confirmed count, and unavailable data is never displayed as zero.
+
 ### Perceived Performance & Navigation Continuity
 
 #### Added
@@ -22,6 +39,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Service-worker cache version advanced to v7; the auth route is no longer included in the static app shell and remains network-only.
 
 #### Fixed
+- The animated loader and member shell now request the canonical PNG logo rather than PNG bytes mislabeled as SVG, which some browsers correctly reject.
+- The service worker no longer caches or replays CSS/JavaScript across deployments; a new cache version clears poisoned entries, media cache entries require their expected MIME type, and `sw.js` is always revalidated on Netlify.
 - Sign-out and actual gym switches now use the complete animated Stren lockup while private content remains masked; switching between Admin and Member views at the same gym navigates directly instead of showing a blank privacy screen.
 - The member sidebar account pill now opens the member profile, and the auth card's panel wordmark is the single clickable route back to landing (the out-of-place top-left duplicate has been removed).
 - A late initial `getUser`, same-scope request, profile/gym fetch, members/payment response, or notification refresh can no longer resurrect an old account or reveal data from a previous gym.

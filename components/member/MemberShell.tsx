@@ -52,7 +52,7 @@ export function MemberShell({ children, hasServerUser, features }: MemberShellPr
   return (
     <div className="member-app-shell">
       <aside className="member-sidebar" aria-label="Member navigation">
-        <Image src="/stren-logo.svg" alt="Stren" width={102} height={35} priority className="h-auto w-25" />
+        <Image src="/stren-logo.png" alt="Stren" width={102} height={35} priority className="h-auto w-25" />
         <div className="mt-10">
           <p className="member-eyebrow">Current gym</p>
           <div className="mt-2"><GymSwitcher variant="member" /></div>
@@ -68,7 +68,7 @@ export function MemberShell({ children, hasServerUser, features }: MemberShellPr
 
       <div className="min-w-0">
         <header className="member-mobile-header">
-          <Image src="/stren-logo.svg" alt="Stren" width={106} height={36} priority className="h-auto w-26" />
+          <Image src="/stren-logo.png" alt="Stren" width={106} height={36} priority className="h-auto w-26" />
           <MemberNotificationsPanel />
           <div className="col-span-2 mt-3"><GymSwitcher variant="member" /></div>
         </header>

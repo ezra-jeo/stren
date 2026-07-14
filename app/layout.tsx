@@ -23,10 +23,6 @@ export const metadata: Metadata = {
         url: '/stren-logo.png',
         media: '(prefers-color-scheme: dark)',
       },
-      {
-        url: '/stren-logo.png',
-        type: 'image/svg+xml',
-      },
     ],
     apple: '/stren-logo.png',
   },
