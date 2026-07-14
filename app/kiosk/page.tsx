@@ -107,12 +107,29 @@ function canRetryWithDefaultCamera(error: unknown): boolean {
   return !/notallowed|permission|securityerror|notreadable|busy|in use|timeout|timed out/i.test(errorMessage(error))
 }
 
+function cameraDiagnosticFor(error: unknown): string {
+  const message = errorMessage(error).toLowerCase()
+  if (/timeout|timed out/.test(message)) return "START_TIMEOUT"
+  if (/notallowed|permission|securityerror/.test(message)) return "PERMISSION_DENIED"
+  if (/notreadable|busy|in use|could not start video/.test(message)) return "DEVICE_BUSY"
+  if (/notfound|no camera|device not found/.test(message)) return "NO_CAMERA"
+  if (/overconstrained|constraint/.test(message)) return "CONSTRAINT_REJECTED"
+  if (/element.*not found|html element/.test(message)) return "SCANNER_HOST_MISSING"
+  return "START_FAILED"
+}
+
 async function warmCameraForScanner(): Promise<void> {
   let stream: MediaStream | null = null
   try {
-    // Some Windows camera drivers do not complete html5-qrcode's first video
-    // transition unless permission and the physical device are activated once.
-    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: false,
+      })
+    } catch (preferredCameraError) {
+      if (!canRetryWithDefaultCamera(preferredCameraError)) throw preferredCameraError
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+    }
   } finally {
     stream?.getTracks().forEach((track) => track.stop())
   }
@@ -156,6 +173,7 @@ export default function KioskPage() {
   const [kioskEnabled, setKioskEnabled] = useState<boolean | null>(null)
   const [mode, setMode] = useState<KioskMode>("qr")
   const [cameraState, setCameraState] = useState<CameraState>("starting")
+  const [cameraDiagnostic, setCameraDiagnostic] = useState<string | null>(null)
   const [networkOnline, setNetworkOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false)
   const [presentation, setPresentation] = useState<Presentation>("idle")
   const [result, setResult] = useState<KioskResult | null>(null)
@@ -287,11 +305,13 @@ export default function KioskPage() {
     ) return
 
     if (typeof window === "undefined" || !window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      setCameraDiagnostic(typeof window !== "undefined" && !window.isSecureContext ? "INSECURE_CONTEXT" : "MEDIA_API_UNAVAILABLE")
       setCameraState("unsupported")
       return
     }
 
     isStartingScannerRef.current = true
+    setCameraDiagnostic(null)
     setCameraState("starting")
     try {
       await warmCameraForScanner()
@@ -300,7 +320,7 @@ export default function KioskPage() {
         await withTimeout(
           scanner.start(
             constraints,
-            { fps: 10, qrbox: { width: 300, height: 300 }, aspectRatio: 1 },
+            { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1 },
             (decodedText) => {
               const current = runtimeRef.current
               if (!current.enabled || !current.online || current.mode !== "qr" || current.presentation !== "idle") return
@@ -321,7 +341,7 @@ export default function KioskPage() {
       let scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false })
       scannerRef.current = scanner
       try {
-        await startCamera(scanner, { facingMode: { ideal: "environment" } })
+        await startCamera(scanner, { facingMode: "environment" })
       } catch (preferredCameraError) {
         if (!canRetryWithDefaultCamera(preferredCameraError)) throw preferredCameraError
 
@@ -331,9 +351,11 @@ export default function KioskPage() {
         await startCamera(scanner, {})
       }
       isScannerActiveRef.current = true
+      setCameraDiagnostic(null)
       setCameraState("ready")
     } catch (error) {
       await stopScanner()
+      setCameraDiagnostic(cameraDiagnosticFor(error))
       setCameraState(cameraFailureFor(error))
     } finally {
       isStartingScannerRef.current = false
@@ -561,8 +583,9 @@ export default function KioskPage() {
   }
   const retryScanner = () => {
     userActivatedRef.current = true
+    setCameraDiagnostic(null)
     setCameraState("starting")
-    void startScanner()
+    window.setTimeout(() => { void startScanner() }, 0)
   }
 
   if (kioskEnabled === false) return <KioskDisabledState />
@@ -625,6 +648,7 @@ export default function KioskPage() {
                   <Camera className={styles.cameraFailureIcon} size={36} aria-hidden="true" />
                   <h2>{cameraState === "denied" ? "Camera permission needed" : "Camera unavailable"}</h2>
                   <p>{cameraFailureCopy(cameraState)}</p>
+                  {cameraDiagnostic && <small className={styles.cameraDiagnostic}>Diagnostic code: {cameraDiagnostic}</small>}
                   <div className={styles.inlineActions}>
                     <button type="button" className={styles.primaryAction} onClick={retryScanner}>Retry camera</button>
                     <button type="button" className={styles.secondaryAction} onClick={openSearch}>Open Search</button>
