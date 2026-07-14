@@ -94,8 +94,17 @@ function isOfflineError(error: unknown): boolean {
 function cameraFailureFor(error: unknown): CameraState {
   const message = errorMessage(error).toLowerCase()
   if (/notallowed|permission|securityerror/.test(message)) return "denied"
-  if (/notfound|no camera|device|notreadable|could not start video/.test(message)) return "unavailable"
+  if (/notfound|no camera|device|notreadable|could not start video|overconstrained|constraint/.test(message)) return "unavailable"
   return "unsupported"
+}
+
+/**
+ * Prefer a rear camera when the device exposes one, but do not turn that
+ * preference into a hard kiosk failure. Some desktop webcams and embedded
+ * camera drivers reject facingMode constraints even when a camera is usable.
+ */
+function canRetryWithDefaultCamera(error: unknown): boolean {
+  return !/notallowed|permission|securityerror|notreadable|busy|in use|timeout|timed out/i.test(errorMessage(error))
 }
 
 function cameraFailureCopy(state: CameraState): string {
@@ -275,23 +284,40 @@ export default function KioskPage() {
     setCameraState("starting")
     try {
       const { Html5Qrcode } = await import("html5-qrcode")
-      const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false })
+      const startCamera = async (scanner: Html5QrcodeType, constraints: MediaTrackConstraints) => {
+        await withTimeout(
+          scanner.start(
+            constraints,
+            { fps: 10, qrbox: { width: 300, height: 300 }, aspectRatio: 1.25 },
+            (decodedText) => {
+              const current = runtimeRef.current
+              if (!current.enabled || !current.online || current.mode !== "qr" || current.presentation !== "idle") return
+              if (!scanGateRef.current.tryLock(decodedText)) return
+              void processScanRef.current(decodedText)
+            },
+            () => scanGateRef.current.recordEmptyFrame(),
+          ),
+          SCANNER_START_TIMEOUT_MS,
+          "Camera initialization timed out.",
+        )
+      }
+      const disposeScanner = async (scanner: Html5QrcodeType) => {
+        try { await scanner.stop() } catch { /* The request may have failed before a stream was attached. */ }
+        try { scanner.clear() } catch { /* The scanner host can already be detached. */ }
+      }
+
+      let scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false })
       scannerRef.current = scanner
-      await withTimeout(
-        scanner.start(
-          { facingMode: { ideal: "environment" } },
-          { fps: 10, qrbox: { width: 300, height: 300 }, aspectRatio: 1.25 },
-          (decodedText) => {
-            const current = runtimeRef.current
-            if (!current.enabled || !current.online || current.mode !== "qr" || current.presentation !== "idle") return
-            if (!scanGateRef.current.tryLock(decodedText)) return
-            void processScanRef.current(decodedText)
-          },
-          () => scanGateRef.current.recordEmptyFrame(),
-        ),
-        SCANNER_START_TIMEOUT_MS,
-        "Camera initialization timed out.",
-      )
+      try {
+        await startCamera(scanner, { facingMode: { ideal: "environment" } })
+      } catch (preferredCameraError) {
+        if (!canRetryWithDefaultCamera(preferredCameraError)) throw preferredCameraError
+
+        await disposeScanner(scanner)
+        scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false })
+        scannerRef.current = scanner
+        await startCamera(scanner, {})
+      }
       isScannerActiveRef.current = true
       setCameraState("ready")
     } catch (error) {
