@@ -22,6 +22,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 #### Fixed
 - Scanner callbacks now read the current pinned gym rather than the initial null state, and camera startup no longer opens and closes a separate preflight stream before the scanner starts.
+- Camera startup now retries once without a rear-camera preference when a device rejects `facingMode`; permission-denied, insecure-context, and camera-busy failures remain explicit rather than being retried.
 - One continuously visible QR cannot immediately toggle a confirmed check-in back out: decoding locks through the result, then re-arms the same payload only after four empty camera frames. The camera stays warm during a 160 ms entrance, 1,000 ms readable hold, and 140 ms exit.
 - Confirmed occupancy updates only after the mutation succeeds; stale refresh responses cannot overwrite a newer confirmed count, and unavailable data is never displayed as zero.
 

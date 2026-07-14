@@ -156,6 +156,17 @@ describe('kiosk terminal', () => {
     expect(await screen.findByRole('heading', { name: 'Camera permission needed' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Retry camera' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Open Search' })).toBeInTheDocument();
+    expect(mocks.scannerStart).toHaveBeenCalledTimes(1);
+  });
+
+  it('retries with default camera constraints when the preferred rear-camera constraint is rejected', async () => {
+    mocks.scannerStart.mockRejectedValueOnce(new Error('OverconstrainedError: facingMode is unavailable'));
+    render(<KioskPage />);
+
+    await waitFor(() => expect(mocks.scannerStart).toHaveBeenCalledTimes(2));
+    expect(mocks.scannerStart.mock.calls[0]?.[0]).toEqual({ facingMode: { ideal: 'environment' } });
+    expect(mocks.scannerStart.mock.calls[1]?.[0]).toEqual({});
+    expect(screen.getByText('Camera ready')).toBeInTheDocument();
   });
 
   it('explains when a camera is unavailable or already in use', async () => {
@@ -164,6 +175,7 @@ describe('kiosk terminal', () => {
 
     expect(await screen.findByRole('heading', { name: 'Camera unavailable' })).toBeInTheDocument();
     expect(screen.getByText(/another tab or app may already be using it/i)).toBeInTheDocument();
+    expect(mocks.scannerStart).toHaveBeenCalledTimes(1);
   });
 
   it('debounces a name or email lookup and masks the returned email address', async () => {
