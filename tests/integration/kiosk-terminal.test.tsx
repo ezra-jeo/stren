@@ -187,6 +187,19 @@ describe('kiosk terminal', () => {
     expect(mocks.cameraTrackStop).toHaveBeenCalledTimes(1);
   });
 
+  it('uses the camera-compatible square stream ratio from the working kiosk', async () => {
+    mocks.scannerStart.mockImplementationOnce(async (_source, config) => {
+      if ((config as { aspectRatio?: number }).aspectRatio !== 1) {
+        throw new Error('Camera initialization timed out.');
+      }
+      return null;
+    });
+    render(<KioskPage />);
+
+    expect(await screen.findByText('Camera ready')).toBeInTheDocument();
+    expect(mocks.scannerStart.mock.calls[0]?.[1]).toMatchObject({ aspectRatio: 1 });
+  });
+
   it('explains when a camera is unavailable or already in use', async () => {
     mocks.scannerStart.mockRejectedValueOnce(new Error('NotReadableError: camera device is busy'));
     render(<KioskPage />);
