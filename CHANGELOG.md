@@ -8,6 +8,21 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Google OAuth
+
+#### Added
+- Working Google sign-in on both sides of the shared `/auth` surface. Browser OAuth uses the existing PKCE callback and normal account/gym resolver, preserving a legacy gym entry code without granting access from it.
+- Local Supabase Google-provider configuration placeholders and a deployment contract that refuses a release when hosted Google OAuth is disabled.
+
+#### Fixed
+- Google authorization cancellation and provider-start failures now return to a calm, interactive auth state without exposing provider details.
+
+#### Configuration verified
+- Hosted Supabase Auth now has Google OAuth enabled. The deployment contract passes and its authorization endpoint redirects to Google without exposing provider credentials.
+
+#### Deployment required
+- The feature branch must be deployed before a real Google browser session can exercise the new client handler; the current hosted app still has the prior preview control.
+
 ### Member Area Redesign
 
 #### Added

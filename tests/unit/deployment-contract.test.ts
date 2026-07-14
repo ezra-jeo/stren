@@ -31,11 +31,30 @@ describe("deployment contract", () => {
     });
   });
 
+  it("rejects a deployment with Google OAuth disabled", async () => {
+    const fetch = vi.fn(async () =>
+      jsonResponse({ mailer_autoconfirm: false, external: { google: false } }),
+    );
+
+    const result = await verifyDeploymentContract({
+      supabaseUrl: "https://project.supabase.co",
+      anonKey: "public-anon-key",
+      email: "deployment-check@example.com",
+      password: "not-a-real-password",
+      fetch,
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      issues: ["Google OAuth is not enabled in Supabase Auth."],
+    });
+  });
+
   it("rejects a deployment without the unified-account gym-list RPC", async () => {
     const fetch = vi.fn(async (input: string | URL | Request) => {
       const url = input.toString();
       if (url.endsWith("/auth/v1/settings")) {
-        return jsonResponse({ mailer_autoconfirm: false });
+        return jsonResponse({ mailer_autoconfirm: false, external: { google: true } });
       }
       if (url.includes("/auth/v1/token?grant_type=password")) {
         return jsonResponse({ access_token: "short-lived-access-token" });
@@ -71,7 +90,7 @@ describe("deployment contract", () => {
     const fetch = vi.fn(async (input: string | URL | Request) => {
       const url = input.toString();
       if (url.endsWith("/auth/v1/settings")) {
-        return jsonResponse({ mailer_autoconfirm: false });
+        return jsonResponse({ mailer_autoconfirm: false, external: { google: true } });
       }
       if (url.includes("/auth/v1/token?grant_type=password")) {
         return jsonResponse({ access_token: "short-lived-access-token" });
@@ -103,7 +122,7 @@ describe("deployment contract", () => {
     const fetch = vi.fn(async (input: string | URL | Request) => {
       const url = input.toString();
       if (url.endsWith("/auth/v1/settings")) {
-        return jsonResponse({ mailer_autoconfirm: false });
+        return jsonResponse({ mailer_autoconfirm: false, external: { google: true } });
       }
       if (url.includes("/auth/v1/token?grant_type=password")) {
         return jsonResponse({ access_token: "short-lived-access-token" });
@@ -144,7 +163,7 @@ describe("deployment contract", () => {
     const fetch = vi.fn(async (input: string | URL | Request) => {
       const url = input.toString();
       if (url.endsWith("/auth/v1/settings")) {
-        return jsonResponse({ mailer_autoconfirm: false });
+        return jsonResponse({ mailer_autoconfirm: false, external: { google: true } });
       }
       if (url.includes("/auth/v1/token?grant_type=password")) {
         return jsonResponse({ access_token: "short-lived-access-token" });
@@ -184,7 +203,7 @@ describe("deployment contract", () => {
     const fetch = vi.fn(async (input: string | URL | Request) => {
       const url = input.toString();
       if (url.endsWith("/auth/v1/settings")) {
-        return jsonResponse({ mailer_autoconfirm: false });
+        return jsonResponse({ mailer_autoconfirm: false, external: { google: true } });
       }
       if (url.endsWith("/rest/v1/rpc/get_my_gyms")) {
         return jsonResponse([]);
@@ -222,7 +241,7 @@ describe("deployment contract", () => {
     const fetch = vi.fn(async (input: string | URL | Request) => {
       const url = input.toString();
       if (url.endsWith("/auth/v1/settings")) {
-        return jsonResponse({ mailer_autoconfirm: false });
+        return jsonResponse({ mailer_autoconfirm: false, external: { google: true } });
       }
       if (url.endsWith("/rest/v1/rpc/get_my_gyms")) {
         return jsonResponse([]);

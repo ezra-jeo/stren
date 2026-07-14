@@ -53,7 +53,7 @@ if (missing.length > 0) {
       process.exitCode = 1;
     } else {
       console.log(
-        "Deployment contract verified: email confirmation and migrations 019/021 are live.",
+        "Deployment contract verified: email confirmation, Google OAuth, and migrations 019/021 are live.",
       );
     }
   } catch {
