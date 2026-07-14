@@ -8,6 +8,16 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Account & Team Access Recovery
+
+#### Added
+- Owners can add an existing Stren account to the active gym as staff or admin, create a new staff-side account with a one-time setup link, adjust the existing plain-language access switches for either role, and remove a non-owner teammate without deleting their global account.
+
+#### Fixed
+- People & access now reads the unified `gym_users` relationship instead of deleted profile tenancy columns, so existing admins and staff appear for their owner.
+- Member onboarding uses an exact normalized email lookup and recovers an older Auth account that lacks a profile row, attaching it to the gym instead of returning a duplicate-email error.
+- Saved-gym and membership-verification actions retry through the confirmed browser session when the public-page server action has not yet received its matching session cookie; access remains enforced by the existing database RPCs.
+
 ### Kiosk Redesign & Scanner Safety
 
 #### Added

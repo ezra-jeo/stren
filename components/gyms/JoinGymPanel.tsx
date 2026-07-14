@@ -198,10 +198,22 @@ export function JoinGymPanel({
     setError(null);
     setStatusMessage(null);
     try {
-      const result = await verifyMembershipAction(candidate.id);
+      let result: { status: string; role: string; matched: boolean };
+      try {
+        result = await verifyMembershipAction(candidate.id);
+      } catch {
+        const { data, error } = await supabase.rpc('verify_gym_membership', { p_gym_id: candidate.id });
+        if (error || !data) throw error ?? new Error('Membership verification did not return a result.');
+        result = data as { status: string; role: string; matched: boolean };
+      }
       onJoined();
       if (result.status === 'active') {
-        await setActiveGymAction(candidate.id);
+        try {
+          await setActiveGymAction(candidate.id);
+        } catch {
+          const { error } = await supabase.rpc('set_active_gym', { p_gym_id: candidate.id });
+          if (error) throw error;
+        }
         router.push(result.role === 'member' ? '/member' : '/admin');
         router.refresh();
         return;
@@ -221,7 +233,12 @@ export function JoinGymPanel({
     setSavingId(candidate.id);
     setError(null);
     try {
-      await saveGymAction(candidate.id, shouldSave);
+      try {
+        await saveGymAction(candidate.id, shouldSave);
+      } catch {
+        const { error } = await supabase.rpc(shouldSave ? 'save_gym' : 'unsave_gym', { p_gym_id: candidate.id });
+        if (error) throw error;
+      }
       setSavedIds((current) => {
         const next = new Set(current);
         shouldSave ? next.add(candidate.id) : next.delete(candidate.id);

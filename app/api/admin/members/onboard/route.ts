@@ -10,6 +10,16 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 const schema = z.object({ name:z.string().trim().min(2).max(100), email:z.string().trim().toLowerCase().email(), avatarUrl:z.string().url(), planId:z.string().uuid(), paymentMethod:z.enum(['cash','gcash']), amountPaid:z.number().nonnegative().optional(), startDate:z.string().date().optional() });
 function endDate(start:string,days:number){const date=new Date(`${start}T00:00:00Z`);date.setUTCDate(date.getUTCDate()+days);return date.toISOString().slice(0,10)}
 function siteUrl(request:Request){return (process.env.NEXT_PUBLIC_SITE_URL?.trim()||process.env.NEXT_PUBLIC_APP_URL?.trim()||new URL(request.url).origin).replace(/\/$/,'')}
+async function findAuthUserIdByEmail(admin:ReturnType<typeof createAdminClient>,email:string){
+  for(let page=1;page<=20;page+=1){
+    const {data,error}=await admin.auth.admin.listUsers({page,perPage:1000});
+    if(error)return null;
+    const match=data.users.find((candidate)=>candidate.email?.toLowerCase()===email);
+    if(match)return match.id;
+    if(data.users.length<1000)return null;
+  }
+  return null;
+}
 
 export async function POST(request:Request){
   const supabase=await createServerSupabaseClient(); const {data:{user}}=await supabase.auth.getUser();
@@ -22,12 +32,17 @@ export async function POST(request:Request){
   const [{data:plan},{data:gym}]=await Promise.all([supabase.from('membership_plans').select('id,duration_days,price,is_active').eq('id',body.planId).eq('gym_id',access.gymId).maybeSingle(),supabase.from('gyms').select('name').eq('id',access.gymId).maybeSingle()]);
   if(!plan?.is_active)return NextResponse.json({error:'Membership plan is invalid or inactive.'},{status:400});
 
-  const escapedEmail=body.email.replace(/[\\%_]/g,(char)=>`\\${char}`);
-  const {data:existingProfile}=await admin.from('profiles').select('id,name,qr_code').ilike('email',escapedEmail).maybeSingle();
-  let memberId=existingProfile?.id??null; let magicLink:string|null=null;
-  if(!existingProfile){
+  const {data:existingProfile}=await admin.from('profiles').select('id,name,qr_code').eq('email',body.email).maybeSingle();
+  let memberId=existingProfile?.id??null; let magicLink:string|null=null; let createdAccount=false;
+  if(!memberId){
     const {data:created,error}=await admin.auth.admin.createUser({email:body.email,email_confirm:true,user_metadata:{name:body.name}});
-    if(error||!created.user)return NextResponse.json({error:error?.message??'Failed to create account.'},{status:400}); memberId=created.user.id;
+    if(created.user){memberId=created.user.id;createdAccount=true;}
+    else if(error){
+      // A historical Auth account can exist without a profile row. Attach it
+      // instead of returning Supabase's duplicate-email error to staff.
+      memberId=await findAuthUserIdByEmail(admin,body.email);
+      if(!memberId)return NextResponse.json({error:'Could not resolve that existing account. Ask the member to sign in once, then try again.'},{status:400});
+    }
   }
   if(!memberId)return NextResponse.json({error:'Failed to resolve account.'},{status:400});
   const qrCode=existingProfile?.qr_code||crypto.randomUUID();
@@ -37,8 +52,8 @@ export async function POST(request:Request){
   const start=body.startDate??new Date().toISOString().slice(0,10); await admin.from('memberships').update({status:'expired'}).eq('member_id',memberId).eq('gym_id',access.gymId).eq('status','active');
   const {data:membership,error:membershipError}=await admin.from('memberships').insert({member_id:memberId,plan_id:plan.id,gym_id:access.gymId,start_date:start,end_date:endDate(start,plan.duration_days),status:'active',payment_method:body.paymentMethod,amount_paid:body.amountPaid??plan.price,created_by:user.id}).select('id').maybeSingle(); if(membershipError||!membership)return NextResponse.json({error:membershipError?.message??'Failed to create membership.'},{status:400});
 
-  if(!existingProfile){const {data:link}=await admin.auth.admin.generateLink({type:'magiclink',email:body.email,options:{redirectTo:`${siteUrl(request)}/auth/callback`}});magicLink=link.properties?.action_link??null}
+  if(createdAccount){const {data:link}=await admin.auth.admin.generateLink({type:'magiclink',email:body.email,options:{redirectTo:`${siteUrl(request)}/auth/callback`}});magicLink=link.properties?.action_link??null}
   const emailResult=await sendOnboardingEmail({to:body.email,memberName:body.name,gymName:gym?.name??'Your Gym',qrPayload:qrCode,magicLink:magicLink??`${siteUrl(request)}/auth?mode=signin`});
   await admin.from('member_onboarding_events').insert({member_id:memberId,gym_id:access.gymId,created_by:user.id,email:body.email,magic_link_url:magicLink,qr_code:qrCode,sent_via:emailResult.ok?'email':'preview'});
-  return NextResponse.json({memberId,membershipId:membership.id,qrCode,magicLink,redirectTo:`${siteUrl(request)}/auth/callback`,emailSent:emailResult.ok,attachedExistingAccount:!!existingProfile},{status:emailResult.ok?200:207});
+  return NextResponse.json({memberId,membershipId:membership.id,qrCode,magicLink,redirectTo:`${siteUrl(request)}/auth/callback`,emailSent:emailResult.ok,attachedExistingAccount:!createdAccount},{status:emailResult.ok?200:207});
 }

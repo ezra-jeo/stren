@@ -2,9 +2,18 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-14 (**Auth Session & Account Access Recovery remains implemented and verified against the linked hosted project; Perceived Performance & Navigation Continuity and the Kiosk Redesign & Scanner Safety work are complete and verified in the unshipped working tree.**)
+Last updated: 2026-07-14 (**Account & Team Access Recovery, Perceived Performance & Navigation Continuity, and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
 
 ---
+
+## Workstream (implemented in working tree 2026-07-14): Account & Team Access Recovery
+
+| Unit | Scope | Status |
+|---|---|---|
+| AT1 | Browser-session fallback for saved-gym and membership-verification mutations on public gym pages and the Gym hub | Implemented (Codex, working tree, 2026-07-14) - database-enforced browser RPCs recover when a freshly confirmed browser session has not yet reached a server action cookie |
+| AT2 | Existing-account member onboarding plus owner-managed staff/admin listing, attachment, new-account setup link, access switches, and removal | Implemented (Codex, working tree, 2026-07-14) - the team list now reads `gym_users`; exact profile email lookup and missing-profile Auth recovery prevent duplicate-account failure; only an owner may manage non-owner team access |
+
+Verification: linked Supabase migrations 001–021 are confirmed applied; `npm run typecheck`, `npm run lint`, the production build, and focused account/access regressions pass (**14 tests**, including member verification, existing-account onboarding, team endpoint, team UI, and public profile actions). The complete coverage run did not finish before the local 60-second command ceiling; it showed no test failure before timeout.
 
 ## Workstream (in progress 2026-07-14): Google OAuth
 
