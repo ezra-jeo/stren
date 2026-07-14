@@ -6,6 +6,16 @@ Last updated: 2026-07-13 (**Auth Session & Account Access Recovery is implemente
 
 ---
 
+## Workstream (in progress 2026-07-14): Google OAuth
+
+Spec: [ImplementationPlan-GoogleOAuth.md](ImplementationPlan-GoogleOAuth.md) - branch `codex/auth-google-oauth`.
+
+| Unit | Scope | Status |
+|---|---|---|
+| G1 | Working Google sign-in controls, PKCE callback, gym-context preservation, bounded launch/callback recovery | Implemented (Codex, working tree, 2026-07-14) - focused component/callback regressions green |
+| G2 | Local Supabase provider configuration, hosted deployment contract, and environment handoff | Implemented (Codex, 2026-07-14) - hosted Google Auth is enabled, deployment preflight passes, and the authorization endpoint redirects to Google without exposing credentials |
+| G3 | Hosted Google provider enablement and real-browser verification | In progress (Codex, 2026-07-14) - the feature branch must be deployed before a real browser exchange can reach the new `/auth` client handler; hosted app currently serves the prior preview UI |
+
 ## Platform remediation phases
 
 | Phase | Status |

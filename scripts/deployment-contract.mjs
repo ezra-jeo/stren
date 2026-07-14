@@ -44,6 +44,13 @@ export async function verifyDeploymentContract({
     };
   }
 
+  if (settings.external?.google !== true) {
+    return {
+      ok: false,
+      issues: ["Google OAuth is not enabled in Supabase Auth."],
+    };
+  }
+
   let accessToken = secretKey;
   let restApiKey = secretKey;
   if (!secretKey) {

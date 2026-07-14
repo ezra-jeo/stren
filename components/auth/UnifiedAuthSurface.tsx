@@ -9,30 +9,35 @@ import { useAuth } from '@/lib/auth-context';
 import { resolvePostAuthDestination, signUpAccount } from '@/lib/auth-actions';
 import { readableAuthError } from '@/lib/auth-error-copy';
 import { withTimeout } from '@/lib/async-guard';
+import { createClient } from '@/lib/supabase';
 import styles from './unified-auth.module.css';
 
 type AuthMode = 'signin' | 'signup';
+type Submission = AuthMode | 'google';
 
-function GooglePreviewButton({
+function GoogleButton({
   id,
   disabled,
-  notice,
-  onPreview,
+  submitting,
+  error,
+  onGoogleSignIn,
 }: {
   id: string;
   disabled: boolean;
-  notice: string | null;
-  onPreview: () => void;
+  submitting: boolean;
+  error: string | null;
+  onGoogleSignIn: () => void;
 }) {
   return (
     <div className={styles.googleGroup}>
       <button
         type="button"
         className={styles.googleButton}
-        aria-label="Continue with Google (coming soon)"
-        aria-describedby={notice ? id : undefined}
+        aria-label="Continue with Google"
+        aria-describedby={error ? id : undefined}
+        aria-busy={submitting}
         disabled={disabled}
-        onClick={onPreview}
+        onClick={onGoogleSignIn}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
           <path fill="#4285F4" d="M22.6 12.2c0-.7-.1-1.4-.2-2.1H12v4h6a5.1 5.1 0 0 1-2.2 3.3v2.7h3.6c2.1-2 3.2-4.8 3.2-7.9Z" />
@@ -40,10 +45,9 @@ function GooglePreviewButton({
           <path fill="#FBBC05" d="M5.7 13.9a6.7 6.7 0 0 1 0-4.3V6.8H2A11 11 0 0 0 2 16.7l3.7-2.8Z" />
           <path fill="#EA4335" d="M12 5c1.7 0 3.2.6 4.4 1.7l3.2-3.1A10.7 10.7 0 0 0 2 6.8l3.7 2.8C6.6 7 9.1 5 12 5Z" />
         </svg>
-        <span>Continue with Google</span>
-        <span className={styles.comingSoon}>Coming soon</span>
+        <span>{submitting ? 'Connecting to Google...' : 'Continue with Google'}</span>
       </button>
-      {notice && <p id={id} role="status" className={styles.googleNotice}>{notice}</p>}
+      {error && <p id={id} role="alert" className={styles.googleError}>{error}</p>}
       <div className={styles.emailDivider}><span>or continue with email</span></div>
     </div>
   );
@@ -114,11 +118,11 @@ export function UnifiedAuthSurface() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [signInError, setSignInError] = useState<string | null>(() => readableAuthError(searchParams.get('error')));
   const [signUpError, setSignUpError] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState<AuthMode | null>(null);
+  const [submitting, setSubmitting] = useState<Submission | null>(null);
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState(false);
   const [postAuthError, setPostAuthError] = useState<string | null>(null);
-  const [googleNotice, setGoogleNotice] = useState<string | null>(null);
+  const [googleError, setGoogleError] = useState<string | null>(null);
   const signInEmailRef = useRef<HTMLInputElement>(null);
   const fullNameRef = useRef<HTMLInputElement>(null);
   const signInErrorRef = useRef<HTMLDivElement>(null);
@@ -174,6 +178,7 @@ export function UnifiedAuthSurface() {
     event.preventDefault();
     if (submitting) return;
     setSignInError(null);
+    setGoogleError(null);
     setSubmitting('signin');
     let result: { error: string | null; email?: string };
     try {
@@ -202,6 +207,7 @@ export function UnifiedAuthSurface() {
     event.preventDefault();
     if (submitting) return;
     setSignUpError(null);
+    setGoogleError(null);
     if (signUpPassword !== confirmPassword) {
       setSignUpError('Passwords do not match.');
       return;
@@ -223,8 +229,29 @@ export function UnifiedAuthSurface() {
     await finishAuthentication('server');
   }
 
+  async function handleGoogleSignIn() {
+    if (!hydrated || transitioning || submitting) return;
+    setGoogleError(null);
+    setSignInError(null);
+    setSignUpError(null);
+    setSubmitting('google');
+    try {
+      const callback = new URL('/auth/callback', window.location.origin);
+      callback.searchParams.set('flow', 'google');
+      if (gymCode) callback.searchParams.set('gym', gymCode);
+      const { data, error } = await createClient().auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: callback.toString() },
+      });
+      if (error || !data.url) throw error ?? new Error('Google sign-in could not start.');
+    } catch {
+      setGoogleError('We could not start Google sign-in. Please try again.');
+      setSubmitting(null);
+    }
+  }
+
   function switchMode(next: AuthMode) {
-    if (next === mode || transitioning) return;
+    if (next === mode || transitioning || submitting) return;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const params = new URLSearchParams(searchParams.toString());
     params.set('mode', next);
@@ -262,11 +289,12 @@ export function UnifiedAuthSurface() {
             <h1>Welcome back</h1>
             <p className={styles.supporting}>Sign in to continue to your account.</p>
             <form onSubmit={handleSignIn} className={styles.form} noValidate>
-              <GooglePreviewButton
-                id="signin-google-preview-note"
+              <GoogleButton
+                id="signin-google-error"
                 disabled={!hydrated || transitioning || submitting !== null}
-                notice={googleNotice}
-                onPreview={() => setGoogleNotice('Google sign-in is coming soon.')}
+                submitting={submitting === 'google'}
+                error={googleError}
+                onGoogleSignIn={() => void handleGoogleSignIn()}
               />
               <div className={styles.fieldGroup}>
                 <label htmlFor="signin-email">Email address</label>
@@ -277,7 +305,7 @@ export function UnifiedAuthSurface() {
                   autoComplete="email"
                   value={signInEmail}
                   onChange={(event) => setSignInEmail(event.target.value)}
-                  disabled={!hydrated || transitioning || submitting === 'signin'}
+                  disabled={!hydrated || transitioning || submitting !== null}
                   required
                 />
               </div>
@@ -287,7 +315,7 @@ export function UnifiedAuthSurface() {
                 value={signInPassword}
                 onChange={setSignInPassword}
                 autoComplete="current-password"
-                disabled={!hydrated || transitioning || submitting === 'signin'}
+                disabled={!hydrated || transitioning || submitting !== null}
               />
               <Link href="/reset-password" className={styles.textAction}>Forgot your password?</Link>
               {signInError && (
@@ -295,13 +323,13 @@ export function UnifiedAuthSurface() {
                   {signInError}
                 </div>
               )}
-              <button type="submit" className={styles.primaryButton} disabled={!hydrated || transitioning || submitting === 'signin'} aria-busy={submitting === 'signin'}>
+              <button type="submit" className={styles.primaryButton} disabled={!hydrated || transitioning || submitting !== null} aria-busy={submitting === 'signin'}>
                 {submitting === 'signin' ? 'Signing in…' : 'Sign in'}
               </button>
             </form>
             <p className={styles.footerPrompt}>
               New to Stren?{' '}
-              <button type="button" onClick={() => switchMode('signup')} disabled={!hydrated || transitioning}>Create an account</button>
+              <button type="button" onClick={() => switchMode('signup')} disabled={!hydrated || transitioning || submitting !== null}>Create an account</button>
             </p>
           </div>
         </section>
@@ -322,11 +350,12 @@ export function UnifiedAuthSurface() {
               </div>
             ) : (
             <form onSubmit={handleSignUp} className={styles.form} noValidate>
-              <GooglePreviewButton
-                id="signup-google-preview-note"
+              <GoogleButton
+                id="signup-google-error"
                 disabled={!hydrated || transitioning || submitting !== null}
-                notice={googleNotice}
-                onPreview={() => setGoogleNotice('Google sign-in is coming soon.')}
+                submitting={submitting === 'google'}
+                error={googleError}
+                onGoogleSignIn={() => void handleGoogleSignIn()}
               />
               <div className={styles.fieldGroup}>
                 <label htmlFor="signup-name">Full name</label>
@@ -336,7 +365,7 @@ export function UnifiedAuthSurface() {
                   autoComplete="name"
                   value={fullName}
                   onChange={(event) => setFullName(event.target.value)}
-                  disabled={!hydrated || transitioning || submitting === 'signup'}
+                  disabled={!hydrated || transitioning || submitting !== null}
                   required
                 />
               </div>
@@ -348,25 +377,25 @@ export function UnifiedAuthSurface() {
                   autoComplete="email"
                   value={signUpEmail}
                   onChange={(event) => setSignUpEmail(event.target.value)}
-                  disabled={!hydrated || transitioning || submitting === 'signup'}
+                  disabled={!hydrated || transitioning || submitting !== null}
                   required
                 />
               </div>
-              <PasswordField id="signup-password" label="Password" value={signUpPassword} onChange={setSignUpPassword} autoComplete="new-password" disabled={!hydrated || transitioning || submitting === 'signup'} />
-              <PasswordField id="signup-confirm-password" label="Confirm password" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" disabled={!hydrated || transitioning || submitting === 'signup'} />
+              <PasswordField id="signup-password" label="Password" value={signUpPassword} onChange={setSignUpPassword} autoComplete="new-password" disabled={!hydrated || transitioning || submitting !== null} />
+              <PasswordField id="signup-confirm-password" label="Confirm password" value={confirmPassword} onChange={setConfirmPassword} autoComplete="new-password" disabled={!hydrated || transitioning || submitting !== null} />
               {signUpError && (
                 <div ref={signUpErrorRef} role="alert" tabIndex={-1} className={styles.errorBox}>
                   {signUpError}
                 </div>
               )}
-              <button type="submit" className={styles.primaryButton} disabled={!hydrated || transitioning || submitting === 'signup'} aria-busy={submitting === 'signup'}>
+              <button type="submit" className={styles.primaryButton} disabled={!hydrated || transitioning || submitting !== null} aria-busy={submitting === 'signup'}>
                 {submitting === 'signup' ? 'Creating account…' : 'Create account'}
               </button>
             </form>
             )}
             <p className={styles.footerPrompt}>
               Already have an account?{' '}
-              <button type="button" onClick={() => switchMode('signin')} disabled={!hydrated || transitioning}>Sign in</button>
+              <button type="button" onClick={() => switchMode('signin')} disabled={!hydrated || transitioning || submitting !== null}>Sign in</button>
             </p>
           </div>
         </section>
@@ -381,7 +410,7 @@ export function UnifiedAuthSurface() {
               <button
                 type="button"
                 onClick={() => switchMode(mode === 'signin' ? 'signup' : 'signin')}
-                disabled={!hydrated || transitioning}
+                disabled={!hydrated || transitioning || submitting !== null}
               >
                 {mode === 'signin' ? 'Create account' : 'Sign in'}
               </button>
