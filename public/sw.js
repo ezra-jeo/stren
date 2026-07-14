@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'v7';
+const CACHE_VERSION = 'v8';
 const STATIC_CACHE = `stren-static-${CACHE_VERSION}`;
 const RUNTIME_CACHE = `stren-runtime-${CACHE_VERSION}`;
 
@@ -9,10 +9,21 @@ const APP_SHELL_URLS = [
 ];
 const NETWORK_ONLY_PREFIXES = ['/admin', '/member', '/kiosk', '/auth', '/gyms', '/api'];
 
-const STATIC_DESTINATIONS = new Set(['style', 'script', 'font', 'image']);
+// Next fingerprints its JavaScript and CSS by deployment. Serving either from
+// this worker can strand a page on a now-missing chunk after a deploy, leaving
+// the landing HTML visible without its styles. The browser already caches valid
+// immutable chunks; the worker only keeps offline-safe media.
+const RUNTIME_CACHEABLE_DESTINATIONS = new Set(['font', 'image']);
 
 function isCacheableResponse(response) {
   return response && response.ok;
+}
+
+function hasExpectedAssetType(request, response) {
+  const contentType = response.headers.get('content-type')?.toLowerCase() ?? '';
+  if (request.destination === 'image') return contentType.startsWith('image/');
+  if (request.destination === 'font') return contentType.startsWith('font/') || contentType.includes('font');
+  return false;
 }
 
 function cacheResponse(cacheName, request, response) {
@@ -108,7 +119,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (STATIC_DESTINATIONS.has(request.destination)) {
+  if (RUNTIME_CACHEABLE_DESTINATIONS.has(request.destination)) {
     event.respondWith(
       (async () => {
         const cache = await caches.open(RUNTIME_CACHE);
@@ -116,7 +127,7 @@ self.addEventListener('fetch', (event) => {
 
         const networkPromise = fetch(request)
           .then((networkResponse) => {
-            if (isCacheableResponse(networkResponse)) {
+            if (isCacheableResponse(networkResponse) && hasExpectedAssetType(request, networkResponse)) {
               cache.put(request, networkResponse.clone());
             }
 
@@ -124,9 +135,13 @@ self.addEventListener('fetch', (event) => {
           })
           .catch(() => undefined);
 
-        if (cachedResponse) {
+        if (cachedResponse && hasExpectedAssetType(request, cachedResponse)) {
           event.waitUntil(networkPromise);
           return cachedResponse;
+        }
+
+        if (cachedResponse) {
+          event.waitUntil(cache.delete(request));
         }
 
         const networkResponse = await networkPromise;

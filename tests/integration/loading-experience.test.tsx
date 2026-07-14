@@ -15,7 +15,7 @@ describe('Stren loading experience', () => {
     const status = screen.getByRole('status');
     expect(status).toHaveTextContent('Setting things up for you');
     expect(status).toHaveTextContent('Preparing your gym');
-    expect(status.querySelectorAll('img[src="/stren-logo.svg"]')).toHaveLength(2);
+    expect(status.querySelectorAll('img[src="/stren-logo.png"]')).toHaveLength(2);
     expect(status).not.toHaveTextContent(/^S$/);
   });
 
@@ -40,7 +40,7 @@ describe('Stren loading experience', () => {
     const curtain = await screen.findByRole('dialog', { name: 'Switching gyms…' });
     expect(curtain).toHaveFocus();
     expect(privateAction.closest('div')).toHaveAttribute('inert');
-    expect(curtain.querySelectorAll('img[src="/stren-logo.svg"]')).toHaveLength(2);
+    expect(curtain.querySelectorAll('img[src="/stren-logo.png"]')).toHaveLength(2);
     expect(curtain.querySelector('.stren-bootstrap-progress')).toBeInTheDocument();
   });
 

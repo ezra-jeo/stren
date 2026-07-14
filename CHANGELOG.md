@@ -22,6 +22,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Service-worker cache version advanced to v7; the auth route is no longer included in the static app shell and remains network-only.
 
 #### Fixed
+- The animated loader and member shell now request the canonical PNG logo rather than PNG bytes mislabeled as SVG, which some browsers correctly reject.
+- The service worker no longer caches or replays CSS/JavaScript across deployments; a new cache version clears poisoned entries, media cache entries require their expected MIME type, and `sw.js` is always revalidated on Netlify.
 - Sign-out and actual gym switches now use the complete animated Stren lockup while private content remains masked; switching between Admin and Member views at the same gym navigates directly instead of showing a blank privacy screen.
 - The member sidebar account pill now opens the member profile, and the auth card's panel wordmark is the single clickable route back to landing (the out-of-place top-left duplicate has been removed).
 - A late initial `getUser`, same-scope request, profile/gym fetch, members/payment response, or notification refresh can no longer resurrect an old account or reveal data from a previous gym.
