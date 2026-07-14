@@ -8,6 +8,31 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Perceived Performance & Navigation Continuity
+
+#### Added
+- A Stren-native loading system with canonical-logo bootstrap, inert privacy curtains, contextual admin/member/auth skeletons, embedded route errors, inline refresh states, and accessible live/focus behavior.
+- Intent-aware public and application navigation feedback with constrained-network prefetch guards, duplicate-click protection, stable shell content transitions, query-aware focus transfer, and reduced-motion support.
+- Versioned in-memory private caching keyed by the exact account, profile, gym, role, and optional branch scope; private browser data is cleared before logout or scope changes and is never persisted as a cross-account stale cache.
+
+#### Changed
+- Public landing calls to action remain immediately available while session hydration is deferred, and landing-to-auth navigation uses the shared responsive auth surface without a blank intermediate screen.
+- Auth/profile/gym hydration, member data, payment details, and manager/member notifications now capture the active private scope and ignore late work after logout, account replacement, or gym switching.
+- Gym switching applies an immediate privacy boundary, hydrates the target scope atomically, rolls back on failure, and redirects to explicit account recovery if rollback itself fails.
+- Service-worker cache version advanced to v7; the auth route is no longer included in the static app shell and remains network-only.
+
+#### Fixed
+- A late initial `getUser`, same-scope request, profile/gym fetch, members/payment response, or notification refresh can no longer resurrect an old account or reveal data from a previous gym.
+- Logout remains bounded even when global and local provider sign-out calls hang, while private state is hidden and cleared immediately.
+- Cancelled, modified, new-tab, and duplicate navigation clicks no longer leave a false pending state; URL-object prefetch preserves query and hash values.
+- The auth page, route errors, privacy curtain, and query-only route changes now announce or transfer focus appropriately, and reduced-motion mode disables public/skeleton/privacy transitions.
+- Vercel Analytics assets bypass the authentication middleware. Local production no longer redirects `/_vercel/insights/script.js` to auth and attempts to execute auth HTML as JavaScript.
+- Kiosk startup tolerates unavailable browser storage, and landing image fills declare responsive sizes without changing the canonical assets.
+
+#### Verification
+- Lint, typecheck, production build, **349** unit/integration tests with coverage, and **14** public desktop/mobile Playwright checks pass; **8** credentialed checks remain staging preflight because local `E2E_*` accounts are unavailable.
+- Production browser evidence covers desktop/mobile landing-to-auth, 4x CPU plus constrained-network cold/warm timing, the in-flight transition, and reduced motion. No runtime dependency was added.
+
 ### Google OAuth
 
 #### Added

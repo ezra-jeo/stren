@@ -2,10 +2,11 @@
 
 import { Suspense } from 'react';
 import { UnifiedAuthSurface } from '@/components/auth/UnifiedAuthSurface';
+import { AuthSurfaceSkeleton } from '@/components/auth/AuthSurfaceSkeleton';
 
 export default function AuthPage() {
   return (
-    <Suspense fallback={<div className="min-h-dvh" aria-label="Loading Stren" />}>
+    <Suspense fallback={<AuthSurfaceSkeleton />}>
       <UnifiedAuthSurface />
     </Suspense>
   );

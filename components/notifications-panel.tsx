@@ -4,62 +4,92 @@ import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useMemo } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import { Bell, UserPlus, LogIn, AlertCircle, X, CheckCheck } from 'lucide-react';
+import { Bell, UserPlus, LogIn, AlertCircle, X, CheckCheck, CreditCard, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { privateCacheKey } from '@/lib/private-cache';
 
 interface Notification {
   id: string;
-  type: 'member_pending' | 'member_checkin' | 'membership_expiring';
+  type: string;
   title: string;
   body: string | null;
   is_read: boolean;
   created_at: string;
   member_id: string | null;
+  for_member: boolean | null;
 }
 
-const TYPE_ICON: Record<Notification['type'], React.ReactNode> = {
+const TYPE_ICON: Record<string, React.ReactNode> = {
   member_pending:      <UserPlus size={15} />,
   member_checkin:      <LogIn size={15} />,
   membership_expiring: <AlertCircle size={15} />,
+  payment_recorded: <CreditCard size={15} />,
+  membership_verification_reminder: <RefreshCw size={15} />,
 };
 
-const TYPE_COLOR: Record<Notification['type'], string> = {
+const TYPE_COLOR: Record<string, string> = {
   member_pending:      '#D97706',
   member_checkin:      '#16A34A',
   membership_expiring: '#DC2626',
+  payment_recorded: '#2563EB',
+  membership_verification_reminder: '#D97706',
 };
 
-const TYPE_BG: Record<Notification['type'], string> = {
+const TYPE_BG: Record<string, string> = {
   member_pending:      '#FFFBEB',
   member_checkin:      '#ECFDF3',
   membership_expiring: '#FEF2F2',
+  payment_recorded: '#EFF6FF',
+  membership_verification_reminder: '#FFFBEB',
 };
 
 export function NotificationsPanel() {
-  const { profile } = useAuth();
+  const { activeScope } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
+  const loadScopeRef = useRef<string | null>(null);
+  const [notificationsScopeKey, setNotificationsScopeKey] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const scopeKey = activeScope ? privateCacheKey('manager-notifications', activeScope) : null;
+  loadScopeRef.current = scopeKey;
+  const visibleNotifications = notificationsScopeKey === scopeKey ? notifications : [];
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const unreadCount = visibleNotifications.filter((n) => !n.is_read).length;
 
   const load = useCallback(async () => {
-    if (!profile?.gymId) return;
-    const { data } = await supabase
+    if (!activeScope) {
+      setNotifications([]);
+      setNotificationsScopeKey(null);
+      setLoadError(null);
+      return;
+    }
+    const requestKey = privateCacheKey('manager-notifications', activeScope);
+    const { data, error } = await supabase
       .from('notifications')
-      .select('*')
+      .select('id, type, title, body, is_read, created_at, member_id, for_member')
+      .eq('gym_id', activeScope.gymId)
+      .eq('for_member', false)
       .order('created_at', { ascending: false })
       .limit(30);
+    if (loadScopeRef.current !== requestKey) return;
+    if (error) {
+      setLoadError('Notifications could not refresh.');
+      return;
+    }
     setNotifications((data as Notification[]) ?? []);
-  }, [profile?.gymId, supabase]);
+    setNotificationsScopeKey(requestKey);
+    setLoadError(null);
+  }, [activeScope, supabase]);
 
   useEffect(() => { load(); }, [load]);
 
   // Realtime — new notifications appear instantly
   useEffect(() => {
-    if (!profile?.gymId) return;
-    const channelName = `notifications-${profile.gymId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    if (!activeScope) return;
+    const requestKey = privateCacheKey('manager-notifications', activeScope);
+    const channelName = `notifications-${activeScope.gymId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     let channel: ReturnType<typeof supabase.channel> | null = null;
     try {
       channel = supabase.channel(channelName);
@@ -67,9 +97,13 @@ export function NotificationsPanel() {
         event: 'INSERT',
         schema: 'public',
         table: 'notifications',
-        filter: `gym_id=eq.${profile.gymId}`,
+        filter: `gym_id=eq.${activeScope.gymId}`,
       }, (payload) => {
-        setNotifications((prev) => [payload.new as Notification, ...prev.slice(0, 29)]);
+        const next = payload.new as Notification;
+        if (loadScopeRef.current === requestKey && next.for_member !== true) {
+          setNotificationsScopeKey(requestKey);
+          setNotifications((prev) => [next, ...prev.slice(0, 29)]);
+        }
       });
       channel.subscribe();
     } catch (error) {
@@ -81,7 +115,7 @@ export function NotificationsPanel() {
         supabase.removeChannel(channel);
       }
     };
-  }, [profile?.gymId, supabase]);
+  }, [activeScope, supabase]);
 
   // Close on outside click
   useEffect(() => {
@@ -95,17 +129,27 @@ export function NotificationsPanel() {
   }, [open]);
 
   async function markAllRead() {
-    if (!profile?.gymId) return;
-    await supabase
+    if (!activeScope) return;
+    const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('gym_id', profile.gymId)
+      .eq('gym_id', activeScope.gymId)
+      .eq('for_member', false)
       .eq('is_read', false);
+    if (error) {
+      setLoadError('Notifications could not be marked as read.');
+      return;
+    }
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   }
 
   async function markRead(id: string) {
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    if (!activeScope) return;
+    const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id).eq('gym_id', activeScope.gymId).eq('for_member', false);
+    if (error) {
+      setLoadError('This notification could not be marked as read.');
+      return;
+    }
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
   }
 
@@ -167,14 +211,14 @@ export function NotificationsPanel() {
 
           {/* List */}
           <div className="overflow-y-auto" style={{ maxHeight: 'min(400px, calc(100vh - 8rem))' }}>
-            {notifications.length === 0 ? (
+            {visibleNotifications.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-12 text-center px-4">
                 <Bell size={32} style={{ color: '#D1C9BE', marginBottom: 8 }} />
-                <p className="text-sm font-medium" style={{ color: '#5A5A5A' }}>All caught up!</p>
-                <p className="text-xs mt-1" style={{ color: '#9A9A9A' }}>No notifications yet</p>
+                <p className="text-sm font-medium" style={{ color: '#5A5A5A' }}>{loadError ? 'Could not refresh notifications' : 'All caught up!'}</p>
+                <p className="text-xs mt-1" style={{ color: '#9A9A9A' }}>{loadError ?? 'No notifications yet'}</p>
               </div>
             ) : (
-              notifications.map((n, i) => (
+              visibleNotifications.map((n, i) => (
                 <button
                   key={n.id}
                   onClick={() => markRead(n.id)}
@@ -182,8 +226,8 @@ export function NotificationsPanel() {
                   style={{ borderTop: i > 0 ? '1px solid #F3F1EE' : 'none', backgroundColor: n.is_read ? 'transparent' : '#FAFAF9' }}
                 >
                   <div className="mt-0.5 shrink-0 h-7 w-7 rounded-full flex items-center justify-center"
-                    style={{ backgroundColor: TYPE_BG[n.type], color: TYPE_COLOR[n.type] }}>
-                    {TYPE_ICON[n.type]}
+                    style={{ backgroundColor: TYPE_BG[n.type] ?? '#F3F1EE', color: TYPE_COLOR[n.type] ?? '#5A5A5A' }}>
+                    {TYPE_ICON[n.type] ?? <AlertCircle size={15} />}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium" style={{ color: '#1A1A1A' }}>{n.title}</p>

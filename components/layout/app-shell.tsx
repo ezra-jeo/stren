@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { Menu, X, type LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { NavLinkItem } from '@/components/layout/nav-link';
+import { RouteContent } from '@/components/layout/route-content';
 
 type NavItem = {
   href: string;
@@ -115,7 +116,7 @@ export function AppShell({
         )}
 
         <div className="p-4 md:p-8" style={{ backgroundColor: 'hsl(var(--background))' }}>
-          {children}
+          <RouteContent>{children}</RouteContent>
         </div>
       </main>
     </div>

@@ -146,10 +146,11 @@ export default function KioskPage() {
   const refreshQueuedRef = useRef(false)
 
   useEffect(() => {
-    const stored = window.localStorage.getItem('stren.kiosk.gymId')
+    let stored: string | null = null
+    try { stored = window.localStorage?.getItem('stren.kiosk.gymId') ?? null } catch {}
     const gymId = stored || activeGymId
     if (gymId && !pinnedGymId) {
-      window.localStorage.setItem('stren.kiosk.gymId', gymId)
+      try { window.localStorage?.setItem('stren.kiosk.gymId', gymId) } catch {}
       setPinnedGymId(gymId)
     }
   }, [activeGymId, pinnedGymId])

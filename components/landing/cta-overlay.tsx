@@ -2,10 +2,11 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
+import { IntentLink } from '@/components/layout/intent-link';
 import { useAuth } from '@/lib/auth-context';
 
 export function CTAOverlay() {
-  const { user, isLoading } = useAuth();
+  const { user } = useAuth();
   return (
     <section className="relative h-screen flex items-center justify-center px-6 lg:px-12 overflow-hidden">
       <Image
@@ -48,14 +49,14 @@ export function CTAOverlay() {
         </p>
 
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
-          {!isLoading && (user ? (
+          {user ? (
             <Link href="/gyms" className="inline-flex items-center justify-center rounded-full px-8 py-4 text-sm font-semibold uppercase tracking-widest transition-all duration-200 hover:scale-105 hover:shadow-xl" style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF', boxShadow: '0 4px 24px rgba(212, 149, 106, 0.35)' }}>Open Stren</Link>
           ) : (
             <>
-              <Link href="/auth?mode=signin" className="inline-flex items-center justify-center px-8 py-4 rounded-full font-semibold text-sm uppercase tracking-widest transition-all duration-200 hover:scale-105 hover:shadow-xl" style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF', boxShadow: '0 4px 24px rgba(212, 149, 106, 0.35)' }}>Sign In</Link>
-              <Link href="/auth?mode=signup" className="inline-flex items-center justify-center px-8 py-4 rounded-full font-semibold text-sm uppercase tracking-widest border-2 transition-all duration-200 hover:scale-105 hover:bg-white/10" style={{ borderColor: 'rgba(255,255,255,0.25)', color: '#FFFFFF' }}>Create Account</Link>
+              <IntentLink href="/auth?mode=signin" transitionKind="public-auth" className="inline-flex items-center justify-center px-8 py-4 rounded-full font-semibold text-sm uppercase tracking-widest transition-all duration-200 hover:scale-105 hover:shadow-xl" style={{ backgroundColor: 'var(--color-primary)', color: '#FFFFFF', boxShadow: '0 4px 24px rgba(212, 149, 106, 0.35)' }}>Sign In</IntentLink>
+              <IntentLink href="/auth?mode=signup" transitionKind="public-auth" className="inline-flex items-center justify-center px-8 py-4 rounded-full font-semibold text-sm uppercase tracking-widest border-2 transition-all duration-200 hover:scale-105 hover:bg-white/10" style={{ borderColor: 'rgba(255,255,255,0.25)', color: '#FFFFFF' }}>Create Account</IntentLink>
             </>
-          ))}
+          )}
           <Link
             href="/for-gym-owners"
             className="inline-flex items-center justify-center px-8 py-4 text-sm font-semibold uppercase tracking-widest text-white/85 underline-offset-4 hover:text-white hover:underline"

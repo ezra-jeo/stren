@@ -2,7 +2,7 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-13 (**Auth Session & Account Access Recovery is implemented and verified against the linked hosted project.**)
+Last updated: 2026-07-14 (**Auth Session & Account Access Recovery remains implemented and verified against the linked hosted project; Perceived Performance & Navigation Continuity is complete and verified in the unshipped working tree.**)
 
 ---
 
@@ -15,6 +15,19 @@ Spec: [ImplementationPlan-GoogleOAuth.md](ImplementationPlan-GoogleOAuth.md) - b
 | G1 | Working Google sign-in controls, PKCE callback, gym-context preservation, bounded launch/callback recovery | Implemented (Codex, working tree, 2026-07-14) - focused component/callback regressions green |
 | G2 | Local Supabase provider configuration, hosted deployment contract, and environment handoff | Implemented (Codex, 2026-07-14) - hosted Google Auth is enabled, deployment preflight passes, and the authorization endpoint redirects to Google without exposing credentials |
 | G3 | Hosted Google provider enablement and real-browser verification | In progress (Codex, 2026-07-14) - the feature branch must be deployed before a real browser exchange can reach the new `/auth` client handler; hosted app currently serves the prior preview UI |
+
+## Workstream (completed in working tree 2026-07-14): Perceived Performance & Navigation Continuity
+
+Source brief: the user-provided end-to-end perceived-performance request and `docs/PERFORMANCE_PLAN.md`. The files in `ReferenceRedesign/` are behavioral references only; their deletions/additions predate this work and remain user-owned. The supplied `ReferenceRedesign/stren-logo.svg` and existing `public/stren-logo.svg` are identical PNG bytes despite the extension, so the current loader reveals clipped portions of the canonical asset rather than inventing SVG path geometry.
+
+| Unit | Scope | Status |
+|---|---|---|
+| P1 | Audit App Router/auth/data/shell/profile-loading architecture; pin exact account/profile/gym/role/branch private-cache scope and intent-aware navigation policy | Implemented (Codex, working tree, 2026-07-14) - exact account/profile/gym/role scope, versioned private cache, scoped clearing, and constrained-network intent prefetch are regression-pinned |
+| P2 | Calm Stren loading system: canonical-logo bootstrap/privacy curtain, contextual admin/member/auth skeletons, embedded route errors, reduced motion, persistent-shell content transition and focus transfer | Implemented (Codex, working tree, 2026-07-14) - no new runtime dependency; contextual loading/errors, inert privacy curtain, route focus transfer, and zero-duration reduced-motion behavior are verified |
+| P3 | Auth/logout/gym-switch safety: immediate privacy boundary, late-response epochs, atomic scoped switching with rollback, scoped member/notification requests, non-sensitive short-lived auth draft | Implemented (Codex, working tree, 2026-07-14) - stale initial auth, account-to-account, logout timeout, gym rollback, member/payment, and notification scope regressions are green; profile/gym request-sequence guards enforce last-request-wins ordering |
+| P4 | Landing/auth intent transitions, first-load and revisit behavior, full failure/offline matrix, performance profiling, responsive/reduced-motion browser QA, required screenshots/recording, final documentation/changelog | Implemented (Codex, working tree, 2026-07-14) - production desktop/mobile landing-to-auth, slow CPU/network, warm revisit, reduced motion, screenshots, browser timing observations, middleware telemetry bypass, and cache-v7 cleanup are complete |
+
+Verification after the ENOSPC recovery: `npm run lint`, `npm run typecheck`, `git diff --check`, the production build, and the canonical coverage run pass (**70 files, 349 tests**; 60.07% statements / 52.27% branches / 57.41% functions / 63.64% lines). Production-backed Playwright passes **14 public desktop/mobile checks**; **8 credentialed checks are skipped** because no `E2E_*` accounts are available. A 4x CPU / 150 ms / 1.6 Mbps desktop profile recorded cold FCP/LCP at 1.38 s and warm FCP/LCP at 0.38/0.50 s in the local harness; mobile and reduced-motion journeys are visually verified, with public transition durations at `0s` under reduced motion. Evidence is in `stren-performance-audit/` under the Codex visualization output for this task. Authenticated owner/member tab, rapid gym-switch, logout-with-live-private-request, and immediate second-account browser journeys remain staging preflight items; their race and leakage boundaries are covered locally by integration tests. This work remains unshipped until a developer commits and opens the PR.
 
 ## Platform remediation phases
 

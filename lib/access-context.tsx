@@ -5,8 +5,8 @@
  *
  * `<AccessProvider>` fetches `fetchMyAccess` once auth-context resolves and
  * exposes it via `useAccess()`. Before the RPC lands or on failure it serves
- * `accessFromRoleDefaults` seeded from the auth profile, so UI hiding degrades
- * to today's role behavior and never crashes.
+ * exact active private scope, so UI hiding never falls back to stale profile
+ * shims while account or gym access is unresolved.
  */
 
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
@@ -25,11 +25,11 @@ function coerceRole(role: string | null | undefined): Role {
 const AccessContext = createContext<MyAccess | null>(null);
 
 export function AccessProvider({ children }: { children: React.ReactNode }) {
-  const { profile, isLoading } = useAuth();
+  const { activeScope, isLoading } = useAuth();
   const supabase = useMemo(() => createClient(), []);
 
-  const role = coerceRole(profile?.role);
-  const gymId = profile?.gymId ?? null;
+  const role = coerceRole(activeScope?.role);
+  const gymId = activeScope?.gymId ?? null;
 
   const [access, setAccess] = useState<MyAccess>(() => accessFromRoleDefaults(role, gymId));
 
@@ -42,15 +42,16 @@ export function AccessProvider({ children }: { children: React.ReactNode }) {
 
   // Resolve real access (overrides + effective feature flags) once auth settles.
   useEffect(() => {
-    if (isLoading || !profile) return;
+    if (isLoading || !activeScope) return;
     let active = true;
+    const expectedGymId = activeScope.gymId;
     void fetchMyAccess(supabase).then((resolved) => {
-      if (active) setAccess(resolved);
+      if (active && resolved.gymId === expectedGymId) setAccess(resolved);
     });
     return () => {
       active = false;
     };
-  }, [isLoading, profile, supabase]);
+  }, [activeScope, isLoading, supabase]);
 
   return <AccessContext.Provider value={access}>{children}</AccessContext.Provider>;
 }
