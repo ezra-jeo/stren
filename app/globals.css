@@ -217,10 +217,8 @@ body {
   text-align: center;
 }
 .stren-bootstrap-overlay { position: fixed; inset: 0; z-index: 200; }
-.stren-privacy-curtain { position: fixed; inset: 0; z-index: 210; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .65rem; padding: 2rem; background: hsl(var(--background)); color: hsl(var(--foreground)); text-align: center; animation: stren-mark-lock 160ms ease-out both; }
-.stren-privacy-curtain img { width: 3.375rem; height: 3.5rem; border-radius: .8rem; object-fit: contain; background: #fff; }
-.stren-privacy-curtain p { font-size: .95rem; font-weight: 700; }
-.stren-privacy-curtain span { color: hsl(var(--text-muted)); font-size: .78rem; }
+.stren-privacy-curtain { position: fixed; inset: 0; z-index: 210; display: grid; place-items: center; padding: 2rem; background: hsl(var(--background)); color: hsl(var(--foreground)); text-align: center; animation: stren-mark-lock 160ms ease-out both; }
+.stren-privacy-curtain-content { display: flex; flex-direction: column; align-items: center; gap: .65rem; }
 .stren-bootstrap-mark { position: relative; width: 5.375rem; height: 5.625rem; overflow: hidden; border-radius: 1.15rem; background: #fff; }
 .stren-bootstrap-mark img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .stren-mark-reveal { animation: stren-mark-reveal 820ms cubic-bezier(.22, 1, .36, 1) both; }

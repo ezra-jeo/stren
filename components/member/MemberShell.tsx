@@ -2,6 +2,7 @@
 
 import React from 'react';
 import Image from 'next/image';
+import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useAuth } from '@/lib/auth-context';
 import { LoadingScreen } from '@/components/ui/loading-screen';
@@ -57,12 +58,12 @@ export function MemberShell({ children, hasServerUser, features }: MemberShellPr
           <div className="mt-2"><GymSwitcher variant="member" /></div>
         </div>
         <nav className="mt-8 flex flex-col gap-1" aria-label="Primary navigation">{links('row')}</nav>
-        <div className="mt-auto rounded-2xl border p-3" style={{ borderColor: 'var(--color-surface)', backgroundColor: 'var(--color-white)' }}>
+        <Link href="/member/profile" aria-label="Open your profile" className="mt-auto rounded-2xl border p-3 transition-colors hover:bg-(--color-background) focus-visible:outline-3 focus-visible:outline-(--color-primary-glow) focus-visible:outline-offset-3" style={{ borderColor: 'var(--color-surface)', backgroundColor: 'var(--color-white)' }}>
           <div className="flex items-center gap-2.5">
             <span className="member-avatar-initial" aria-hidden="true">{profile?.name?.slice(0, 1).toUpperCase() ?? '?'}</span>
             <span className="min-w-0"><span className="block truncate text-sm font-semibold text-(--color-text-primary)">{profile?.name ?? 'Member'}</span><span className="block text-xs text-(--color-text-muted)">Member</span></span>
           </div>
-        </div>
+        </Link>
       </aside>
 
       <div className="min-w-0">

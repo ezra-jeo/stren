@@ -53,6 +53,13 @@ afterEach(() => {
 });
 
 describe('/auth shared surface', () => {
+  it('uses the panel wordmark as the single, clear route back to landing', () => {
+    const { container } = render(<AuthPage />);
+
+    expect(screen.getByRole('link', { name: /return to stren home/i })).toHaveAttribute('href', '/landing');
+    expect(container.querySelector('main > a[href="/landing"]')).toBeNull();
+  });
+
   it('restores non-sensitive form identity fields after a short back-navigation round trip', async () => {
     const user = userEvent.setup();
     const first = render(<AuthPage />);
