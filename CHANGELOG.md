@@ -48,6 +48,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 #### Changed
 - The public kiosk no longer retrieves or renders the detailed checked-in member list. Manual search masks email and directs any attendance action through an authorized manager/Admin confirmation.
 - Account connection now opens a QR code on the kiosk so a member can continue on their own phone rather than entering a password on the shared device.
+- Check-in is now an explicit green arrival experience with entry iconography and active-visit guidance; check-out is a Stren-peach visit-complete experience with exit iconography and finished-visit guidance.
 
 #### Fixed
 - Scanner callbacks now read the current pinned gym rather than the initial null state. Camera startup performs a short permission/device warm-up before handing the camera to the retained scanner, restoring compatibility with drivers that otherwise stall during the first video transition.
