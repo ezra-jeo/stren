@@ -40,11 +40,10 @@ test('sign in and create account share one stateful auth surface', async ({ page
   await expect(page.getByLabel('Full name')).toHaveValue('Alex Rivera');
 });
 
-test('Google sign-in preview is honest and does not start OAuth', async ({ page }) => {
+test('Google sign-in is available from the shared auth surface', async ({ page }) => {
   await page.goto('/auth?mode=signin');
-  await page.getByRole('button', { name: /continue with google.*coming soon/i }).click();
-  await expect(page.getByRole('status')).toContainText('Google sign-in is coming soon.');
-  await expect(page).toHaveURL(/\/auth\?mode=signin/);
+  await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeEnabled();
+  await expect(page.getByText('Coming soon')).toHaveCount(0);
 });
 
 test('password reset requests an email and preserves enumeration-safe copy', async ({ page }) => {

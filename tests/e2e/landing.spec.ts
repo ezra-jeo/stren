@@ -28,3 +28,18 @@ test("landing exposes core CTAs", async ({ page }) => {
   // Check gym finder search is visible
   await expect(page.getByPlaceholder(/search by gym name or code/i)).toBeVisible();
 });
+
+test("landing does not preload page URLs as scripts", async ({ page }) => {
+  const consoleErrors: string[] = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
+  });
+
+  await page.goto("/landing");
+  await expect(page.getByRole("heading", { name: /your gym\. your rules\./i })).toBeVisible();
+  await page.waitForTimeout(500);
+
+  expect(consoleErrors.filter((message) =>
+    message.includes("Refused to execute script") && message.includes("/auth?mode="),
+  )).toEqual([]);
+});

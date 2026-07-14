@@ -11,6 +11,7 @@ import { GymSwitcher } from '@/components/gyms/GymSwitcher';
 import { Activity, Home, Settings, Trophy, User } from 'lucide-react';
 import type { GymBranding } from '@/lib/gym-member';
 import { isFeatureEnabled, type FeatureFlags, type FeatureKey } from '@/lib/features';
+import { RouteContent } from '@/components/layout/route-content';
 
 const NAV_ITEMS: { href: string; label: string; icon: typeof Home; feature?: FeatureKey }[] = [
   { href: '/member', label: 'Home', icon: Home },
@@ -70,7 +71,7 @@ export function MemberShell({ children, hasServerUser, features }: MemberShellPr
           <MemberNotificationsPanel />
           <div className="col-span-2 mt-3"><GymSwitcher variant="member" /></div>
         </header>
-        <main className="member-main" id="main-content">{children}</main>
+        <main className="member-main" id="main-content"><RouteContent>{children}</RouteContent></main>
       </div>
 
       <nav className="member-bottom-nav" aria-label="Primary navigation">{links('column')}</nav>

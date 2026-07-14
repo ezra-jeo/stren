@@ -26,7 +26,7 @@ export default async function LandingPage({
   }
 
   return (
-    <div style={{ backgroundColor: 'var(--color-background)' }}>
+    <div className="public-route-frame" style={{ backgroundColor: 'var(--color-background)' }}>
       <LandingNav />
       <LandingClientPage />
     </div>

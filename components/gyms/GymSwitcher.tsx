@@ -17,20 +17,25 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { ChevronDown, Check, LayoutGrid, LogOut, Eye } from 'lucide-react';
 import { useAuth } from '@/lib/auth-context';
 import { setActiveGymAction } from '@/lib/auth-actions';
 import type { MyGym } from '@/lib/types';
 import { GymAvatar, roleLabel } from '@/components/gyms/gym-badges';
+import { PrivacyCurtain } from '@/components/ui/loading-screen';
 
 const MANAGER_ROLES: MyGym['role'][] = ['owner', 'admin', 'staff'];
 
 export function GymSwitcher({ variant }: { variant: 'admin' | 'member' }) {
-  const { myGyms, activeGymId, signOut, isSigningOut, refreshProfile, refreshMyGyms } = useAuth();
+  const { myGyms, activeGymId, signOut, isSigningOut, refreshProfile, refreshMyGyms, beginPrivateScopeChange } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [open, setOpen] = useState(false);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [busyGym, setBusyGym] = useState<MyGym | null>(null);
+  const [surfaceBusy, setSurfaceBusy] = useState<'Admin' | 'Member' | null>(null);
+  const [switchError, setSwitchError] = useState<string | null>(null);
   const anchorRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -38,6 +43,13 @@ export function GymSwitcher({ variant }: { variant: 'admin' | 'member' }) {
   const current = myGyms.find((g) => g.gymId === activeGymId) ?? activeGyms[0] ?? null;
   const others = activeGyms.filter((g) => g.gymId !== current?.gymId);
   const currentIsManager = current ? MANAGER_ROLES.includes(current.role) : false;
+
+  useEffect(() => {
+    if (busyGym && searchParams.get('scope') === busyGym.gymId && activeGymId === busyGym.gymId) {
+      setBusyId(null);
+      setBusyGym(null);
+    }
+  }, [activeGymId, busyGym, searchParams]);
 
   const close = useCallback((focusAnchor = true) => {
     setOpen(false);
@@ -84,19 +96,49 @@ export function GymSwitcher({ variant }: { variant: 'admin' | 'member' }) {
       close();
       return;
     }
+    const previous = current;
+    setSwitchError(null);
     setBusyId(gym.gymId);
+    setBusyGym(gym);
+    setOpen(false);
+    beginPrivateScopeChange();
+    let activeGymChanged = false;
     try {
       const { role } = await setActiveGymAction(gym.gymId);
+      activeGymChanged = true;
       await Promise.all([refreshProfile(), refreshMyGyms()]);
-      setOpen(false);
-      router.push(role === 'member' ? '/member' : '/admin');
+      const destination = role === 'member' ? '/member' : '/admin';
+      router.push(`${destination}?scope=${encodeURIComponent(gym.gymId)}`);
       router.refresh();
     } catch {
+      if (activeGymChanged && previous) {
+        beginPrivateScopeChange();
+        try {
+          await setActiveGymAction(previous.gymId);
+          await Promise.all([refreshProfile(), refreshMyGyms()]);
+        } catch {
+          router.replace('/gyms?account_error=access');
+          router.refresh();
+          return;
+        }
+      } else {
+        try {
+          await Promise.all([refreshProfile(), refreshMyGyms()]);
+        } catch {
+          router.replace('/gyms?account_error=access');
+          router.refresh();
+          return;
+        }
+      }
       setBusyId(null);
+      setBusyGym(null);
+      setSwitchError('We could not switch gyms. Your previous gym is still active.');
+      setOpen(true);
     }
   }
 
   function goToSurface(surface: '/admin' | '/member') {
+    setSurfaceBusy(surface === '/admin' ? 'Admin' : 'Member');
     setOpen(false);
     router.push(surface);
     router.refresh();
@@ -105,11 +147,19 @@ export function GymSwitcher({ variant }: { variant: 'admin' | 'member' }) {
   if (!current) {
     // No active gym resolved yet — a quiet neutral anchor, no menu.
     return (
-      <div className="flex items-center gap-2">
-        <GymAvatar name="Stren" logoUrl={null} size={32} />
-        <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
-          Stren
-        </span>
+      <div>
+        {(busyGym || surfaceBusy) && (
+          <PrivacyCurtain
+            message={busyGym ? `Switching to ${busyGym.name}â€¦` : `Opening ${surfaceBusy} viewâ€¦`}
+            detail="Keeping your account and gym data separate"
+          />
+        )}
+        <div className="flex items-center gap-2">
+          <GymAvatar name="Stren" logoUrl={null} size={32} />
+          <span className="text-sm font-semibold" style={{ color: 'var(--color-text-primary)' }}>
+            Stren
+          </span>
+        </div>
       </div>
     );
   }
@@ -118,6 +168,12 @@ export function GymSwitcher({ variant }: { variant: 'admin' | 'member' }) {
 
   return (
     <div className="relative">
+      {(busyGym || surfaceBusy) && (
+        <PrivacyCurtain
+          message={busyGym ? `Switching to ${busyGym.name}…` : `Opening ${surfaceBusy} view…`}
+          detail="Keeping your account and gym data separate"
+        />
+      )}
       <button
         ref={anchorRef}
         type="button"
@@ -205,6 +261,7 @@ export function GymSwitcher({ variant }: { variant: 'admin' | 'member' }) {
           </div>
         </div>
       )}
+      {switchError && <p role="alert" className="mt-2 max-w-64 text-xs" style={{ color: 'var(--color-danger)' }}>{switchError}</p>}
     </div>
   );
 }

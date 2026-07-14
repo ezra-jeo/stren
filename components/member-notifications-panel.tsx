@@ -3,16 +3,53 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { createClient } from '@/lib/supabase';
 import { useAuth } from '@/lib/auth-context';
-import { Bell, Flame, Calendar, Megaphone, Activity, X, CheckCheck } from 'lucide-react';
+import { Bell, Flame, Calendar, Megaphone, Activity, X, CheckCheck, BadgeCheck } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { privateCacheKey } from '@/lib/private-cache';
+
+type MemberNotificationKind =
+  | 'membership_expiry_7d'
+  | 'membership_expiry_0d'
+  | 'streak_milestone'
+  | 'inactivity_nudge'
+  | 'announcement'
+  | 'membership_verified';
 
 interface MemberNotification {
   id: string;
-  notification_type: 'membership_expiry_7d' | 'membership_expiry_0d' | 'streak_milestone' | 'inactivity_nudge' | 'announcement';
+  notification_type: MemberNotificationKind;
   title: string;
   body: string | null;
   is_read: boolean;
   created_at: string;
+}
+
+const MEMBER_NOTIFICATION_KINDS = new Set<MemberNotificationKind>([
+  'membership_expiry_7d',
+  'membership_expiry_0d',
+  'streak_milestone',
+  'inactivity_nudge',
+  'announcement',
+  'membership_verified',
+]);
+
+export function normalizeMemberNotification(row: Record<string, unknown>): MemberNotification | null {
+  const rawType = row.notification_type ?? row.type;
+  if (
+    typeof row.id !== 'string' ||
+    typeof row.title !== 'string' ||
+    typeof row.created_at !== 'string' ||
+    typeof rawType !== 'string' ||
+    !MEMBER_NOTIFICATION_KINDS.has(rawType as MemberNotificationKind)
+  ) return null;
+  return {
+    id: row.id,
+    notification_type: rawType as MemberNotificationKind,
+    title: row.title,
+    body: typeof row.body === 'string' ? row.body : null,
+    is_read: row.is_read === true,
+    created_at: row.created_at,
+  };
 }
 
 const TYPE_ICON: Record<MemberNotification['notification_type'], React.ReactNode> = {
@@ -21,6 +58,7 @@ const TYPE_ICON: Record<MemberNotification['notification_type'], React.ReactNode
   streak_milestone:     <Flame size={15} />,
   inactivity_nudge:     <Activity size={15} />,
   announcement:         <Megaphone size={15} />,
+  membership_verified:  <BadgeCheck size={15} />,
 };
 
 const TYPE_COLOR: Record<MemberNotification['notification_type'], string> = {
@@ -29,6 +67,7 @@ const TYPE_COLOR: Record<MemberNotification['notification_type'], string> = {
   streak_milestone:     '#EA580C',
   inactivity_nudge:     '#16A34A',
   announcement:         '#7C3AED',
+  membership_verified:  '#16A34A',
 };
 
 const TYPE_BG: Record<MemberNotification['notification_type'], string> = {
@@ -37,35 +76,61 @@ const TYPE_BG: Record<MemberNotification['notification_type'], string> = {
   streak_milestone:     '#FFF7ED',
   inactivity_nudge:     '#ECFDF3',
   announcement:         '#F5F3FF',
+  membership_verified:  '#ECFDF3',
 };
 
 export function MemberNotificationsPanel() {
-  const { profile } = useAuth();
+  const { activeScope } = useAuth();
   const supabase = useMemo(() => createClient(), []);
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<MemberNotification[]>([]);
   const panelRef = useRef<HTMLDivElement>(null);
+  const loadScopeRef = useRef<string | null>(null);
+  const [notificationsScopeKey, setNotificationsScopeKey] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const scopeKey = activeScope ? privateCacheKey('member-notifications', activeScope) : null;
+  loadScopeRef.current = scopeKey;
+  const visibleNotifications = notificationsScopeKey === scopeKey ? notifications : [];
 
-  const unreadCount = notifications.filter((n) => !n.is_read).length;
+  const unreadCount = visibleNotifications.filter((n) => !n.is_read).length;
 
   const load = useCallback(async () => {
-    if (!profile?.id) return;
-    const { data } = await supabase
+    if (!activeScope) {
+      setNotifications([]);
+      setNotificationsScopeKey(null);
+      setLoadError(null);
+      return;
+    }
+    const requestKey = privateCacheKey('member-notifications', activeScope);
+    const { data, error } = await supabase
       .from('notifications')
-      .select('id, notification_type, title, body, is_read, created_at')
-      .eq('member_id', profile.id)
+      .select('id, notification_type, type, title, body, is_read, created_at, member_id, gym_id, for_member')
+      .eq('member_id', activeScope.profileId)
+      .eq('gym_id', activeScope.gymId)
       .eq('for_member', true)
       .order('created_at', { ascending: false })
       .limit(30);
-    setNotifications((data as MemberNotification[]) ?? []);
-  }, [profile?.id, supabase]);
+    if (loadScopeRef.current !== requestKey) return;
+    if (error) {
+      setLoadError('Notifications could not refresh.');
+      return;
+    }
+    const normalized = ((data ?? []) as Record<string, unknown>[])
+      .map(normalizeMemberNotification)
+      .filter((item): item is MemberNotification => item !== null);
+    setNotifications(normalized);
+    setNotificationsScopeKey(requestKey);
+    setLoadError(null);
+  }, [activeScope, supabase]);
 
   useEffect(() => { load(); }, [load]);
 
   // Realtime — new notifications appear instantly
   useEffect(() => {
-    if (!profile?.id) return;
-    const channelName = `member-notifications-${profile.id}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    if (!activeScope) return;
+    const requestKey = privateCacheKey('member-notifications', activeScope);
+    const profileId = activeScope.profileId;
+    const channelName = `member-notifications-${profileId}-${activeScope.gymId}-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     let channel: ReturnType<typeof supabase.channel> | null = null;
     try {
       channel = supabase.channel(channelName);
@@ -73,11 +138,13 @@ export function MemberNotificationsPanel() {
         event: 'INSERT',
         schema: 'public',
         table: 'notifications',
-        filter: `member_id=eq.${profile.id}`,
+        filter: `gym_id=eq.${activeScope.gymId}`,
       }, (payload) => {
-        const newNotif = payload.new as MemberNotification;
-        if (newNotif.notification_type) {
-          setNotifications((prev) => [newNotif, ...prev.slice(0, 29)]);
+        const row = payload.new as Record<string, unknown>;
+        const next = normalizeMemberNotification(row);
+        if (loadScopeRef.current === requestKey && row.member_id === profileId && row.for_member === true && next) {
+          setNotificationsScopeKey(requestKey);
+          setNotifications((prev) => [next, ...prev.slice(0, 29)]);
         }
       });
       channel.subscribe();
@@ -90,7 +157,7 @@ export function MemberNotificationsPanel() {
         supabase.removeChannel(channel);
       }
     };
-  }, [profile?.id, supabase]);
+  }, [activeScope, supabase]);
 
   // Close on outside click
   useEffect(() => {
@@ -104,18 +171,28 @@ export function MemberNotificationsPanel() {
   }, [open]);
 
   async function markAllRead() {
-    if (!profile?.id) return;
-    await supabase
+    if (!activeScope) return;
+    const { error } = await supabase
       .from('notifications')
       .update({ is_read: true })
-      .eq('member_id', profile.id)
+      .eq('member_id', activeScope.profileId)
+      .eq('gym_id', activeScope.gymId)
       .eq('for_member', true)
       .eq('is_read', false);
+    if (error) {
+      setLoadError('Notifications could not be marked as read.');
+      return;
+    }
     setNotifications((prev) => prev.map((n) => ({ ...n, is_read: true })));
   }
 
   async function markRead(id: string) {
-    await supabase.from('notifications').update({ is_read: true }).eq('id', id);
+    if (!activeScope) return;
+    const { error } = await supabase.from('notifications').update({ is_read: true }).eq('id', id).eq('member_id', activeScope.profileId).eq('gym_id', activeScope.gymId).eq('for_member', true);
+    if (error) {
+      setLoadError('This notification could not be marked as read.');
+      return;
+    }
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, is_read: true } : n)));
   }
 
@@ -177,14 +254,14 @@ export function MemberNotificationsPanel() {
 
               {/* List */}
               <div className="overflow-y-auto" style={{ maxHeight: 'min(400px, calc(100vh - 8rem))' }}>
-                {notifications.length === 0 ? (
+                {visibleNotifications.length === 0 ? (
                   <div className="flex flex-col items-center justify-center py-12 text-center px-4">
                     <Bell size={32} style={{ color: 'var(--color-surface)', marginBottom: 8 }} />
-                    <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>All caught up!</p>
-                    <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>No notifications yet</p>
+                    <p className="text-sm font-medium" style={{ color: 'var(--color-text-secondary)' }}>{loadError ? 'Could not refresh notifications' : 'All caught up!'}</p>
+                    <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>{loadError ?? 'No notifications yet'}</p>
                   </div>
                 ) : (
-                  notifications.map((n, i) => (
+                  visibleNotifications.map((n, i) => (
                     <button
                       key={n.id}
                       onClick={() => markRead(n.id)}

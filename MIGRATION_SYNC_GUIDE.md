@@ -46,6 +46,14 @@ Do not use `migration repair` merely to make the two columns line up.
 
 On 2026-07-13, remote version `20260701155422` was proven equivalent to local `013_fix_gym_membership_email_case.sql`; only then was history reconciled to `013`.
 
+## Google OAuth
+
+Google OAuth is Auth configuration, not a migration. The application sends browser sign-in through the existing PKCE callback at `/auth/callback`; `npm run verify:deployment` fails unless the hosted Auth settings report `external.google = true`.
+
+Create a Google **Web application** client with the production JavaScript origin `https://stren.netlify.app` and the Supabase redirect URI `https://<SUPABASE_PROJECT_ID>.supabase.co/auth/v1/callback`. For local development use `http://127.0.0.1:3000` and `http://127.0.0.1:54321/auth/v1/callback` respectively. Store its ID and secret only in the secure deployment environment, then patch the hosted project Auth configuration with `external_google_enabled`, `external_google_client_id`, and `external_google_secret` through `PATCH /v1/projects/{ref}/config/auth`.
+
+Do not put the client secret in a `NEXT_PUBLIC_` variable or run `supabase config push` against production. Local `supabase/config.toml` intentionally reads `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID` and `SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_SECRET` from the root `.env`; use the committed `.env.example` placeholders as the local template.
+
 ## Hosted email confirmation
 
 The application requires email confirmation, so the hosted Auth setting must expose `mailer_autoconfirm = false`. Check this through:

@@ -17,9 +17,12 @@
 
 ## Core documents (this folder)
 
+Active implementation plan: [ImplementationPlan-GoogleOAuth.md](ImplementationPlan-GoogleOAuth.md).
+
 | File | What it is | Who updates it | Update trigger |
 |---|---|---|---|
 | `Catalog.md` | This index + the maintenance rules | Any agent | Any doc is added, moved, renamed, or goes stale |
+| `ImplementationPlan-GoogleOAuth.md` | Active workstream: Google OAuth application contract, hosted Auth configuration, and verification | Implementing agent | Scope/configuration changes |
 | `ImplementationPlan-AccountSessionRecovery.md` | **Latest completed plan**: browser-session post-auth routing and fail-closed account/profile recovery | Implementing agent | Scope/decision changes |
 | `ImplementationPlan-MemberOnboardingRecovery.md` | **Latest completed plan**: bounded auth completion, secure recovery, useful no-gym home, saved gyms, membership verification | Implementing agent | Scope/decision changes |
 | `AboutProject.md` | Mission, north star, audience, product principles, roadmap teasers | User-approved changes only — agents propose, never silently rewrite | Product direction changes |

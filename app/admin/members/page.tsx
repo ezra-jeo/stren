@@ -21,6 +21,7 @@ import {
 } from "@/lib/admin-ui"
 import { toast } from "sonner"
 import { Snowflake, Play, AlertTriangle, Users, UserPlus } from "lucide-react"
+import { privateCacheKey, readPrivateCache, writePrivateCache } from "@/lib/private-cache"
 
 interface MemberRow {
   profile_id: string
@@ -61,42 +62,9 @@ interface OnboardResponse {
   emailError?: string
 }
 
-const MEMBERS_CACHE_TTL_MS = 30_000
+const MEMBERS_CACHE_STALE_MS = 30_000
+const MEMBERS_CACHE_GC_MS = 5 * 60_000
 const PLANS_CACHE_TTL_MS = 5 * 60_000
-const MEMBERS_CACHE_PREFIX = "admin-members-cache:"
-
-type MembersCachePayload = {
-  gymId: string
-  cachedAt: number
-  members: MemberRow[]
-}
-
-function readMembersCache(gymId: string): MembersCachePayload | null {
-  if (typeof window === "undefined") return null
-  try {
-    const raw = window.sessionStorage.getItem(`${MEMBERS_CACHE_PREFIX}${gymId}`)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as MembersCachePayload
-    if (!parsed || parsed.gymId !== gymId || !Array.isArray(parsed.members)) return null
-    return parsed
-  } catch {
-    return null
-  }
-}
-
-function writeMembersCache(gymId: string, members: MemberRow[]) {
-  if (typeof window === "undefined") return
-  const payload: MembersCachePayload = {
-    gymId,
-    cachedAt: Date.now(),
-    members,
-  }
-  try {
-    window.sessionStorage.setItem(`${MEMBERS_CACHE_PREFIX}${gymId}`, JSON.stringify(payload))
-  } catch {
-    // Ignore storage failures in restricted/private environments.
-  }
-}
 
 function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -115,7 +83,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
 
 export default function MembersPage() {
   const supabase = useMemo(() => createClient(), [])
-  const { profile } = useAuth()
+  const { activeScope } = useAuth()
   const [members, setMembers] = useState<MemberRow[]>([])
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -129,16 +97,26 @@ export default function MembersPage() {
   const [renewPaymentMethod, setRenewPaymentMethod] = useState<"cash" | "gcash">("cash")
   const [renewLoading, setRenewLoading] = useState(false)
   const [onboardOpen, setOnboardOpen] = useState(false)
-  const plansCacheRef = useRef<{ gymId: string; cachedAt: number; plans: PlanOption[] } | null>(null)
+  const plansCacheRef = useRef<{ scopeKey: string; cachedAt: number; plans: PlanOption[] } | null>(null)
+  const activeMembersRequestRef = useRef<string | null>(null)
+  const activePaymentsRequestRef = useRef<string | null>(null)
+  const currentScopeKeyRef = useRef<string | null>(null)
+  const [membersScopeKey, setMembersScopeKey] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const activeScopeKey = activeScope ? privateCacheKey("admin-members", activeScope) : null
+  currentScopeKeyRef.current = activeScopeKey
+  const scopedMembers = membersScopeKey === activeScopeKey ? members : []
 
   const getActivePlans = useCallback(async (forceRefresh = false): Promise<PlanOption[]> => {
-    if (!profile?.gymId) return []
+    if (!activeScope) return []
+    const gymId = activeScope.gymId
+    const scopeKey = privateCacheKey("admin-plans", activeScope)
+    const membersScopeKey = privateCacheKey("admin-members", activeScope)
 
     const cached = plansCacheRef.current
     const isCachedValid =
       cached &&
-      cached.gymId === profile.gymId &&
+      cached.scopeKey === scopeKey &&
       Date.now() - cached.cachedAt < PLANS_CACHE_TTL_MS
 
     if (!forceRefresh && isCachedValid) {
@@ -148,7 +126,7 @@ export default function MembersPage() {
     const query = supabase
       .from("membership_plans")
       .select("id, name, price, duration_days")
-      .eq("gym_id", profile.gymId)
+      .eq("gym_id", gymId)
       .eq("is_active", true)
       .order("price")
 
@@ -157,35 +135,45 @@ export default function MembersPage() {
     if (error) {
       throw new Error(error.message)
     }
+    if (currentScopeKeyRef.current !== membersScopeKey) throw new Error("Gym changed while loading plans")
 
     const plans = (data ?? []) as PlanOption[]
     plansCacheRef.current = {
-      gymId: profile.gymId,
+      scopeKey,
       cachedAt: Date.now(),
       plans,
     }
     return plans
-  }, [profile?.gymId, supabase])
+  }, [activeScope, supabase])
 
   const fetchMembers = useCallback(async (forceRefresh = false) => {
-    if (!profile?.gymId) {
+    if (!activeScope) {
+      activeMembersRequestRef.current = null
+      activePaymentsRequestRef.current = null
       setMembers([])
+      setMembersScopeKey(null)
       setIsLoading(false)
       return
     }
 
+    const gymId = activeScope.gymId
+    const requestKey = privateCacheKey("admin-members", activeScope)
+    activeMembersRequestRef.current = requestKey
+
     let usedCachedSnapshot = false
     if (!forceRefresh) {
-      const cached = readMembersCache(profile.gymId)
+      const cached = readPrivateCache<MemberRow[]>("admin-members", activeScope)
       if (cached) {
-        setMembers(cached.members)
+        setMembers(cached.value)
+        setMembersScopeKey(requestKey)
         setIsLoading(false)
         usedCachedSnapshot = true
-        if (Date.now() - cached.cachedAt < MEMBERS_CACHE_TTL_MS) {
+        if (!cached.isStale) {
           return
         }
       }
     }
+    if (!usedCachedSnapshot) setIsLoading(true)
 
     try {
       const memberQueries = Promise.all([
@@ -193,19 +181,24 @@ export default function MembersPage() {
           .from("gym_users")
           .select("user_id, status, profiles!gym_users_user_id_fkey(id, name, email, contact_number, created_at)")
           .eq("role", "member")
-          .eq("gym_id", profile.gymId),
+          .eq("gym_id", gymId),
         supabase
           .from("memberships")
           .select("id, member_id, start_date, end_date, status, amount_paid, payment_method, created_at, membership_plans!memberships_plan_id_fkey(name)")
-          .eq("gym_id", profile.gymId)
+          .eq("gym_id", gymId)
           .order("created_at", { ascending: false }),
       ])
 
-      const [{ data: profilesData }, { data: membershipsData }] = await withTimeout(
+      const [
+        { data: profilesData, error: profilesError },
+        { data: membershipsData, error: membershipsError },
+      ] = await withTimeout(
         memberQueries,
         15000,
         "Loading members timed out",
       )
+      if (profilesError) throw new Error(profilesError.message)
+      if (membershipsError) throw new Error(membershipsError.message)
 
       const membershipMap = new Map<string, (typeof membershipsData extends (infer T)[] | null ? T : never)>()
       for (const m of membershipsData ?? []) {
@@ -232,27 +225,59 @@ export default function MembersPage() {
           } satisfies MemberRow
         })
 
+      if (activeMembersRequestRef.current !== requestKey || currentScopeKeyRef.current !== requestKey) return
+      writePrivateCache("admin-members", activeScope, nextMembers, {
+        staleTimeMs: MEMBERS_CACHE_STALE_MS,
+        gcTimeMs: MEMBERS_CACHE_GC_MS,
+      })
       setMembers(nextMembers)
-      writeMembersCache(profile.gymId, nextMembers)
+      setMembersScopeKey(requestKey)
     } catch (error) {
+      if (activeMembersRequestRef.current !== requestKey || currentScopeKeyRef.current !== requestKey) return
       const message = error instanceof Error ? error.message : "Unknown members load error"
       if (!usedCachedSnapshot) {
         toast.error(`Failed to load members: ${message}`)
         setMembers([])
+        setMembersScopeKey(requestKey)
+      } else {
+        toast.error("Members could not refresh. Showing the last available list.")
       }
     } finally {
-      setIsLoading(false)
+      if (activeMembersRequestRef.current === requestKey) setIsLoading(false)
     }
-  }, [profile?.gymId, supabase])
+  }, [activeScope, supabase])
 
   useEffect(() => { void fetchMembers(false) }, [fetchMembers])
 
+  useEffect(() => {
+    activeMembersRequestRef.current = activeScopeKey
+    activePaymentsRequestRef.current = null
+    plansCacheRef.current = null
+    setDetailOpen(false)
+    setSelectedMemberId(null)
+    setSelectedPayments([])
+    setRenewOpen(false)
+    setRenewMember(null)
+    setOnboardOpen(false)
+  }, [activeScopeKey])
+
   async function fetchPayments(memberId: string) {
-    const { data } = await supabase
+    if (!activeScope) return
+    const requestKey = `${privateCacheKey("admin-member-payments", activeScope)}:${memberId}`
+    const expectedScopeKey = privateCacheKey("admin-members", activeScope)
+    activePaymentsRequestRef.current = requestKey
+    const { data, error } = await supabase
       .from("memberships")
       .select("id, amount_paid, payment_method, created_at, membership_plans!memberships_plan_id_fkey(name)")
       .eq("member_id", memberId)
+      .eq("gym_id", activeScope.gymId)
       .order("created_at", { ascending: false })
+    if (activePaymentsRequestRef.current !== requestKey || currentScopeKeyRef.current !== expectedScopeKey) return
+    if (error) {
+      toast.error("Payment history could not be loaded.")
+      setSelectedPayments([])
+      return
+    }
     setSelectedPayments(
       (data ?? []).map((p) => ({
         id: p.id,
@@ -265,7 +290,7 @@ export default function MembersPage() {
   }
 
   const filtered = useMemo(() => {
-    let list = [...members]
+    let list = [...scopedMembers]
     if (statusFilter === "verification") list = list.filter((m) => m.profile_status === "pending")
     else if (statusFilter === "banned") list = list.filter((m) => m.profile_status === "rejected")
     else if (statusFilter === "no_plan") list = list.filter((m) => m.membership_status === null)
@@ -280,19 +305,21 @@ export default function MembersPage() {
       )
     }
     return list.sort((a, b) => a.name.localeCompare(b.name))
-  }, [members, statusFilter, search])
+  }, [scopedMembers, statusFilter, search])
 
-  const selectedMember = members.find((m) => m.profile_id === selectedMemberId)
+  const selectedMember = scopedMembers.find((m) => m.profile_id === selectedMemberId)
 
   async function handleStatusChange(membershipId: string, status: "active" | "frozen") {
-    const { error } = await supabase.from("memberships").update({ status }).eq("id", membershipId)
+    if (!activeScope) return
+    const { error } = await supabase.from("memberships").update({ status }).eq("id", membershipId).eq("gym_id", activeScope.gymId)
     if (error) { toast.error("Failed to update status"); return }
     toast.success(status === "frozen" ? "Membership frozen." : "Membership activated.")
     void fetchMembers(true)
   }
 
   async function handleProfileStatusChange(memberId: string, status: "active" | "rejected") {
-    const { error } = await supabase.from("gym_users").update({ status }).eq("gym_id", profile!.gymId!).eq("user_id", memberId)
+    if (!activeScope) return
+    const { error } = await supabase.from("gym_users").update({ status }).eq("gym_id", activeScope.gymId).eq("user_id", memberId)
     if (error) {
       toast.error(status === "rejected" ? "Failed to ban member" : "Failed to unban member")
       return
@@ -302,9 +329,9 @@ export default function MembersPage() {
   }
 
   async function confirmMembershipVerification(memberId: string) {
-    if (!profile?.gymId) return
+    if (!activeScope) return
     const { error } = await supabase.rpc("confirm_membership_verification", {
-      p_gym_id: profile.gymId,
+      p_gym_id: activeScope.gymId,
       p_user_id: memberId,
     })
     if (error) {
@@ -332,7 +359,7 @@ export default function MembersPage() {
   }
 
   async function handleRenewMembership() {
-    if (!renewMember) return
+    if (!renewMember || !activeScope) return
     const plan = renewPlans.find((p) => p.id === renewPlanId)
     if (!plan) { toast.error("Please select a membership plan"); return }
 
@@ -350,7 +377,7 @@ export default function MembersPage() {
       status: "active",
       payment_method: renewPaymentMethod,
       amount_paid: plan.price,
-      gym_id: profile?.gymId ?? null,
+      gym_id: activeScope.gymId,
     })
 
     if (insertError) { toast.error("Failed to renew: " + insertError.message); setRenewLoading(false); return }
@@ -359,6 +386,7 @@ export default function MembersPage() {
       .from("memberships")
       .update({ status: "expired" })
       .eq("member_id", renewMember.profile_id)
+      .eq("gym_id", activeScope.gymId)
       .eq("status", "active")
       .neq("start_date", startDateValue)
 
@@ -372,7 +400,7 @@ export default function MembersPage() {
     void fetchMembers(true)
   }
 
-  const expiredMembers = members.filter((m) => m.profile_status === "active" && m.membership_status === "expired")
+  const expiredMembers = scopedMembers.filter((m) => m.profile_status === "active" && m.membership_status === "expired")
 
   if (isLoading) {
     return <LoadingSkeleton rows={6} h={68} />
@@ -382,7 +410,7 @@ export default function MembersPage() {
     <div className="space-y-6" style={{ backgroundColor: A.bg }}>
       <PageHeader
         title="Members"
-        subtitle={`${members.length} member account${members.length !== 1 ? "s" : ""}`}
+        subtitle={`${scopedMembers.length} member account${scopedMembers.length !== 1 ? "s" : ""}`}
         action={
           <PrimaryBtn onClick={() => setOnboardOpen(true)}>
             <UserPlus className="h-4 w-4" />
@@ -520,7 +548,7 @@ export default function MembersPage() {
         </div>
       )}
 
-      <p className="text-xs" style={{ color: A.muted }}>Showing {filtered.length} of {members.length} members</p>
+      <p className="text-xs" style={{ color: A.muted }}>Showing {filtered.length} of {scopedMembers.length} members</p>
 
       <Modal
         open={detailOpen}

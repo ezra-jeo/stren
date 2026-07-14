@@ -15,8 +15,15 @@ vi.mock('next/navigation', () => ({
 
 const signInMock = vi.fn();
 const resolveSignedInDestinationMock = vi.fn();
+const signInWithOAuthMock = vi.fn();
 vi.mock('@/lib/auth-context', () => ({
   useAuth: () => ({ signIn: signInMock, resolveSignedInDestination: resolveSignedInDestinationMock }),
+}));
+
+vi.mock('@/lib/supabase', () => ({
+  createClient: () => ({
+    auth: { signInWithOAuth: signInWithOAuthMock },
+  }),
 }));
 
 const signUpAccountMock = vi.fn();
@@ -29,12 +36,14 @@ vi.mock('@/lib/auth-actions', () => ({
 import AuthPage from '@/app/auth/page';
 
 beforeEach(() => {
+  sessionStorage.clear();
   currentSearch = 'mode=signin';
   pushMock.mockReset();
   replaceMock.mockReset();
   refreshMock.mockReset();
   signInMock.mockReset();
   resolveSignedInDestinationMock.mockReset();
+  signInWithOAuthMock.mockReset();
   signUpAccountMock.mockReset();
   resolvePostAuthDestinationMock.mockReset();
 });
@@ -44,6 +53,18 @@ afterEach(() => {
 });
 
 describe('/auth shared surface', () => {
+  it('restores non-sensitive form identity fields after a short back-navigation round trip', async () => {
+    const user = userEvent.setup();
+    const first = render(<AuthPage />);
+
+    await user.type(screen.getByLabelText('Email address', { selector: '#signin-email' }), 'alex@example.com');
+    first.unmount();
+    render(<AuthPage />);
+
+    expect(screen.getByLabelText('Email address', { selector: '#signin-email' })).toHaveValue('alex@example.com');
+    expect(screen.getByLabelText('Password', { selector: '#signin-password' })).toHaveValue('');
+  });
+
   it('switches modes in place, hides the covered form, updates the URL, and preserves typed values', async () => {
     const user = userEvent.setup();
     render(<AuthPage />);
@@ -69,19 +90,31 @@ describe('/auth shared surface', () => {
     expect(screen.getByLabelText('Full name')).toHaveValue('Alex Cruz');
   });
 
-  it('shows an honest Google preview in both modes without starting authentication', async () => {
+  it('starts Google OAuth with the PKCE callback and preserves the gym context', async () => {
     const user = userEvent.setup();
+    currentSearch = 'mode=signup&gym=IRON';
+    signInWithOAuthMock.mockResolvedValue({ data: { url: 'https://accounts.google.com/o/oauth2/v2/auth' }, error: null });
     render(<AuthPage />);
 
-    expect(screen.getAllByRole('button', { name: /continue with google.*coming soon/i, hidden: true })).toHaveLength(2);
-    await user.click(screen.getByRole('button', { name: /continue with google.*coming soon/i }));
-    expect(screen.getByRole('status')).toHaveTextContent(/google sign-in is coming soon/i);
+    expect(screen.getAllByRole('button', { name: 'Continue with Google', hidden: true })).toHaveLength(2);
+    await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
+    await waitFor(() => expect(signInWithOAuthMock).toHaveBeenCalledWith({
+      provider: 'google',
+      options: { redirectTo: `${window.location.origin}/auth/callback?flow=google&gym=IRON` },
+    }));
     expect(signInMock).not.toHaveBeenCalled();
-
-    await user.click(screen.getAllByRole('button', { name: /create account/i })[0]);
-    await user.click(screen.getByRole('button', { name: /continue with google.*coming soon/i }));
-    expect(screen.getByRole('status')).toHaveTextContent(/google sign-in is coming soon/i);
     expect(signUpAccountMock).not.toHaveBeenCalled();
+  });
+
+  it('returns an OAuth launch failure to an interactive Google control', async () => {
+    const user = userEvent.setup();
+    signInWithOAuthMock.mockResolvedValue({ data: { url: null }, error: new Error('Google is unavailable') });
+    render(<AuthPage />);
+
+    await user.click(screen.getByRole('button', { name: 'Continue with Google' }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Google sign-in');
+    expect(screen.getByRole('button', { name: 'Continue with Google' })).toBeEnabled();
   });
 
   it('shows a generic accessible error for invalid credentials without clearing the email', async () => {

@@ -15,6 +15,8 @@ const KNOWN_ERRORS: Record<string, string> = {
   server_error: 'Something went wrong on our end. Please try again in a moment.',
   email_not_confirmed: 'Please confirm your email first, then sign in.',
   unauthorized_client: 'That link is no longer valid. Request a new one and try again.',
+  oauth_cancelled: 'Google sign-in was cancelled. You can try again whenever you are ready.',
+  oauth_failed: 'We could not complete Google sign-in. Please try again or use your email and password.',
 };
 
 export function readableAuthError(raw: string | null | undefined): string | null {

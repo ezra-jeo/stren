@@ -14,6 +14,8 @@ export async function GET(request: Request) {
   const tokenType = requestUrl.searchParams.get("type")?.toLowerCase() ?? null
   const next = requestUrl.searchParams.get("next")
   const gymCode = requestUrl.searchParams.get("gym")
+  const googleFlow = requestUrl.searchParams.get("flow") === "google"
+  const providerError = requestUrl.searchParams.get("error")
 
   const supabase = await createServerSupabaseClient()
   let authError: string | null = null
@@ -31,6 +33,8 @@ export async function GET(request: Request) {
     })
     if (error) authError = error.message
     else authenticatedUserId = data.user?.id ?? null
+  } else if (googleFlow) {
+    authError = providerError === "access_denied" ? "oauth_cancelled" : "oauth_failed"
   } else {
     authError = "missing_code"
   }

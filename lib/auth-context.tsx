@@ -7,6 +7,12 @@ import { createClient } from './supabase';
 import { withTimeout } from './async-guard';
 import { choosePostAuthDestination } from './post-auth-destination';
 import type { AccountProfile, MyGym } from './types';
+import {
+  clearPrivateCaches,
+  derivePrivateDataScope,
+  type PrivateDataScope,
+} from './private-cache';
+import { PrivacyCurtain } from '@/components/ui/loading-screen';
 
 type AuthProfile = AccountProfile & {
   /** TODO(U3): remove after every shell/client reads active gym from access/auth context. */
@@ -24,6 +30,7 @@ export interface AuthContextValue {
   profile: AuthProfile | null;
   myGyms: MyGym[];
   activeGymId: string | null;
+  activeScope: PrivateDataScope | null;
   profileError: string | null;
   gymAccessError: string | null;
   isLoading: boolean;
@@ -35,15 +42,16 @@ export interface AuthContextValue {
   completePasswordSetup(userId?: string | null): void;
   refreshProfile(): Promise<void>;
   refreshMyGyms(): Promise<void>;
+  beginPrivateScopeChange(): void;
 }
 
 const fallback: AuthContextValue = {
-  user: null, profile: null, myGyms: [], activeGymId: null, profileError: null, gymAccessError: null,
+  user: null, profile: null, myGyms: [], activeGymId: null, activeScope: null, profileError: null, gymAccessError: null,
   isLoading: false, isSigningOut: false, needsPasswordSetup: false,
   signIn: async () => ({ error: 'Authentication unavailable.' }),
   resolveSignedInDestination: async () => '/auth?mode=signin',
   signOut: async () => {}, completePasswordSetup: () => {},
-  refreshProfile: async () => {}, refreshMyGyms: async () => {},
+  refreshProfile: async () => {}, refreshMyGyms: async () => {}, beginPrivateScopeChange: () => {},
 };
 const AuthContext = createContext<AuthContextValue | null>(null);
 
@@ -68,7 +76,11 @@ function readCache(userId: string): AuthProfile | null {
 function writeCache(userId: string, profile: AuthProfile) { try { sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ userId, at: Date.now(), profile })); } catch {} }
 
 export function shouldSkipAuthBootstrap(pathname: string | null | undefined): boolean {
-  return pathname === '/' || pathname === '/auth' || pathname === '/reset-password';
+  return pathname === '/' || pathname === '/auth' || pathname === '/reset-password' || pathname === '/for-gym-owners';
+}
+
+export function shouldDeferAuthBootstrap(pathname: string | null | undefined): boolean {
+  return pathname === '/landing' || Boolean(pathname?.startsWith('/gym/'));
 }
 
 function AuthProviderInner({ children }: { children: React.ReactNode }) {
@@ -82,25 +94,62 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
   const [isSigningOut, setIsSigningOut] = useState(false);
   const [needsPasswordSetup, setNeedsPasswordSetup] = useState(false);
   const recovering = useRef(false);
+  const privateRequestEpoch = useRef(0);
+  const profileRequestSequence = useRef(0);
+  const gymsRequestSequence = useRef(0);
+  const authSnapshotGeneration = useRef(0);
+  const currentUserId = useRef<string | null>(null);
   const router = useRouter(); const pathname = usePathname();
   const skipBootstrap = useMemo(() => shouldSkipAuthBootstrap(pathname), [pathname]);
+  const deferBootstrap = useMemo(() => shouldDeferAuthBootstrap(pathname), [pathname]);
   const supabase = useMemo(() => skipBootstrap ? null : createClient(), [skipBootstrap]);
   const client = useCallback(() => supabase ?? createClient(), [supabase]);
 
-  const fetchProfile = useCallback(async (userId: string, db = client()) => {
+  const beginPrivateScopeChange = useCallback(() => {
+    privateRequestEpoch.current += 1;
+    profileRequestSequence.current += 1;
+    gymsRequestSequence.current += 1;
+    try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch {}
+    setProfile(null);
+    setMyGyms([]);
+    setActiveGymId(null);
+    setProfileError(null);
+    setGymAccessError(null);
+  }, []);
+
+  const fetchProfile = useCallback(async (userId: string, db = client(), expectedEpoch = privateRequestEpoch.current) => {
+    const requestSequence = ++profileRequestSequence.current;
     try {
       const { data, error } = await withTimeout(db.from('profiles').select('id,email,name,contact_number,avatar_url,avatar_updated_at,avatar_change_locked_until,avatar_change_count,qr_code,created_at,active_gym_id').eq('id', userId).maybeSingle(), 7000, 'Profile lookup timed out.');
       if (error) throw new Error(error.message);
       if (!data) throw new Error('The authenticated account has no profile record.');
       const built: AuthProfile = { id: data.id, email: data.email, name: data.name, contactNumber: data.contact_number, avatarUrl: data.avatar_url, avatarUpdatedAt: data.avatar_updated_at, avatarChangeLockedUntil: data.avatar_change_locked_until, avatarChangeCount: data.avatar_change_count ?? 0, qrCode: data.qr_code ?? '', createdAt: data.created_at ?? new Date().toISOString(), gymId: data.active_gym_id ?? null, role: 'member' };
-      setProfile(built); setActiveGymId(data.active_gym_id ?? null); setProfileError(null); writeCache(userId, built); return built;
+      if (
+        privateRequestEpoch.current === expectedEpoch &&
+        profileRequestSequence.current === requestSequence &&
+        currentUserId.current === userId
+      ) {
+        setProfile(built); setActiveGymId(data.active_gym_id ?? null); setProfileError(null); writeCache(userId, built);
+      }
+      return built;
     } catch (error) {
-      setProfileError('We could not load your account profile. Your signed-in session is still active.');
+      if (
+        privateRequestEpoch.current === expectedEpoch &&
+        profileRequestSequence.current === requestSequence &&
+        currentUserId.current === userId
+      ) {
+        setProfileError('We could not load your account profile. Your signed-in session is still active.');
+      }
       throw error;
     }
   }, [client]);
 
-  const fetchGyms = useCallback(async (db = client()) => {
+  const fetchGyms = useCallback(async (
+    db = client(),
+    expectedEpoch = privateRequestEpoch.current,
+    expectedUserId = currentUserId.current,
+  ) => {
+    const requestSequence = ++gymsRequestSequence.current;
     try {
       const { data, error } = await withTimeout(
         db.rpc('get_my_gyms'),
@@ -110,19 +159,36 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
       if (error) throw new Error(error.message);
       if (!Array.isArray(data)) throw new Error('Gym access lookup returned an invalid response.');
       const gyms = data.map((row: Record<string, unknown>) => ({ gymId: String(row.gym_id), code: String(row.code), name: String(row.name), logoUrl: typeof row.logo_url === 'string' ? row.logo_url : null, role: row.role as MyGym['role'], status: row.status as MyGym['status'] }));
-      setMyGyms(gyms); setGymAccessError(null); return gyms;
+      if (
+        privateRequestEpoch.current === expectedEpoch &&
+        gymsRequestSequence.current === requestSequence &&
+        currentUserId.current === expectedUserId
+      ) {
+        setMyGyms(gyms); setGymAccessError(null);
+      }
+      return gyms;
     } catch (error) {
-      setGymAccessError('We could not load your gym access. Your account has not been treated as a new account.');
+      if (
+        privateRequestEpoch.current === expectedEpoch &&
+        gymsRequestSequence.current === requestSequence &&
+        currentUserId.current === expectedUserId
+      ) {
+        setGymAccessError('We could not load your gym access. Your account has not been treated as a new account.');
+      }
       throw error;
     }
   }, [client]);
 
   const recover = useCallback(async (db = client()) => {
     if (recovering.current) return; recovering.current = true;
-    try { await db.auth.signOut({ scope: 'local' }); } catch {}
-    setUser(null); setProfile(null); setMyGyms([]); setActiveGymId(null); setProfileError(null); setGymAccessError(null); setIsLoading(false); recovering.current = false;
-    if (pathname !== '/auth') { router.replace('/auth?mode=signin'); router.refresh(); }
-  }, [client, pathname, router]);
+    beginPrivateScopeChange(); clearPrivateCaches(); currentUserId.current = null;
+    authSnapshotGeneration.current += 1;
+    try { await withTimeout(db.auth.signOut({ scope: 'local' }), 2500, 'Local sign-out timed out.'); } catch {}
+    finally {
+      setUser(null); setIsLoading(false); recovering.current = false;
+      if (pathname !== '/auth') { router.replace('/auth?mode=signin'); router.refresh(); }
+    }
+  }, [beginPrivateScopeChange, client, pathname, router]);
 
   useEffect(() => {
     const tokens = hashTokens(); if (!tokens) return;
@@ -130,20 +196,75 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     void db.auth.setSession({ access_token: tokens.accessToken, refresh_token: tokens.refreshToken }).then(async ({ data, error }) => {
       history.replaceState({}, '', `${location.pathname}${location.search}`);
       if (error || !data.user) { router.replace(`/auth?mode=signin&error=${encodeURIComponent(error?.message ?? 'invalid_magic_link_session')}`); setIsLoading(false); return; }
-      setUser(data.user); if (['recovery','magiclink','email','invite'].includes(tokens.type ?? '')) setStorageFlag(`${PASSWORD_SETUP_PENDING_PREFIX}${data.user.id}`, true);
+      beginPrivateScopeChange(); currentUserId.current = data.user.id; authSnapshotGeneration.current += 1; setUser(data.user); if (['recovery','magiclink','email','invite'].includes(tokens.type ?? '')) setStorageFlag(`${PASSWORD_SETUP_PENDING_PREFIX}${data.user.id}`, true);
       setNeedsPasswordSetup(needsSetup(data.user.id)); await Promise.allSettled([fetchProfile(data.user.id, db), fetchGyms(db)]); setIsLoading(false);
       if (tokens.type === 'recovery' && pathname !== '/reset-password') router.replace('/reset-password');
     });
-  }, [fetchGyms, fetchProfile, pathname, router]);
+  }, [beginPrivateScopeChange, fetchGyms, fetchProfile, pathname, router]);
 
   useEffect(() => {
     if (skipBootstrap || !supabase) { setIsLoading(false); return; }
-    let active = true; setIsLoading(true);
-    const hydrate = async (current: User | null) => { if (!active) return; setUser(current); setNeedsPasswordSetup(needsSetup(current?.id ?? null)); if (!current) { setProfile(null); setMyGyms([]); setActiveGymId(null); setProfileError(null); setGymAccessError(null); setIsLoading(false); return; } const cached = readCache(current.id); if (cached) setProfile(cached); await Promise.allSettled([fetchProfile(current.id, supabase), fetchGyms(supabase)]); if (active) setIsLoading(false); };
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => { void hydrate(session?.user ?? null); });
-    void retry(() => supabase.auth.getUser()).then(({ data, error }) => error && invalidRefresh(error) ? recover(supabase) : hydrate(data.user ?? null)).catch((error) => invalidRefresh(error) ? recover(supabase) : hydrate(null));
-    return () => { active = false; subscription.unsubscribe(); };
-  }, [fetchGyms, fetchProfile, recover, skipBootstrap, supabase]);
+    let active = true;
+    let subscription: { unsubscribe(): void } | null = null;
+    let timerId: ReturnType<typeof setTimeout> | null = null;
+    let idleId: number | null = null;
+    setIsLoading(!deferBootstrap);
+    const hydrate = async (current: User | null, generation: number) => {
+      if (!active || authSnapshotGeneration.current !== generation) return;
+      const nextUserId = current?.id ?? null;
+      if (currentUserId.current !== nextUserId) beginPrivateScopeChange();
+      currentUserId.current = current?.id ?? null;
+      setUser(current); setNeedsPasswordSetup(needsSetup(current?.id ?? null));
+      if (!current) {
+        clearPrivateCaches(); beginPrivateScopeChange(); setIsLoading(false); return;
+      }
+      const expectedEpoch = privateRequestEpoch.current;
+      const cached = readCache(current.id); if (cached) setProfile(cached);
+      await Promise.allSettled([fetchProfile(current.id, supabase, expectedEpoch), fetchGyms(supabase, expectedEpoch, current.id)]);
+      if (
+        active &&
+        authSnapshotGeneration.current === generation &&
+        privateRequestEpoch.current === expectedEpoch &&
+        currentUserId.current === current.id
+      ) setIsLoading(false);
+    };
+    const start = () => {
+      if (!active) return;
+      const initialGeneration = ++authSnapshotGeneration.current;
+      subscription = supabase.auth.onAuthStateChange((_event, session) => {
+        const generation = ++authSnapshotGeneration.current;
+        void hydrate(session?.user ?? null, generation);
+      }).data.subscription;
+      void retry(() => supabase.auth.getUser())
+        .then(({ data, error }) => {
+          if (!active || authSnapshotGeneration.current !== initialGeneration) return;
+          return error && invalidRefresh(error) ? recover(supabase) : hydrate(data.user ?? null, initialGeneration);
+        })
+        .catch((error) => {
+          if (!active || authSnapshotGeneration.current !== initialGeneration) return;
+          return invalidRefresh(error) ? recover(supabase) : hydrate(null, initialGeneration);
+        });
+    };
+
+    if (deferBootstrap) {
+      const idleWindow = window as Window & {
+        requestIdleCallback?: (callback: () => void, options?: { timeout: number }) => number;
+        cancelIdleCallback?: (id: number) => void;
+      };
+      if (idleWindow.requestIdleCallback) idleId = idleWindow.requestIdleCallback(start, { timeout: 1_200 });
+      else timerId = setTimeout(start, 180);
+    } else {
+      start();
+    }
+
+    return () => {
+      active = false;
+      authSnapshotGeneration.current += 1;
+      subscription?.unsubscribe();
+      if (timerId) clearTimeout(timerId);
+      if (idleId !== null) (window as Window & { cancelIdleCallback?: (id: number) => void }).cancelIdleCallback?.(idleId);
+    };
+  }, [beginPrivateScopeChange, deferBootstrap, fetchGyms, fetchProfile, recover, skipBootstrap, supabase]);
 
   async function signIn(email: string, password: string) {
     const db = client();
@@ -164,6 +285,8 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
         return { error: confirmationError?.message ?? 'Session confirmation failed.' };
       }
 
+      if (currentUserId.current !== confirmed.user.id) beginPrivateScopeChange();
+      currentUserId.current = confirmed.user.id;
       setUser(confirmed.user);
       setStorageFlag(`${PASSWORD_SETUP_DONE_PREFIX}${confirmed.user.id}`, true);
       setStorageFlag(`${PASSWORD_SETUP_PENDING_PREFIX}${confirmed.user.id}`, false);
@@ -178,8 +301,11 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
     try {
       const { data, error } = await withTimeout(db.auth.getUser(), 5000, 'Session confirmation timed out.');
       if (error || !data.user) throw new Error(error?.message ?? 'The signed-in session could not be confirmed.');
+      if (currentUserId.current !== data.user.id) beginPrivateScopeChange();
+      currentUserId.current = data.user.id;
       setUser(data.user);
-      const [gymsResult, profileResult] = await Promise.allSettled([fetchGyms(db), fetchProfile(data.user.id, db)]);
+      const expectedEpoch = privateRequestEpoch.current;
+      const [gymsResult, profileResult] = await Promise.allSettled([fetchGyms(db, expectedEpoch), fetchProfile(data.user.id, db, expectedEpoch)]);
       if (gymsResult.status === 'rejected') throw new Error('Gym access lookup failed.');
       const resolvedActiveGymId = profileResult.status === 'fulfilled' ? profileResult.value.gymId : activeGymId;
       const destination = choosePostAuthDestination(gymsResult.value, resolvedActiveGymId, gymCode);
@@ -191,18 +317,49 @@ function AuthProviderInner({ children }: { children: React.ReactNode }) {
         );
         if (activationError) throw new Error(activationError.message);
         setActiveGymId(destination.activateGymId);
+        setProfile((current) => current ? { ...current, gymId: destination.activateGymId! } : current);
       }
       return destination.path;
     } finally {
       setIsLoading(false);
     }
   }
-  async function signOut() { if (isSigningOut) return; setIsSigningOut(true); const db = client(); try { await withTimeout(db.auth.signOut(), 10000, 'Sign-out timed out.'); } catch { await db.auth.signOut({ scope: 'local' }); } setUser(null); setProfile(null); setMyGyms([]); setActiveGymId(null); setProfileError(null); setGymAccessError(null); setIsSigningOut(false); router.replace('/auth?mode=signin'); router.refresh(); }
+  async function signOut() {
+    if (isSigningOut) return;
+    setIsSigningOut(true);
+    beginPrivateScopeChange(); clearPrivateCaches(); currentUserId.current = null;
+    setUser(null); setProfile(null); setMyGyms([]); setActiveGymId(null); setProfileError(null); setGymAccessError(null);
+    const db = client();
+    authSnapshotGeneration.current += 1;
+    try {
+      await withTimeout(db.auth.signOut(), 10000, 'Sign-out timed out.');
+    } catch {
+      try { await withTimeout(db.auth.signOut({ scope: 'local' }), 2500, 'Local sign-out timed out.'); } catch {}
+    } finally {
+      router.replace('/auth?mode=signin'); router.refresh();
+    }
+  }
   async function refreshProfile() { if (user) await fetchProfile(user.id); }
   async function refreshMyGyms() { await fetchGyms(); }
   function completePasswordSetup(userId?: string | null) { const id = userId ?? user?.id; if (!id) return; setStorageFlag(`${PASSWORD_SETUP_DONE_PREFIX}${id}`, true); setStorageFlag(`${PASSWORD_SETUP_PENDING_PREFIX}${id}`, false); if (id === user?.id) setNeedsPasswordSetup(false); }
 
-  return <AuthContext.Provider value={{ user, profile, myGyms, activeGymId, profileError, gymAccessError, isLoading, isSigningOut, needsPasswordSetup, signIn, resolveSignedInDestination, signOut, completePasswordSetup, refreshProfile, refreshMyGyms }}>{children}</AuthContext.Provider>;
+  useEffect(() => {
+    if (isSigningOut && pathname === '/auth') setIsSigningOut(false);
+  }, [isSigningOut, pathname]);
+
+  const activeScope = useMemo(() => derivePrivateDataScope({
+    accountId: user?.id,
+    profileId: profile?.id,
+    activeGymId,
+    gyms: myGyms,
+  }), [activeGymId, myGyms, profile?.id, user?.id]);
+
+  return (
+    <AuthContext.Provider value={{ user, profile, myGyms, activeGymId, activeScope, profileError, gymAccessError, isLoading, isSigningOut, needsPasswordSetup, signIn, resolveSignedInDestination, signOut, completePasswordSetup, refreshProfile, refreshMyGyms, beginPrivateScopeChange }}>
+      {children}
+      {isSigningOut && <PrivacyCurtain message="Signing you out…" detail="Clearing private account data" />}
+    </AuthContext.Provider>
+  );
 }
 
 export function AuthProvider({ children }: { children: React.ReactNode }) { return <AuthProviderInner>{children}</AuthProviderInner>; }
