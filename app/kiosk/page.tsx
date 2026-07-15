@@ -45,6 +45,7 @@ type ResultKind = "checked_in" | "checked_out" | "unknown" | "inactive" | "offli
 interface KioskResult {
   kind: ResultKind
   memberName?: string
+  avatarUrl?: string | null
   time?: Date
   occupancy?: number | null
 }
@@ -58,6 +59,7 @@ interface KioskCheckinResult {
   action: "checked_in" | "checked_out"
   attendance_id: string
   member_name?: string
+  avatar_url?: string | null
 }
 
 interface SearchMember {
@@ -413,7 +415,8 @@ export default function KioskPage() {
       void refreshOccupancy()
       showResult({
         kind: data.action,
-        memberName: displayName(data.member_name),
+        memberName: data.member_name?.trim() || displayName(data.member_name),
+        avatarUrl: typeof data.avatar_url === "string" ? data.avatar_url : null,
         time: new Date(),
         occupancy: nextOccupancy,
       })
@@ -681,16 +684,21 @@ export default function KioskPage() {
             <div className={styles.resultLayer} aria-live="polite" aria-atomic="true">
               {result && (
                 <div className={styles.resultCard} data-kind={result.kind}>
-                  <div className={styles.resultSymbol}>
-                    {result.kind === "checked_in"
-                      ? <LogIn size={42} strokeWidth={2.5} aria-hidden="true" />
-                      : result.kind === "checked_out"
-                        ? <LogOut size={42} strokeWidth={2.5} aria-hidden="true" />
-                        : result.kind === "offline"
+                  {(result.kind === "checked_in" || result.kind === "checked_out") ? (
+                    <div className={styles.resultMemberPhoto}>
+                      {result.avatarUrl
+                        ? <img src={result.avatarUrl} alt={`${result.memberName ?? "Member"} profile photo`} />
+                        : <span aria-label={`${result.memberName ?? "Member"} profile photo unavailable`}>{result.memberName?.slice(0, 1).toUpperCase() ?? "M"}</span>}
+                      <i aria-hidden="true"><Check size={17} strokeWidth={3} /></i>
+                    </div>
+                  ) : (
+                    <div className={styles.resultSymbol}>
+                      {result.kind === "offline"
                           ? <WifiOff size={39} aria-hidden="true" />
                           : <CircleAlert size={39} aria-hidden="true" />}
-                    {(result.kind === "checked_in" || result.kind === "checked_out") && <span className={styles.resultCheck}><Check size={16} strokeWidth={3} aria-hidden="true" /></span>}
-                  </div>
+                    </div>
+                  )}
+                  {(result.kind === "checked_in" || result.kind === "checked_out") && <p className={styles.verificationLabel}>Verify member photo</p>}
                   {result.kind === "checked_in" && <p className={styles.resultKicker}>Welcome in</p>}
                   {result.kind === "checked_out" && <p className={styles.resultKicker}>Visit complete</p>}
                   <h2>{resultTitle}</h2>

@@ -36,7 +36,7 @@ const mocks = vi.hoisted(() => {
     emitScan: (value: string) => success?.(value),
     emitEmptyFrame: () => empty?.(),
     resetCallbacks: () => { success = null; empty = null; },
-    nextCheckin: { data: { action: 'checked_in', attendance_id: 'attendance-1', member_name: 'Bon Aquino' }, error: null } as { data: unknown; error: unknown },
+    nextCheckin: { data: { action: 'checked_in', attendance_id: 'attendance-1', member_name: 'Bon Aquino', avatar_url: 'https://images.example.com/bon.jpg' }, error: null } as { data: unknown; error: unknown },
   };
 });
 
@@ -69,7 +69,7 @@ describe('kiosk terminal', () => {
     mocks.getUserMedia.mockClear();
     mocks.feedback.mockClear();
     mocks.resetCallbacks();
-    mocks.nextCheckin = { data: { action: 'checked_in', attendance_id: 'attendance-1', member_name: 'Bon Aquino' }, error: null };
+    mocks.nextCheckin = { data: { action: 'checked_in', attendance_id: 'attendance-1', member_name: 'Bon Aquino', avatar_url: 'https://images.example.com/bon.jpg' }, error: null };
     configureRpc();
     Object.defineProperty(window, 'isSecureContext', { value: true, configurable: true });
     Object.defineProperty(navigator, 'mediaDevices', { value: { getUserMedia: mocks.getUserMedia }, configurable: true });
@@ -91,8 +91,9 @@ describe('kiosk terminal', () => {
     expect(screen.getByText('Welcome in')).toBeInTheDocument();
     expect(screen.getByText(/your visit is active/i)).toBeInTheDocument();
     expect(mocks.rpc).toHaveBeenCalledWith('kiosk_checkin', { p_qr_code: 'member-qr', p_gym_id: 'gym-1' });
-    expect(screen.getByText((_content, element) => element?.tagName === 'P' && element.textContent?.includes('Bon checked in at') === true)).toBeInTheDocument();
+    expect(screen.getByText((_content, element) => element?.tagName === 'P' && element.textContent?.includes('Bon Aquino checked in at') === true)).toBeInTheDocument();
     expect(screen.getByText('25')).toBeInTheDocument();
+    expect(screen.getByRole('img', { name: /bon aquino profile photo/i })).toHaveAttribute('src', 'https://images.example.com/bon.jpg');
     expect(mocks.feedback).toHaveBeenCalledWith('success', true);
 
     await act(async () => { mocks.emitScan('member-qr'); });

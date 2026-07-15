@@ -6,8 +6,8 @@
  */
 export const KIOSK_EMPTY_FRAMES_TO_REARM = 4;
 export const KIOSK_RESULT_ENTER_MS = 160;
-export const KIOSK_RESULT_READABLE_HOLD_MS = 1_000;
-/** Includes the entrance crossfade so the fully rendered result remains readable for one second. */
+export const KIOSK_RESULT_READABLE_HOLD_MS = 3_000;
+/** Includes the entrance crossfade so staff have time to compare the member photo. */
 export const KIOSK_RESULT_HOLD_MS = KIOSK_RESULT_ENTER_MS + KIOSK_RESULT_READABLE_HOLD_MS;
 export const KIOSK_RESULT_EXIT_MS = 140;
 export const KIOSK_RESULT_CYCLE_MS = KIOSK_RESULT_HOLD_MS + KIOSK_RESULT_EXIT_MS;

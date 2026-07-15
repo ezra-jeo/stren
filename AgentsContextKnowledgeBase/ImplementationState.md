@@ -2,9 +2,19 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-15 (**Admin Team Visibility & Notification Overlay Reliability, Account Creation, Recovery & Member Setup Safety, Member Experience Visual Reliability, Account & Team Access Recovery, Perceived Performance & Navigation Continuity, and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
+Last updated: 2026-07-15 (**Demo Experience, Staff Modal & Kiosk Identity Verification; Admin Team Visibility & Notification Overlay Reliability; Account Creation, Recovery & Member Setup Safety; Member Experience Visual Reliability; Account & Team Access Recovery; Perceived Performance & Navigation Continuity; and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
 
 ---
+
+## Workstream (implemented in working tree 2026-07-15): Demo Experience, Staff Modal & Kiosk Identity Verification
+
+| Unit | Scope | Status |
+|---|---|---|
+| DX1 | Route-isolated, read-only connected-member preview using the shared responsive member shell and Home presentation | Implemented (Codex, working tree, 2026-07-15) - `/member/demo/**` preserves the authenticated account, substitutes one centralized Stren Demo Gym fixture, keeps every navigation target inside Demo Mode, and returns to the no-gym Gym hub through an always-visible Exit demo action |
+| DX2 | Complete demo-safe Profile with real account identity, sample membership, blocked edit/photo controls, and deliberately invalid QR treatment | Implemented (Codex, working tree, 2026-07-15) - the profile remains renderable with identity fallbacks; the QR is CSS noise rather than an encoded payload, is blurred, marked DEMO, and never reads the account QR |
+| DX3 | Add-teammate overlay viewport repair and kiosk member-photo verification | Implemented (Codex, working tree, 2026-07-15) - the teammate dialog now uses the shared document-body portal; migration 024 adds the existing member avatar URL to successful kiosk toggles, and the three-second result card presents it prominently with an initials fallback |
+
+Verification: focused staff/kiosk/demo/middleware regressions (**58 tests**), the complete bounded unit/integration inventory (**409/409 tests**), `npm run lint`, isolated source typecheck, and production build pass. The in-app browser plugin could not initialize in this desktop session because its runtime attempted to redefine a protected process binding. Migration 024 is prepared locally and has not been applied to the linked hosted project.
 
 ## Workstream (implemented in working tree 2026-07-15): Admin Team Visibility & Notification Overlay Reliability
 
@@ -22,8 +32,9 @@ Verification: focused People & access / overlay regressions (**13 tests**), `npm
 | AR1 | Existing-account signup detection and actionable sign-in/password-recovery guidance | Implemented (Codex, working tree, 2026-07-15) - Supabase's obfuscated duplicate response no longer becomes a false verification-email success state |
 | AR2 | Scanner-safe first-party recovery links, secure confirmation, recovery proof completion, and truthful delivery failures | Implemented (Codex, working tree, 2026-07-15) - reset email delivery uses a server-verifiable token hash and requires an explicit human confirmation before consuming it |
 | AR3 | Gym-created member account email, one-time setup link, session-bound member routing, and optional password setup | Implemented (Codex, working tree, 2026-07-15) - the callback resolves the exact verified account with the same Auth client, routes the `member` gym user to `/member`, and offers Set password or Skip for now before continuing |
+| AR4 | Hosted recovery-link path compatibility | Implemented (Codex, working tree, 2026-07-15) - malformed legacy links that expose the Next.js source prefix as `/app/auth/confirm` now receive a temporary redirect to the real `/auth/confirm` route with the one-time recovery parameters preserved; first-party link generation remains pinned to the root route even if a configured site URL contains `/app` |
 
-Verification: `npm run lint`, `npm run typecheck`, production build, focused account/recovery regressions (**43 tests**), and the complete **395/395** unit/integration suite with coverage pass. No database migration is required.
+Verification: `npm run lint`, `npm run typecheck`, production build, focused account/recovery regressions (**43 tests**), and the complete **395/395** unit/integration suite with coverage pass. AR4 additionally passes **33** focused recovery/routing tests, lint, typecheck, and a production build that includes `/auth/confirm` plus middleware; the current complete-suite runs showed no failures but did not emit a summary before the 120/180-second local ceilings. No database migration is required.
 
 ## Workstream (implemented in working tree 2026-07-15): Member Experience Visual Reliability
 

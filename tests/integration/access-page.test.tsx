@@ -161,6 +161,16 @@ describe('People & access (§7.9)', () => {
     expect(await screen.findByText('Nina Staff')).toBeInTheDocument();
   });
 
+  it('portals the add-teammate dialog to the document viewport', async () => {
+    render(<AccessClient />);
+    fireEvent.click(await screen.findByRole('button', { name: /add teammate/i }));
+
+    const dialog = screen.getByRole('dialog', { name: /add teammate/i });
+    const overlay = dialog.closest('[data-viewport-overlay]');
+    expect(overlay).not.toBeNull();
+    expect(overlay?.parentElement).toBe(document.body);
+  });
+
   it('renders the owner-only state for a viewer without roles:manage', async () => {
     h.access.current = accessFromRoleDefaults('admin', 'gym-1'); // admin lacks roles:manage
     render(<AccessClient />);

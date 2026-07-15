@@ -10,6 +10,7 @@ import { LapsedLockScreen, type LapsedSummary } from '@/components/member/Lapsed
 import { trainedThisWeek } from '@/lib/member-weekly-streak';
 import { useAuth } from '@/lib/auth-context';
 import { ViewportOverlay } from '@/components/ui/viewport-overlay';
+import { DemoNoticeDialog } from '@/components/member/demo/DemoNoticeDialog';
 
 export interface MemberHomeData {
   memberName: string;
@@ -20,6 +21,7 @@ export interface MemberHomeData {
   subscriptionStatus?: 'active' | 'expired' | 'none';
   lapsedSummary?: LapsedSummary | null;
   gymName?: string | null;
+  thisWeekWorkouts?: number;
 }
 
 function greeting() {
@@ -40,20 +42,21 @@ function Recommendation({ href, icon: Icon, title, detail }: { href: string; ico
   );
 }
 
-export function MemberHomeClient({ data }: { data: MemberHomeData }) {
+export function MemberHomeClient({ data, demoMode = false }: { data: MemberHomeData; demoMode?: boolean }) {
   const { profile } = useAuth();
   const firstName = data.memberName.trim().split(/\s+/)[0] || 'there';
   const trained = trainedThisWeek(data.visitedDates);
   const [showCheckIn, setShowCheckIn] = useState(false);
   const [qrImage, setQrImage] = useState('');
   const [qrError, setQrError] = useState(false);
+  const [demoNoticeOpen, setDemoNoticeOpen] = useState(false);
   const closeCheckIn = useCallback(() => setShowCheckIn(false), []);
 
   useEffect(() => {
     let cancelled = false;
     setQrImage('');
     setQrError(false);
-    if (!profile?.qrCode) return;
+    if (demoMode || !profile?.qrCode) return;
 
     void QRCode.toDataURL(profile.qrCode, {
       width: 320,
@@ -68,16 +71,16 @@ export function MemberHomeClient({ data }: { data: MemberHomeData }) {
     return () => {
       cancelled = true;
     };
-  }, [profile?.qrCode]);
+  }, [demoMode, profile?.qrCode]);
 
   if (data.subscriptionStatus === 'expired' && data.lapsedSummary) {
     return <LapsedLockScreen gymName={data.gymName} summary={data.lapsedSummary} />;
   }
 
   const recommendations = [
-    ...(isFeatureEnabled(data.features, 'member_feed') ? [{ href: '/member/feed', icon: Users, title: 'Gym activity', detail: 'See recent updates from your gym.' }] : []),
-    ...(isFeatureEnabled(data.features, 'leaderboards') ? [{ href: '/member/leaderboard', icon: Trophy, title: 'Latest ranks', detail: 'Track your consistency over time.' }] : []),
-    { href: '/member/profile#member-qr', icon: QrCode, title: 'Your member QR code', detail: 'Keep it ready for front-desk check-in.' },
+    ...(isFeatureEnabled(data.features, 'member_feed') ? [{ href: demoMode ? '/member/demo/feed' : '/member/feed', icon: Users, title: 'Gym activity', detail: demoMode ? 'See recent updates from Stren Demo Gym.' : 'See recent updates from your gym.' }] : []),
+    ...(isFeatureEnabled(data.features, 'leaderboards') ? [{ href: demoMode ? '/member/demo/ranks' : '/member/leaderboard', icon: Trophy, title: 'Latest ranks', detail: 'Track your consistency over time.' }] : []),
+    { href: demoMode ? '/member/demo/profile#demo-member-qr' : '/member/profile#member-qr', icon: QrCode, title: 'Your member QR code', detail: 'Keep it ready for front-desk check-in.' },
     { href: '/member/settings', icon: CalendarCheck, title: 'Account preferences', detail: 'Review the updates you receive.' },
   ].slice(0, 3);
 
@@ -89,7 +92,7 @@ export function MemberHomeClient({ data }: { data: MemberHomeData }) {
           <h1 id="member-home-title" className="member-display-title">{greeting()}, {firstName}.</h1>
           <p className="mt-2 text-base text-(--color-text-secondary)">Ready when you are.</p>
           <div className="mt-7 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <button type="button" onClick={() => setShowCheckIn(true)} className="member-primary-action">
+            <button type="button" onClick={() => demoMode ? setDemoNoticeOpen(true) : setShowCheckIn(true)} className="member-primary-action">
               <QrCode size={21} aria-hidden="true" />
               Check in
             </button>
@@ -108,7 +111,7 @@ export function MemberHomeClient({ data }: { data: MemberHomeData }) {
       <section className="member-status-strip" aria-label="Your weekly training status">
         <div className="member-status-item">
           <span className="member-icon-bubble" aria-hidden="true"><CalendarCheck size={20} /></span>
-          <span><strong>{trained ? 'Trained this week' : 'This week is open'}</strong><small>{trained ? 'Nice work.' : 'One workout keeps it going.'}</small></span>
+          <span><strong>{trained ? 'Trained this week' : 'This week is open'}</strong><small>{data.thisWeekWorkouts !== undefined ? `${data.thisWeekWorkouts} workouts` : trained ? 'Nice work.' : 'One workout keeps it going.'}</small></span>
         </div>
         <div className="member-status-item">
           <span className="member-icon-bubble" aria-hidden="true"><Flame size={20} /></span>
@@ -158,6 +161,7 @@ export function MemberHomeClient({ data }: { data: MemberHomeData }) {
           </div>
         </ViewportOverlay>
       )}
+      <DemoNoticeDialog open={demoNoticeOpen} onClose={() => setDemoNoticeOpen(false)} />
     </div>
   );
 }

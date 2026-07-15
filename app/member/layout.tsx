@@ -15,6 +15,17 @@ export default async function MemberLayout({
   const requestHeaders = await headers();
   const headerGymId = requestHeaders.get('x-gym-id');
   const headerUserRole = requestHeaders.get('x-user-role');
+  const demoMode = requestHeaders.get('x-demo-mode') === '1';
+
+  if (demoMode) {
+    return (
+      <>
+        <style>{`:root { ${brandColorVars('#D56A28', null)} }`}</style>
+        <MemberShell gymBranding={null} hasServerUser demoMode>{children}</MemberShell>
+      </>
+    );
+  }
+
   const supabase = await createServerSupabaseClient();
   const [access, { data: memberStats }] = await Promise.all([
     getMyAccess(supabase),

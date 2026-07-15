@@ -8,6 +8,24 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Demo Experience, Staff Modal & Kiosk Identity Verification
+
+#### Added
+- A route-isolated `/member/demo/**` experience uses the real responsive member shell and Home presentation with a fixed Stren Demo Gym, persistent sample-data banner, the signed-in account identity, static attendance/occupancy/recommendation data, and demo-only navigation targets.
+- Demo Profile now combines the account's real name, email, avatar/contact fallbacks, and account creation date with clearly sample membership data. Its QR is deliberately non-encoded CSS noise, blurred, watermarked DEMO, centered on the official Stren mark, and labeled unusable.
+- Migration `024_kiosk_member_photo_verification.sql` returns the member's existing avatar URL with successful QR check-in/out results so front-desk staff can compare the person with the account photo.
+
+#### Changed
+- Preview the demo now opens the persistent route-based preview rather than replacing the no-gym Home with four disconnected tiles. Exit demo replaces the current history entry with `/gyms`, preserving the signed-in session.
+- Kiosk success results remain readable for three seconds and show a large profile photo or initials fallback before returning to the already-warm scanner.
+
+#### Fixed
+- The Add teammate dialog now portals to the document body, so route animation can no longer constrain its fixed positioning or clip its backdrop to the admin content panel.
+- Every visible Demo Mode action is safe by construction: check-in, profile edit, photo/upload, settings, Feed, and ranking interactions either use static demo routes or an accessible preview-only notice and never construct a real mutation or QR payload.
+
+#### Verification
+- Focused staff, kiosk, demo, Gym hub, and middleware regressions (**58 tests**), the complete bounded unit/integration inventory (**409/409 tests**), lint, isolated source typecheck, and production build pass. The in-app browser runtime could not initialize in this desktop session; authenticated visual evidence remains a genuine follow-up limitation, while desktop/mobile shell and navigation contracts are regression-covered.
+
 ### Admin Team Visibility & Notification Overlay Reliability
 
 #### Fixed
@@ -31,9 +49,10 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Creating an account with an existing confirmed email no longer silently shows a false verification-email state; the page identifies the existing account and offers Sign in or Reset password.
 - Auth callbacks resolve gym access from the exact newly verified session instead of a separate potentially stale browser session, keeping gym-created `member` accounts on `/member` and out of manager financial views.
 - Onboarding now reports setup-link generation or delivery failure to staff instead of presenting the operation as a fully successful email send.
+- Password-recovery emails that contain the invalid Next.js source path `/app/auth/confirm` no longer end on Netlify's 404 page; middleware temporarily redirects them to `/auth/confirm` without dropping the one-time token, while generated first-party links remain rooted at the correct public route.
 
 #### Verification
-- Lint, typecheck, production build, focused account/recovery regressions (**43 tests**), and the complete **395**-test unit/integration suite with coverage pass.
+- Lint, typecheck, production build, focused account/recovery regressions (**43 tests**), and the complete **395**-test unit/integration suite with coverage pass. The hosted-path compatibility follow-up additionally passes **33** focused recovery/routing tests and a production build that lists `/auth/confirm`; later complete-suite attempts showed no failures but exceeded the local 120/180-second command ceilings before printing a final summary.
 
 ### Member Experience Visual Reliability
 
@@ -82,7 +101,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Camera startup now retries once without a rear-camera preference when a device rejects `facingMode`; permission-denied, insecure-context, and camera-busy failures remain explicit rather than being retried.
 - Camera negotiation uses the previous kiosk's compatible square stream ratio; the redesigned viewport remains visually wide without requiring webcams to provide a nonstandard 1.25 camera aspect ratio.
 - Camera initialization now matches the complete known-good legacy contract: environment-first permission warm-up with any-camera fallback, literal environment facing mode, and a 250px decode box. Retry waits for the scanner host to remount, and failures expose a stable non-sensitive diagnostic code.
-- One continuously visible QR cannot immediately toggle a confirmed check-in back out: decoding locks through the result, then re-arms the same payload only after four empty camera frames. The camera stays warm during a 160 ms entrance, 1,000 ms readable hold, and 140 ms exit.
+- One continuously visible QR cannot immediately toggle a confirmed check-in back out: decoding locks through the result, then re-arms the same payload only after four empty camera frames. The camera stays warm during a 160 ms entrance, 3,000 ms readable hold for member-photo verification, and 140 ms exit.
 - Confirmed occupancy updates only after the mutation succeeds; stale refresh responses cannot overwrite a newer confirmed count, and unavailable data is never displayed as zero.
 
 ### Perceived Performance & Navigation Continuity

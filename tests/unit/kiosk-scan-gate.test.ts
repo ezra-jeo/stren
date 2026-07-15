@@ -30,10 +30,10 @@ describe('KioskScanGate', () => {
     expect(gate.tryLock('member-qr')).toBe(true);
   });
 
-  it('keeps the full result-to-ready cycle below 1500 ms', () => {
+  it('holds the verified member photo long enough for staff without stalling the kiosk', () => {
     expect(KIOSK_RESULT_ENTER_MS).toBe(160);
-    expect(KIOSK_RESULT_READABLE_HOLD_MS).toBe(1_000);
-    expect(KIOSK_RESULT_CYCLE_MS).toBeGreaterThanOrEqual(1_240);
-    expect(KIOSK_RESULT_CYCLE_MS).toBeLessThan(1_500);
+    expect(KIOSK_RESULT_READABLE_HOLD_MS).toBe(3_000);
+    expect(KIOSK_RESULT_CYCLE_MS).toBeGreaterThanOrEqual(3_240);
+    expect(KIOSK_RESULT_CYCLE_MS).toBeLessThan(3_500);
   });
 });

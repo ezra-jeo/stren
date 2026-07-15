@@ -22,6 +22,7 @@ import {
   type AccessPerson,
   type TeamRole,
 } from '@/lib/access-data';
+import { ViewportOverlay } from '@/components/ui/viewport-overlay';
 
 /** Owner-only team management for the active gym. */
 export function AccessClient() {
@@ -42,6 +43,9 @@ export function AccessClient() {
   const [addError, setAddError] = useState<string | null>(null);
   const [setupLink, setSetupLink] = useState<string | null>(null);
   const [draft, setDraft] = useState({ name: '', email: '', role: 'staff' as TeamRole });
+  const closeAddDialog = useCallback(() => {
+    if (!adding) setAddOpen(false);
+  }, [adding]);
 
   const loadPeople = useCallback(async () => {
     if (!gymId || !canManageAccess) {
@@ -217,12 +221,10 @@ export function AccessClient() {
       </section>
 
       {addOpen && (
-        <div role="dialog" aria-modal="true" aria-label="Add teammate" className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
-            <div className="flex items-start justify-between gap-4"><div><h2 className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>Add teammate</h2><p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Use their Stren email if they already have an account.</p></div><button type="button" aria-label="Close" onClick={() => setAddOpen(false)}><X size={20} /></button></div>
+        <ViewportOverlay onClose={closeAddDialog} labelledBy="add-teammate-title" panelClassName="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="flex items-start justify-between gap-4"><div><h2 id="add-teammate-title" className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>Add teammate</h2><p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Use their Stren email if they already have an account.</p></div><button type="button" aria-label="Close" onClick={closeAddDialog}><X size={20} /></button></div>
             {setupLink ? <div className="mt-5 space-y-3"><p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Their account is ready. Copy this one-time setup link and send it to them.</p><input readOnly value={setupLink} onFocus={(event) => event.currentTarget.select()} className="w-full rounded-lg border p-2 text-xs" style={{ borderColor: 'var(--color-surface)' }} /><button type="button" onClick={() => { setSetupLink(null); setAddOpen(false); }} className="min-h-10 rounded-lg px-4 text-sm font-semibold text-white" style={{ backgroundColor: 'var(--color-primary)' }}>Done</button></div> : <div className="mt-5 space-y-4"><label className="block text-sm font-medium">Name<input aria-label="Teammate name" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} className="mt-1 w-full rounded-lg border p-2" style={{ borderColor: 'var(--color-surface)' }} /></label><label className="block text-sm font-medium">Email<input aria-label="Teammate email" type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} className="mt-1 w-full rounded-lg border p-2" style={{ borderColor: 'var(--color-surface)' }} /></label><label className="block text-sm font-medium">Role<select aria-label="Teammate role" value={draft.role} onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value as TeamRole }))} className="mt-1 w-full rounded-lg border p-2" style={{ borderColor: 'var(--color-surface)' }}><option value="staff">Staff — kiosk and member lookup</option><option value="admin">Admin — day-to-day gym operations</option></select></label>{addError && <p role="alert" className="text-sm" style={{ color: 'var(--color-danger)' }}>{addError}</p>}<div className="flex justify-end gap-2"><button type="button" onClick={() => setAddOpen(false)} className="min-h-10 px-3 text-sm font-semibold">Cancel</button><button type="button" disabled={adding || !draft.name.trim() || !draft.email.trim()} onClick={() => void addPerson()} className="min-h-10 rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: 'var(--color-primary)' }}>{adding ? 'Adding…' : 'Add to team'}</button></div></div>}
-          </div>
-        </div>
+        </ViewportOverlay>
       )}
     </div>
   );
