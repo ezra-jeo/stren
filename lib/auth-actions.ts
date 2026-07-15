@@ -3,20 +3,9 @@
 import { revalidatePath } from 'next/cache';
 import { headers } from 'next/headers';
 import { createServerSupabaseClient } from './supabase-server';
-import { choosePostAuthDestination } from './post-auth-destination';
-import type { GymUserRole, GymUserStatus, MyGym } from './types';
+import { resolvePostAuthDestinationForSession } from './post-auth-session';
+import type { GymUserRole, GymUserStatus } from './types';
 import { validateAccountSignup } from './auth-action-validation';
-
-function toMyGym(row: Record<string, unknown>): MyGym {
-  return {
-    gymId: String(row.gym_id),
-    code: String(row.code),
-    name: String(row.name),
-    logoUrl: typeof row.logo_url === 'string' ? row.logo_url : null,
-    role: row.role as GymUserRole,
-    status: row.status as GymUserStatus,
-  };
-}
 
 export async function signUpAccount(input: {
   name: string;
@@ -24,7 +13,7 @@ export async function signUpAccount(input: {
   password: string;
 }): Promise<
   | { error: string; status?: never }
-  | { error: null; status: 'authenticated' | 'verification_required' }
+  | { error: null; status: 'already_exists' | 'authenticated' | 'verification_required' }
 > {
   const validationError = validateAccountSignup(input);
   if (validationError) return { error: validationError };
@@ -40,27 +29,18 @@ export async function signUpAccount(input: {
     },
   });
   if (error) return { error: error.message };
+  if (!data.session && data.user?.identities?.length === 0) {
+    return { error: null, status: 'already_exists' };
+  }
   return { error: null, status: data.session ? 'authenticated' : 'verification_required' };
 }
 
 export async function resolvePostAuthDestination(gymCode?: string): Promise<string> {
   const supabase = await createServerSupabaseClient();
-  const { data: userData } = await supabase.auth.getUser();
+  const { data: userData, error: userError } = await supabase.auth.getUser();
+  if (userError) throw new Error(`Session confirmation failed: ${userError.message}`);
   if (!userData.user) return '/auth?mode=signin';
-
-  const [{ data: rows, error: gymsError }, { data: profile, error: profileError }] = await Promise.all([
-    supabase.rpc('get_my_gyms'),
-    supabase.from('profiles').select('active_gym_id').eq('id', userData.user.id).maybeSingle(),
-  ]);
-  if (gymsError) throw new Error(`Gym access lookup failed: ${gymsError.message}`);
-  if (profileError) throw new Error(`Account profile lookup failed: ${profileError.message}`);
-  const gyms = Array.isArray(rows) ? rows.map((row) => toMyGym(row as Record<string, unknown>)) : [];
-  const destination = choosePostAuthDestination(gyms, profile?.active_gym_id ?? null, gymCode);
-  if (destination.activateGymId) {
-    const { error } = await supabase.rpc('set_active_gym', { p_gym_id: destination.activateGymId });
-    if (error) throw new Error(`Active gym selection failed: ${error.message}`);
-  }
-  return destination.path;
+  return resolvePostAuthDestinationForSession(supabase, userData.user.id, gymCode);
 }
 
 export async function setActiveGymAction(gymId: string): Promise<{ role: GymUserRole }> {

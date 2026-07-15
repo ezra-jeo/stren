@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createServerSupabaseClient } from "@/lib/supabase-server"
-import { resolvePostAuthDestination } from "@/lib/auth-actions"
+import { resolvePostAuthDestinationForSession } from "@/lib/post-auth-session"
 import {
   PASSWORD_RECOVERY_COOKIE,
   createPasswordRecoveryProof,
@@ -68,7 +68,8 @@ export async function GET(request: Request) {
 
   let destination: string
   try {
-    destination = await resolvePostAuthDestination(gymCode ?? undefined)
+    if (!authenticatedUserId) throw new Error('The verified account is missing.');
+    destination = await resolvePostAuthDestinationForSession(supabase, authenticatedUserId, gymCode ?? undefined)
   } catch {
     return NextResponse.redirect(new URL('/gyms?account_error=access', requestUrl.origin))
   }

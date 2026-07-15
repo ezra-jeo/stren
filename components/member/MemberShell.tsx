@@ -13,6 +13,7 @@ import { Activity, Home, Settings, Trophy, User } from 'lucide-react';
 import type { GymBranding } from '@/lib/gym-member';
 import { isFeatureEnabled, type FeatureFlags, type FeatureKey } from '@/lib/features';
 import { RouteContent } from '@/components/layout/route-content';
+import { FirstLoginPasswordSetup } from '@/components/member/FirstLoginPasswordSetup';
 
 const NAV_ITEMS: { href: string; label: string; icon: typeof Home; feature?: FeatureKey }[] = [
   { href: '/member', label: 'Home', icon: Home },
@@ -76,6 +77,7 @@ export function MemberShell({ children, hasServerUser, features }: MemberShellPr
       </div>
 
       <nav className="member-bottom-nav" aria-label="Primary navigation">{links('column')}</nav>
+      <FirstLoginPasswordSetup />
     </div>
   );
 }

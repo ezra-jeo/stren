@@ -8,6 +8,33 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Admin Team Visibility & Notification Overlay Reliability
+
+#### Fixed
+- People & access now loads the team from the resolved active gym after sign-in instead of relying on a stale or not-yet-hydrated legacy profile field. A failed team query is displayed with a Retry action rather than as “No admin or staff accounts yet.”
+- Admin notifications now use the shared viewport portal with dialog semantics, so the backdrop covers the entire browser window instead of being clipped and offset by route-transition animation.
+
+#### Verification
+- Focused People & access and notification-overlay regressions (**13 tests**), lint, isolated source typecheck, production build, and the complete **398**-test unit/integration suite with coverage pass.
+
+### Account Creation, Recovery & Member Setup Safety
+
+#### Added
+- A first-party secure-link confirmation page prevents email scanners from consuming one-time password-recovery and member setup tokens before the person uses them.
+- Gym-created members are shown a skippable first-login choice to set a password immediately or continue and use Settings later.
+
+#### Changed
+- Password-reset delivery now uses a server-generated Supabase recovery token sent through Stren's existing Resend channel. The signed HTTP-only recovery proof and single-use completion flow remain unchanged.
+- Member onboarding email identifies the Stren account email, explains that no temporary password is sent, and provides the secure one-time account link.
+
+#### Fixed
+- Creating an account with an existing confirmed email no longer silently shows a false verification-email state; the page identifies the existing account and offers Sign in or Reset password.
+- Auth callbacks resolve gym access from the exact newly verified session instead of a separate potentially stale browser session, keeping gym-created `member` accounts on `/member` and out of manager financial views.
+- Onboarding now reports setup-link generation or delivery failure to staff instead of presenting the operation as a fully successful email send.
+
+#### Verification
+- Lint, typecheck, production build, focused account/recovery regressions (**43 tests**), and the complete **395**-test unit/integration suite with coverage pass.
+
 ### Member Experience Visual Reliability
 
 #### Added

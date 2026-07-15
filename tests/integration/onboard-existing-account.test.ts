@@ -11,6 +11,10 @@ describe('staff onboarding', () => {
     expect(code).toMatch(/from\(["']profiles["']\)[\s\S]*upsert/i);
     expect(code).toMatch(/from\(["']gym_users["']\)[\s\S]*(?:insert|update|upsert)[\s\S]*added_by:\s*user\.id/i);
     expect(code).toMatch(/if\s*\(createdAccount\)[\s\S]*generateLink/i);
+    expect(code).toMatch(/hashed_token/i);
+    expect(code).toMatch(/buildAuthConfirmationUrl/i);
+    expect(code).toMatch(/type["']?\s*[:,=]\s*["']magiclink["']/i);
+    expect(code).toMatch(/role:\s*["']member["']/i);
     expect(code).toMatch(/created_by:\s*user\.id/i);
   });
 });

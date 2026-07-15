@@ -145,6 +145,7 @@ export function UnifiedAuthSurface() {
   const [signUpError, setSignUpError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState<Submission | null>(null);
   const [verificationEmail, setVerificationEmail] = useState<string | null>(null);
+  const [existingEmail, setExistingEmail] = useState<string | null>(null);
   const [settingUp, setSettingUp] = useState(false);
   const [postAuthError, setPostAuthError] = useState<string | null>(null);
   const [googleError, setGoogleError] = useState<string | null>(null);
@@ -254,6 +255,11 @@ export function UnifiedAuthSurface() {
     const result = await signUpAccount({ name: fullName, email: signUpEmail, password: signUpPassword });
     if (result.error) {
       setSignUpError(result.error);
+      setSubmitting(null);
+      return;
+    }
+    if (result.status === 'already_exists') {
+      setExistingEmail(signUpEmail.trim().toLowerCase());
       setSubmitting(null);
       return;
     }
@@ -377,7 +383,28 @@ export function UnifiedAuthSurface() {
           <div className={styles.formInner}>
             <h1>Create your Stren account</h1>
             <p className={styles.supporting}>Your account lets you connect with and access your gym.</p>
-            {verificationEmail ? (
+            {existingEmail ? (
+              <div role="alert" className={styles.verificationState}>
+                <h2>Account already exists</h2>
+                <p>
+                  An account already exists for <strong>{existingEmail}</strong>. Sign in with it or reset the password if you no longer remember it.
+                </p>
+                <button
+                  type="button"
+                  className={styles.primaryButton}
+                  onClick={() => {
+                    setSignInEmail(existingEmail);
+                    switchMode('signin');
+                  }}
+                >
+                  Sign in instead
+                </button>
+                <Link href="/reset-password" className={styles.textAction}>Reset password</Link>
+                <button type="button" className={styles.textAction} onClick={() => setExistingEmail(null)}>
+                  Use another email
+                </button>
+              </div>
+            ) : verificationEmail ? (
               <div role="status" className={styles.verificationState}>
                 <h2>Check your email</h2>
                 <p>We sent a verification link to <strong>{verificationEmail}</strong>. Open it to finish creating your account.</p>
