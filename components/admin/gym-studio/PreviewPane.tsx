@@ -1,26 +1,13 @@
 'use client';
 
-import { useEffect, useState, type CSSProperties } from 'react';
+import { useEffect, useState } from 'react';
 import { GymLandingPreview } from '@/components/gym/GymLandingPreview';
-import { brandColorVars } from '@/lib/brand-color';
+import { brandColorStyle } from '@/lib/brand-color';
 import { isFeatureEnabled } from '@/lib/features';
 import { useStudio } from './GymPageStudio';
 import { PreviewToolbar } from './PreviewToolbar';
 import { DeviceFrame } from './DeviceFrame';
 import { FocalPointEditor } from './FocalPointEditor';
-
-/** Parse `brandColorVars` output into an inline style object scoping the gym's brand. */
-function brandStyle(primary: string, secondary: string | null): CSSProperties {
-  const obj: Record<string, string> = {};
-  for (const decl of brandColorVars(primary, secondary).split('\n')) {
-    const idx = decl.indexOf(':');
-    if (idx === -1) continue;
-    const key = decl.slice(0, idx).trim();
-    const value = decl.slice(idx + 1).replace(/;$/, '').trim();
-    if (key.startsWith('--')) obj[key] = value;
-  }
-  return obj as CSSProperties;
-}
 
 /**
  * The live preview body: brand-scoped `GymLandingPreview` fed from unsaved Studio
@@ -39,7 +26,7 @@ export function PreviewSurface({ device }: { device: 'desktop' | 'mobile' }) {
     s.coverUrl && (s.previewTab === 'home' || s.previewTab === 'join') ? <FocalPointEditor device={device} /> : undefined;
 
   return (
-    <div style={brandStyle(s.previewData.brandColor, s.previewData.secondaryColor)}>
+    <div style={brandColorStyle(s.previewData.brandColor, s.previewData.secondaryColor)}>
       <GymLandingPreview
         gym={s.previewData}
         view={s.previewTab}

@@ -1,5 +1,5 @@
 import { notFound } from 'next/navigation';
-import { brandColorVars } from '@/lib/brand-color';
+import { brandColorStyle } from '@/lib/brand-color';
 import { getGymPublicByCode } from '@/lib/gym-public';
 import { GymTopNav } from '@/components/gym/GymTopNav';
 import { GymPoweredBy } from '@/components/gym/GymPoweredBy';
@@ -32,9 +32,10 @@ export default async function GymLayout({ children, params }: LayoutProps) {
   if (!gymData) notFound();
 
   return (
-    <>
-      <style>{`:root { ${brandColorVars(gymData.brand_color ?? '#D4956A', gymData.secondary_color ?? null)} }`}</style>
-
+    <div
+      data-testid="gym-theme"
+      style={brandColorStyle(gymData.brand_color ?? '#D4956A', gymData.secondary_color ?? null)}
+    >
       <GymTopNav
         gymName={gymData.name}
         gymCode={gymData.code}
@@ -45,6 +46,6 @@ export default async function GymLayout({ children, params }: LayoutProps) {
       <main>{children}</main>
 
       <GymPoweredBy gymCode={gymData.code} />
-    </>
+    </div>
   );
 }

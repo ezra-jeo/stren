@@ -51,6 +51,26 @@ export function brandColorVars(hex: string, secondaryHex?: string | null): strin
   ].join('\n');
 }
 
+import type { CSSProperties } from 'react';
+
+/**
+ * Converts the gym brand declarations into an inline style suitable for a scoped
+ * public-page or preview wrapper. Keeping the variables on that wrapper avoids
+ * depending on a global `:root` override and prevents one gym's palette from
+ * affecting Stren chrome outside its public page.
+ */
+export function brandColorStyle(hex: string, secondaryHex?: string | null): CSSProperties {
+  const style: Record<string, string> = {};
+  for (const declaration of brandColorVars(hex, secondaryHex).split('\n')) {
+    const separator = declaration.indexOf(':');
+    if (separator === -1) continue;
+    const property = declaration.slice(0, separator).trim();
+    const value = declaration.slice(separator + 1).replace(/;$/, '').trim();
+    if (property.startsWith('--')) style[property] = value;
+  }
+  return style as CSSProperties;
+}
+
 // ── Brand studio helpers (ImplementationPlan.md §7.7) ────────────────────────
 
 function hexToRgb(hex: string): [number, number, number] {

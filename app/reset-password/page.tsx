@@ -58,6 +58,7 @@ function ResetPasswordContent() {
   const { completePasswordSetup } = useAuth();
 
   const [resetEmail, setResetEmail] = useState('');
+  const [requestAnotherLink, setRequestAnotherLink] = useState(false);
   const [requestSubmitting, setRequestSubmitting] = useState(false);
   const [requestSent, setRequestSent] = useState(false);
   const [requestError, setRequestError] = useState('');
@@ -155,7 +156,7 @@ function ResetPasswordContent() {
     }
   }
 
-  if (!recoveryRequested) {
+  if (!recoveryRequested || requestAnotherLink) {
     return (
       <main className="min-h-dvh flex items-center justify-center px-5 py-10" style={{ backgroundColor: 'var(--color-background)' }}>
         <section className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-sm sm:p-8" style={{ borderColor: 'var(--color-surface)' }}>
@@ -215,7 +216,7 @@ function ResetPasswordContent() {
         <section className="w-full max-w-md rounded-2xl border bg-white p-6 shadow-sm sm:p-8" style={{ borderColor: 'var(--color-surface)' }}>
           <h1 className="font-serif text-3xl font-semibold text-(--color-text-primary)">Invalid or expired reset link</h1>
           <p className="mt-2 text-sm leading-6 text-(--color-text-secondary)">This reset link has expired or already been used. Request a new link to continue.</p>
-          <Link href="/reset-password" className="mt-6 inline-flex min-h-12 items-center justify-center rounded-xl bg-(--color-primary) px-5 font-semibold text-white">Request a new reset link</Link>
+          <button type="button" onClick={() => setRequestAnotherLink(true)} className="mt-6 inline-flex min-h-12 items-center justify-center rounded-xl bg-(--color-primary) px-5 font-semibold text-white">Request a new reset link</button>
         </section>
       </main>
     );
