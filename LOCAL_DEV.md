@@ -41,10 +41,10 @@ The keys to copy:
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | `anon key` |
 | `SUPABASE_SERVICE_ROLE_KEY` | `service_role key` |
 
-Owner-inquiry delivery also needs `RESEND_API_KEY`, a verified
-`RESEND_FROM_EMAIL`, and `OWNER_INQUIRY_TO_EMAIL` (the Stren onboarding inbox).
-The form remains usable without those values, but submissions return a clear
-delivery error until email is configured.
+Member onboarding, password-reset delivery, and owner inquiries need
+`RESEND_API_KEY` plus a verified `RESEND_FROM_EMAIL`. Owner inquiries also need
+`OWNER_INQUIRY_TO_EMAIL` (the Stren onboarding inbox). These flows return a
+clear delivery error until their email configuration is present.
 
 `NEXT_PUBLIC_APP_URL` is already `http://127.0.0.1:3000` in the example — leave it.
 

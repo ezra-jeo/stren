@@ -2,9 +2,28 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-15 (**Member Experience Visual Reliability, Account & Team Access Recovery, Perceived Performance & Navigation Continuity, and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
+Last updated: 2026-07-15 (**Admin Team Visibility & Notification Overlay Reliability, Account Creation, Recovery & Member Setup Safety, Member Experience Visual Reliability, Account & Team Access Recovery, Perceived Performance & Navigation Continuity, and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
 
 ---
+
+## Workstream (implemented in working tree 2026-07-15): Admin Team Visibility & Notification Overlay Reliability
+
+| Unit | Scope | Status |
+|---|---|---|
+| TN1 | People & access team loading after a fresh sign-in or active-gym transition | Implemented (Codex, working tree, 2026-07-15) - the screen reads the resolved active gym rather than the legacy profile shim, tolerates either supported profile-embed shape, and offers a Retry state instead of presenting a failed read as an empty team |
+| TN2 | Admin notification overlay stacking, viewport coverage, and dialog semantics | Implemented (Codex, working tree, 2026-07-15) - the panel now uses the shared document-body viewport portal, so the animated route container cannot clip or offset its backdrop |
+
+Verification: focused People & access / overlay regressions (**13 tests**), `npm run lint`, isolated source typecheck (the user’s live Next development process has a malformed ignored `.next/dev` artifact), production build, and the complete **398/398** unit/integration suite with coverage pass. No database migration is required.
+
+## Workstream (implemented in working tree 2026-07-15): Account Creation, Recovery & Member Setup Safety
+
+| Unit | Scope | Status |
+|---|---|---|
+| AR1 | Existing-account signup detection and actionable sign-in/password-recovery guidance | Implemented (Codex, working tree, 2026-07-15) - Supabase's obfuscated duplicate response no longer becomes a false verification-email success state |
+| AR2 | Scanner-safe first-party recovery links, secure confirmation, recovery proof completion, and truthful delivery failures | Implemented (Codex, working tree, 2026-07-15) - reset email delivery uses a server-verifiable token hash and requires an explicit human confirmation before consuming it |
+| AR3 | Gym-created member account email, one-time setup link, session-bound member routing, and optional password setup | Implemented (Codex, working tree, 2026-07-15) - the callback resolves the exact verified account with the same Auth client, routes the `member` gym user to `/member`, and offers Set password or Skip for now before continuing |
+
+Verification: `npm run lint`, `npm run typecheck`, production build, focused account/recovery regressions (**43 tests**), and the complete **395/395** unit/integration suite with coverage pass. No database migration is required.
 
 ## Workstream (implemented in working tree 2026-07-15): Member Experience Visual Reliability
 

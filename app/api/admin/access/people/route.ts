@@ -44,6 +44,46 @@ async function findAuthUserIdByEmail(admin: ReturnType<typeof createAdminClient>
   return null;
 }
 
+/** Owner-authorized roster read. Keep this server-side so the client never has
+ * to depend on an embedded browser-RLS relation to render People & access. */
+export async function GET() {
+  const authorization = await authorizeOwner();
+  if ('error' in authorization) return authorization.error;
+
+  const admin = createAdminClient();
+  const [{ data: gymUsers, error: gymUsersError }, { data: rawOverrides, error: overridesError }] = await Promise.all([
+    admin.from('gym_users').select('user_id, role').eq('gym_id', authorization.gymId).in('role', ['admin', 'staff']),
+    admin.from('gym_user_permission_overrides').select('user_id, permission, granted').eq('gym_id', authorization.gymId),
+  ]);
+  if (gymUsersError || overridesError) return NextResponse.json({ error: 'Could not load the team.' }, { status: 500 });
+
+  const userIds = (gymUsers ?? []).map((person) => person.user_id);
+  const { data: profiles, error: profilesError } = userIds.length > 0
+    ? await admin.from('profiles').select('id, name, email').in('id', userIds)
+    : { data: [], error: null };
+  if (profilesError) return NextResponse.json({ error: 'Could not load the team.' }, { status: 500 });
+
+  const profilesById = new Map((profiles ?? []).map((profile) => [profile.id, profile]));
+  const overridesByUser = new Map<string, { permission: string; granted: boolean }[]>();
+  for (const override of rawOverrides ?? []) {
+    const list = overridesByUser.get(override.user_id) ?? [];
+    list.push({ permission: override.permission, granted: override.granted });
+    overridesByUser.set(override.user_id, list);
+  }
+  const people = (gymUsers ?? []).map((gymUser) => {
+    const profile = profilesById.get(gymUser.user_id);
+    return {
+      userId: gymUser.user_id,
+      name: profile?.name ?? '',
+      email: profile?.email ?? '',
+      role: gymUser.role,
+      overrides: overridesByUser.get(gymUser.user_id) ?? [],
+    };
+  }).sort((a, b) => a.name.localeCompare(b.name) || a.email.localeCompare(b.email));
+
+  return NextResponse.json({ people });
+}
+
 export async function POST(request: Request) {
   const authorization = await authorizeOwner();
   if ('error' in authorization) return authorization.error;

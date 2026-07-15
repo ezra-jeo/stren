@@ -1,5 +1,6 @@
 import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { AccessClient } from '@/components/admin/AccessClient';
 import { accessFromRoleDefaults } from '@/lib/access';
 
@@ -10,11 +11,12 @@ const h = vi.hoisted(() => ({
   addTeamPerson: vi.fn(),
   removeTeamPerson: vi.fn(),
   access: { current: null as ReturnType<typeof accessFromRoleDefaults> | null },
+  auth: { current: null as Record<string, unknown> | null },
 }));
 
 vi.mock('@/lib/supabase', () => ({ createClient: () => ({}) }));
 vi.mock('@/lib/auth-context', () => ({
-  useAuth: () => ({ profile: { name: 'Olivia Owner', email: 'owner@grove.co', gymId: 'gym-1', role: 'owner' } }),
+  useAuth: () => h.auth.current,
 }));
 // The client owner gate reads `useAccess()`; default it to an owner (roles:manage).
 vi.mock('@/lib/access-context', () => ({ useAccess: () => h.access.current }));
@@ -33,6 +35,10 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }));
 
 beforeEach(() => {
   h.access.current = accessFromRoleDefaults('owner', 'gym-1');
+  h.auth.current = {
+    profile: { name: 'Olivia Owner', email: 'owner@grove.co', gymId: 'gym-1', role: 'owner' },
+    activeScope: { accountId: 'owner-1', profileId: 'owner-1', gymId: 'gym-1', role: 'owner' },
+  };
   h.listAccessPeople.mockReset().mockResolvedValue([
     { userId: 'a1', name: 'Adam Admin', email: 'adam@grove.co', role: 'admin', overrides: [] },
     { userId: 's1', name: 'Sam Staff', email: 'sam@grove.co', role: 'staff', overrides: [] },
@@ -117,6 +123,32 @@ describe('People & access (§7.9)', () => {
     fireEvent.click(staff.closest('button')!);
     expect(await screen.findByRole('switch', { name: 'Can manage members' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /remove staff/i })).toBeInTheDocument();
+  });
+
+  it('loads the active gym team even while the legacy profile gym field is unavailable after sign-in', async () => {
+    h.auth.current = {
+      profile: { name: 'Olivia Owner', email: 'owner@grove.co', gymId: null, role: 'member' },
+      activeScope: { accountId: 'owner-1', profileId: 'owner-1', gymId: 'gym-1', role: 'owner' },
+    };
+
+    render(<AccessClient />);
+
+    expect(await screen.findByText('Adam Admin')).toBeInTheDocument();
+    expect(h.listAccessPeople).toHaveBeenCalledWith(expect.anything(), 'gym-1');
+  });
+
+  it('shows a retryable error instead of claiming the team is empty when the team query fails', async () => {
+    h.listAccessPeople.mockRejectedValueOnce(new Error('query failed')).mockResolvedValueOnce([
+      { userId: 'a1', name: 'Adam Admin', email: 'adam@grove.co', role: 'admin', overrides: [] },
+    ]);
+
+    const user = userEvent.setup();
+    render(<AccessClient />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Could not load your team. Please try again.');
+    expect(screen.queryByText('No admin or staff accounts yet.')).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /^retry$/i }));
+    expect(await screen.findByText('Adam Admin')).toBeInTheDocument();
   });
 
   it('gives the owner a clear way to add a teammate', async () => {

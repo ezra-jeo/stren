@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 describe('owner team-management endpoint', () => {
   it('attaches or creates only admin/staff accounts and never lets the endpoint remove an owner', () => {
     const route = readFileSync(resolve(process.cwd(), 'app/api/admin/access/people/route.ts'), 'utf8');
+    expect(route).toMatch(/export async function GET\(\)/);
     expect(route).toMatch(/apiRequirePermission\('roles:manage'/);
     expect(route).toMatch(/access\.role !== 'owner'/);
     expect(route).toMatch(/role:\s*z\.enum\(\['admin', 'staff'\]\)/);

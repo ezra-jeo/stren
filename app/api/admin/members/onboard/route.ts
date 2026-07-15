@@ -5,6 +5,7 @@ import { createAdminClient } from '@/lib/supabase-admin';
 import { sendOnboardingEmail } from '@/lib/email';
 import { rateLimit } from '@/lib/rate-limit';
 import { apiRequirePermission, getMyAccess } from '@/lib/permissions-server';
+import { buildAuthConfirmationUrl } from '@/lib/auth-email-link';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const schema = z.object({ name:z.string().trim().min(2).max(100), email:z.string().trim().toLowerCase().email(), avatarUrl:z.string().url(), planId:z.string().uuid(), paymentMethod:z.enum(['cash','gcash']), amountPaid:z.number().nonnegative().optional(), startDate:z.string().date().optional() });
@@ -52,8 +53,15 @@ export async function POST(request:Request){
   const start=body.startDate??new Date().toISOString().slice(0,10); await admin.from('memberships').update({status:'expired'}).eq('member_id',memberId).eq('gym_id',access.gymId).eq('status','active');
   const {data:membership,error:membershipError}=await admin.from('memberships').insert({member_id:memberId,plan_id:plan.id,gym_id:access.gymId,start_date:start,end_date:endDate(start,plan.duration_days),status:'active',payment_method:body.paymentMethod,amount_paid:body.amountPaid??plan.price,created_by:user.id}).select('id').maybeSingle(); if(membershipError||!membership)return NextResponse.json({error:membershipError?.message??'Failed to create membership.'},{status:400});
 
-  if(createdAccount){const {data:link}=await admin.auth.admin.generateLink({type:'magiclink',email:body.email,options:{redirectTo:`${siteUrl(request)}/auth/callback`}});magicLink=link.properties?.action_link??null}
-  const emailResult=await sendOnboardingEmail({to:body.email,memberName:body.name,gymName:gym?.name??'Your Gym',qrPayload:qrCode,magicLink:magicLink??`${siteUrl(request)}/auth?mode=signin`});
+  if(createdAccount){
+    const {data:link,error:linkError}=await admin.auth.admin.generateLink({type:'magiclink',email:body.email});
+    const tokenHash=link.properties?.hashed_token;
+    if(!linkError&&tokenHash)magicLink=buildAuthConfirmationUrl({siteUrl:siteUrl(request),tokenHash,type:'magiclink'});
+  }
+  const emailResult=createdAccount&&!magicLink
+    ? {ok:false as const,error:'The member account was created, but its secure setup link could not be generated.'}
+    : await sendOnboardingEmail({to:body.email,memberName:body.name,gymName:gym?.name??'Your Gym',qrPayload:qrCode,magicLink:magicLink??`${siteUrl(request)}/auth?mode=signin`});
+  const emailError=emailResult.ok?null:emailResult.error;
   await admin.from('member_onboarding_events').insert({member_id:memberId,gym_id:access.gymId,created_by:user.id,email:body.email,magic_link_url:magicLink,qr_code:qrCode,sent_via:emailResult.ok?'email':'preview'});
-  return NextResponse.json({memberId,membershipId:membership.id,qrCode,magicLink,redirectTo:`${siteUrl(request)}/auth/callback`,emailSent:emailResult.ok,attachedExistingAccount:!createdAccount},{status:emailResult.ok?200:207});
+  return NextResponse.json({memberId,membershipId:membership.id,qrCode,magicLink,redirectTo:`${siteUrl(request)}/auth/callback`,emailSent:emailResult.ok,emailError,attachedExistingAccount:!createdAccount},{status:emailResult.ok?200:207});
 }

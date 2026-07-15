@@ -127,57 +127,30 @@ export interface AccessPerson {
 }
 
 /**
- * The gym's admin + staff, each with their stored overrides. Reads profiles and
- * overrides separately (no PostgREST join) so it degrades gracefully before the
- * overrides table exists.
+ * The gym's admin + staff, each with their stored overrides. The owner-only
+ * endpoint resolves the roster server-side so a browser RLS/embed mismatch can
+ * never masquerade as an empty People & access screen after sign-in.
  */
-export async function listAccessPeople(supabase: SupabaseClient, gymId: string): Promise<AccessPerson[]> {
-  const { data: gymUsers, error } = await supabase
-    .from('gym_users')
-    .select('user_id, role, profiles!gym_users_user_id_fkey(name, email)')
-    .eq('gym_id', gymId)
-    .in('role', ['admin', 'staff']);
+export async function listAccessPeople(_supabase: SupabaseClient, _gymId: string): Promise<AccessPerson[]> {
+  const response = await fetch('/api/admin/access/people', { cache: 'no-store' });
+  const body = await response.json().catch(() => ({})) as { people?: unknown; error?: string };
+  if (!response.ok) throw new Error(body.error ?? 'Could not load your team.');
+  if (!Array.isArray(body.people)) throw new Error('The team response was invalid.');
 
-  if (error || !gymUsers) return [];
-
-  const overridesByUser = new Map<string, { permission: PermissionKey; granted: boolean }[]>();
-  try {
-    const { data: overrides } = await supabase
-      .from('gym_user_permission_overrides')
-      .select('user_id, permission, granted')
-      .eq('gym_id', gymId);
-
-    if (Array.isArray(overrides)) {
-      for (const row of overrides as { user_id?: unknown; permission?: unknown; granted?: unknown }[]) {
-        if (
-          typeof row.user_id === 'string' &&
-          typeof row.permission === 'string' &&
-          PERMISSION_KEY_SET.has(row.permission) &&
-          typeof row.granted === 'boolean'
-        ) {
-          const list = overridesByUser.get(row.user_id) ?? [];
-          list.push({ permission: row.permission as PermissionKey, granted: row.granted });
-          overridesByUser.set(row.user_id, list);
-        }
-      }
-    }
-  } catch {
-    // Overrides table not present yet — treat everyone as role defaults.
-  }
-
-  return (gymUsers as {
-    user_id: string;
-    role: string;
-    profiles: { name: string | null; email: string | null }[] | null;
-  }[]).map((gymUser) => {
-    const profile = gymUser.profiles?.[0] ?? null;
-    return {
-      userId: gymUser.user_id,
-      name: profile?.name ?? '',
-      email: profile?.email ?? '',
-      role: coerceRole(gymUser.role),
-      overrides: overridesByUser.get(gymUser.user_id) ?? [],
-    };
+  return body.people.flatMap((row): AccessPerson[] => {
+    if (!row || typeof row !== 'object') return [];
+    const person = row as Record<string, unknown>;
+    if (typeof person.userId !== 'string' || typeof person.name !== 'string' || typeof person.email !== 'string') return [];
+    const overrides = Array.isArray(person.overrides)
+      ? person.overrides.flatMap((override): { permission: PermissionKey; granted: boolean }[] => {
+        if (!override || typeof override !== 'object') return [];
+        const value = override as Record<string, unknown>;
+        return typeof value.permission === 'string' && PERMISSION_KEY_SET.has(value.permission) && typeof value.granted === 'boolean'
+          ? [{ permission: value.permission as PermissionKey, granted: value.granted }]
+          : [];
+      })
+      : [];
+    return [{ userId: person.userId, name: person.name, email: person.email, role: coerceRole(person.role), overrides }];
   });
 }
 

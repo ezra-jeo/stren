@@ -64,7 +64,7 @@ export async function middleware(request: NextRequest) {
   const finish = (next: NextResponse) => securityHeaders(next, pathname);
   if (pathname.startsWith('/api')) return finish(response);
 
-  const isPublic = pathname === '/' || pathname.startsWith('/landing') || pathname === '/auth/callback' || pathname === '/reset-password' || pathname === '/for-gym-owners' || (/^\/gym\/[^/]+(?:\/.*)?$/.test(pathname));
+  const isPublic = pathname === '/' || pathname.startsWith('/landing') || pathname === '/auth/callback' || pathname === '/auth/confirm' || pathname === '/reset-password' || pathname === '/for-gym-owners' || (/^\/gym\/[^/]+(?:\/.*)?$/.test(pathname));
   if (isPublic) return finish(response);
 
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {

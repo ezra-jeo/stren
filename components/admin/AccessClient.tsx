@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ChevronDown, Loader2, Lock, Plus, ShieldCheck, Trash2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { useAuth } from '@/lib/auth-context';
@@ -25,14 +25,15 @@ import {
 
 /** Owner-only team management for the active gym. */
 export function AccessClient() {
-  const { profile } = useAuth();
+  const { profile, activeScope } = useAuth();
   const access = useAccess();
   const supabase = useMemo(() => createClient(), []);
-  const gymId = profile?.gymId ?? null;
+  const gymId = activeScope?.gymId ?? null;
   const canManageAccess = access.permissions.has('roles:manage');
 
   const [people, setPeople] = useState<AccessPerson[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -42,19 +43,26 @@ export function AccessClient() {
   const [setupLink, setSetupLink] = useState<string | null>(null);
   const [draft, setDraft] = useState({ name: '', email: '', role: 'staff' as TeamRole });
 
-  useEffect(() => {
+  const loadPeople = useCallback(async () => {
     if (!gymId || !canManageAccess) {
+      setPeople([]);
+      setLoadError(null);
       setLoading(false);
       return;
     }
-    let active = true;
     setLoading(true);
-    listAccessPeople(supabase, gymId)
-      .then((list) => { if (active) setPeople(list); })
-      .catch(() => { if (active) toast.error('Could not load your team.'); })
-      .finally(() => { if (active) setLoading(false); });
-    return () => { active = false; };
+    try {
+      setPeople(await listAccessPeople(supabase, gymId));
+      setLoadError(null);
+    } catch {
+      setLoadError('Could not load your team. Please try again.');
+      toast.error('Could not load your team.');
+    } finally {
+      setLoading(false);
+    }
   }, [gymId, supabase, canManageAccess]);
+
+  useEffect(() => { void loadPeople(); }, [loadPeople]);
 
   const switchOn = (person: AccessPerson, sw: AccessSwitch) => {
     const set = resolvePermissions(person.role, person.overrides);
@@ -176,7 +184,7 @@ export function AccessClient() {
           </div>
         )}
 
-        {loading ? <p className="py-6 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>Loading team…</p> : people.length === 0 ? <p className="py-6 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>No admin or staff accounts yet.</p> : (
+        {loading ? <p className="py-6 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>Loading team…</p> : loadError ? <div className="py-6 text-center"><p role="alert" className="text-sm" style={{ color: 'var(--color-danger)' }}>{loadError}</p><button type="button" onClick={() => void loadPeople()} className="mt-3 min-h-10 rounded-lg border px-3 text-sm font-semibold" style={{ borderColor: 'var(--color-surface)', color: 'var(--color-text-primary)' }}>Retry</button></div> : people.length === 0 ? <p className="py-6 text-center text-sm" style={{ color: 'var(--color-text-muted)' }}>No admin or staff accounts yet.</p> : (
           <div className="flex flex-col gap-2">
             {people.map((person) => {
               const open = expanded === person.userId;

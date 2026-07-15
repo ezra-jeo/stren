@@ -264,4 +264,22 @@ describe('/auth shared surface', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(/check your email/i);
     expect(resolvePostAuthDestinationMock).not.toHaveBeenCalled();
   });
+
+  it('offers sign-in and password recovery when signup uses an existing email', async () => {
+    const user = userEvent.setup();
+    currentSearch = 'mode=signup';
+    signUpAccountMock.mockResolvedValue({ error: null, status: 'already_exists' });
+    render(<AuthPage />);
+
+    await user.type(screen.getByLabelText('Full name'), 'Alex Cruz');
+    await user.type(screen.getByLabelText('Email address', { selector: '#signup-email' }), 'alex@example.com');
+    await user.type(screen.getByLabelText('Password', { selector: '#signup-password' }), 'hunter2!!');
+    await user.type(screen.getByLabelText('Confirm password'), 'hunter2!!');
+    await user.click(screen.getByRole('button', { name: /^create account$/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/account already exists.*alex@example.com/i);
+    expect(screen.getByRole('button', { name: /sign in instead/i })).toBeEnabled();
+    expect(screen.getByRole('link', { name: /reset password/i })).toHaveAttribute('href', '/reset-password');
+    expect(resolvePostAuthDestinationMock).not.toHaveBeenCalled();
+  });
 });
