@@ -169,10 +169,7 @@ describe('gym hub — empty state', () => {
     const user = userEvent.setup();
     render(<GymHub />);
     await user.click(screen.getByRole('button', { name: /preview the demo/i }));
-    expect(screen.getByRole('heading', { name: /demo member dashboard/i })).toBeInTheDocument();
-    expect(screen.getByText(/nothing here affects a real gym/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/preview only/i)).toHaveLength(4);
-    await user.click(screen.getByRole('button', { name: /exit demo/i }));
+    expect(pushMock).toHaveBeenCalledWith('/member/demo');
     await user.click(screen.getByRole('button', { name: /workouts/i }));
     expect(screen.getByRole('status')).toHaveTextContent(/currently in beta/i);
   });

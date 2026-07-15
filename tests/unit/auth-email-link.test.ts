@@ -16,4 +16,15 @@ describe('first-party auth email links', () => {
     expect(url.searchParams.get('type')).toBe('recovery');
     expect(url.searchParams.get('next')).toBe('/reset-password');
   });
+
+  it('keeps the deployment source directory out of public confirmation URLs', () => {
+    const url = new URL(buildAuthConfirmationUrl({
+      siteUrl: 'https://stren.netlify.app/app',
+      tokenHash: 'secret-token',
+      type: 'recovery',
+      next: '/reset-password',
+    }));
+
+    expect(url.pathname).toBe('/auth/confirm');
+  });
 });

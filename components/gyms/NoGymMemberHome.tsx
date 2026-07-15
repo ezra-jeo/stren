@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
 import {
   Bookmark,
   CheckCircle2,
@@ -143,35 +144,12 @@ function VerificationCard({
   );
 }
 
-function DemoPreview({ onExit }: { onExit: () => void }) {
-  return (
-    <section aria-labelledby="demo-title" className="rounded-3xl border border-(--color-primary) bg-white p-5 shadow-sm sm:p-7">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <span className="inline-flex rounded-full bg-(--color-primary-glow) px-3 py-1 text-xs font-bold uppercase tracking-[0.12em] text-(--color-primary-dark)">Sample data</span>
-          <h2 id="demo-title" className="mt-3 font-serif text-2xl font-semibold text-(--color-text-primary)">Demo member dashboard</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-(--color-text-secondary)">Explore what a connected member can see. Nothing here affects a real gym or your account.</p>
-        </div>
-        <button type="button" onClick={onExit} className="min-h-11 rounded-xl border border-(--color-surface) px-4 text-sm font-semibold text-(--color-text-primary)">Exit demo</button>
-      </div>
-      <div className="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {['Attendance history', 'Gym announcements', 'Classes', 'Leaderboard preview'].map((label) => (
-          <div key={label} className="rounded-2xl bg-(--color-background) p-4">
-            <p className="font-semibold text-(--color-text-primary)">{label}</p>
-            <p className="mt-2 text-xs text-(--color-text-muted)">Preview only</p>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
 export function NoGymMemberHome({ initialCode }: { initialCode?: string | null }) {
+  const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
   const { user, profile, refreshMyGyms } = useAuth();
   const [savedGyms, setSavedGyms] = useState<SavedGym[]>([]);
   const [verifications, setVerifications] = useState<MembershipVerification[]>([]);
-  const [showDemo, setShowDemo] = useState(false);
   const [betaMessage, setBetaMessage] = useState<string | null>(null);
   const firstName = profile?.name?.trim().split(/\s+/)[0] || 'there';
   const savedGymIds = useMemo(() => new Set(savedGyms.map((gym) => gym.gymId)), [savedGyms]);
@@ -191,8 +169,6 @@ export function NoGymMemberHome({ initialCode }: { initialCode?: string | null }
 
   useEffect(() => { void loadAccountGymState(); }, [loadAccountGymState]);
 
-  if (showDemo) return <DemoPreview onExit={() => setShowDemo(false)} />;
-
   return (
     <div className="space-y-6 sm:space-y-8">
       <nav aria-label="Member account" className="flex min-h-14 items-center justify-between border-b border-(--color-surface) pb-4">
@@ -205,7 +181,7 @@ export function NoGymMemberHome({ initialCode }: { initialCode?: string | null }
           <span className="hidden sm:inline">Profile</span>
         </Link>
       </nav>
-      <header className="pt-2 sm:pt-5">
+      <header className="no-gym-member-intro pt-2 sm:pt-5">
         <p className="text-xs font-bold uppercase tracking-[0.18em] text-(--color-primary-dark)">Member home</p>
         <h1 className="mt-2 font-serif text-4xl font-semibold tracking-tight text-(--color-text-primary) sm:text-5xl">Hi, {firstName}</h1>
         <p className="mt-3 max-w-2xl text-base leading-7 text-(--color-text-secondary)">Everything you need to connect with your gym, in one place.</p>
@@ -251,7 +227,7 @@ export function NoGymMemberHome({ initialCode }: { initialCode?: string | null }
               <h2 className="font-serif text-xl font-semibold text-(--color-text-primary)">Explore first</h2>
             </div>
             <p className="mt-3 text-sm leading-6 text-(--color-text-secondary)">See a sample of the connected member experience without changing real data.</p>
-            <button type="button" onClick={() => setShowDemo(true)} className="mt-4 inline-flex min-h-12 w-full items-center justify-between rounded-xl bg-(--color-primary) px-4 font-bold text-white">
+            <button type="button" onClick={() => router.push('/member/demo')} className="mt-4 inline-flex min-h-12 w-full items-center justify-between rounded-xl bg-(--color-primary) px-4 font-bold text-white">
               Preview the demo <ChevronRight size={18} aria-hidden="true" />
             </button>
           </section>
