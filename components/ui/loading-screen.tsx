@@ -35,7 +35,7 @@ function StrenLoaderMark() {
   return (
     <div className="stren-bootstrap-mark" aria-hidden="true">
       <Image
-        src="/stren-logo.svg"
+        src="/stren-logo.png"
         alt=""
         width={86}
         height={90}
@@ -44,7 +44,7 @@ function StrenLoaderMark() {
         className="stren-mark-reveal"
       />
       <Image
-        src="/stren-logo.svg"
+        src="/stren-logo.png"
         alt=""
         width={86}
         height={90}

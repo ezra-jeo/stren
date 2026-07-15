@@ -264,7 +264,7 @@ body[data-navigation-kind='public-auth'] .public-route-frame { opacity: .78; tra
 .member-display-title { font-family: var(--font-display); font-size: clamp(2.4rem, 4vw, 4.6rem); font-weight: 500; letter-spacing: -.045em; line-height: .98; color: var(--color-text-primary); }
 .member-page-title { font-family: var(--font-display); font-size: clamp(2.35rem, 4vw, 3.6rem); font-weight: 500; letter-spacing: -.04em; line-height: 1; color: var(--color-text-primary); }
 .member-section-title { font-size: 1.15rem; font-weight: 700; color: var(--color-text-primary); }
-.member-home-hero { position: relative; min-height: 33rem; overflow: hidden; border: 1px solid var(--color-surface); border-radius: 1.75rem; padding: 2.5rem; background: #f7f2ec; isolation: isolate; }
+.member-home-hero { position: relative; min-height: 24rem; overflow: hidden; border: 1px solid var(--color-surface); border-radius: 1.75rem; padding: 2rem; background: #f7f2ec; isolation: isolate; }
 .member-home-hero-image { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg, #fdfaf7 5%, rgb(253 250 247 / .91) 43%, rgb(253 250 247 / .26) 100%), url('/YourGym.webp') center / cover no-repeat; }
 .member-primary-action { display: inline-flex; min-height: 3.75rem; align-items: center; justify-content: center; gap: .75rem; border-radius: .9rem; padding: 0 2rem; background: var(--color-primary); color: white; font-size: 1.05rem; font-weight: 700; box-shadow: 0 8px 22px hsl(var(--primary) / .22); transition: background-color .18s ease, transform .18s ease; }
 .member-primary-action:hover { background: var(--color-primary-dark); transform: translateY(-1px); }
@@ -279,6 +279,23 @@ body[data-navigation-kind='public-auth'] .public-route-frame { opacity: .78; tra
 .member-recommendation { display: flex; min-height: 5.8rem; align-items: center; gap: 1rem; border: 1px solid var(--color-surface); border-radius: 1rem; padding: 1rem; background: var(--color-white); box-shadow: 0 3px 12px rgb(50 34 18 / .025); transition: border-color .18s ease, box-shadow .18s ease; }
 .member-recommendation:hover { border-color: hsl(var(--primary) / .45); box-shadow: 0 7px 18px rgb(50 34 18 / .07); }
 .member-surface { border: 1px solid var(--color-surface); border-radius: 1.25rem; background: var(--color-white); box-shadow: 0 4px 16px rgb(50 34 18 / .025); }
+.demo-mode-banner { display: flex; min-height: 3.65rem; align-items: center; justify-content: space-between; gap: 1rem; margin-bottom: 1.5rem; border: 1px solid hsl(var(--primary) / .22); border-radius: 1rem; padding: .65rem .8rem .65rem 1rem; background: linear-gradient(90deg, hsl(var(--primary) / .09), hsl(var(--primary) / .035)); }
+.demo-mode-banner strong, .demo-mode-banner span { display: block; }
+.demo-mode-banner strong { color: var(--color-primary-dark); font-size: .72rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.demo-mode-banner span { margin-top: .15rem; color: var(--color-text-secondary); font-size: .78rem; }
+.demo-mode-banner button { display: inline-flex; min-height: 2.55rem; flex: none; align-items: center; gap: .45rem; border: 1px solid hsl(var(--primary) / .28); border-radius: .75rem; padding: .45rem .7rem; background: color-mix(in srgb, white 88%, transparent); color: var(--color-primary-dark); font-size: .8rem; font-weight: 750; cursor: pointer; }
+.demo-mode-banner button:focus-visible { outline: 3px solid hsl(var(--primary) / .3); outline-offset: 2px; }
+.demo-gym-card { display: flex; align-items: center; gap: 1rem; border: 1px solid var(--color-surface); border-radius: 1.25rem; padding: 1rem 1.2rem; background: var(--color-white); }
+.demo-gym-card h2 { margin-top: .2rem; color: var(--color-text-primary); font-size: 1.05rem; font-weight: 750; }
+.demo-gym-card span { color: var(--color-text-muted); font-size: .8rem; }
+.demo-gym-card > strong { border-radius: 999px; padding: .35rem .65rem; background: var(--color-primary-glow); color: var(--color-primary-dark); font-size: .72rem; letter-spacing: .08em; text-transform: uppercase; }
+.demo-profile-avatar { display: grid; width: 7rem; height: 7rem; place-items: center; border-radius: 999px; background: var(--color-primary-glow); color: var(--color-primary-dark); font-family: var(--font-heading); font-size: 2rem; font-weight: 750; }
+.demo-invalid-qr { position: relative; width: min(100%, 13rem); aspect-ratio: 1; margin: 1rem auto 0; overflow: hidden; border: 1px solid var(--color-surface); border-radius: 1rem; background: #f5f1ed; }
+.demo-qr-noise { position: absolute; inset: 1rem; opacity: .38; background: repeating-conic-gradient(#302d2b 0 25%, transparent 0 50%) 0 0 / 1.1rem 1.1rem, repeating-linear-gradient(35deg, transparent 0 .32rem, #302d2b .32rem .58rem); filter: blur(2.8px); transform: rotate(3deg) scale(.92); }
+.demo-qr-logo { position: absolute; z-index: 2; top: 50%; left: 50%; width: 3rem; height: 3rem; border-radius: .75rem; padding: .3rem; background: white; object-fit: contain; transform: translate(-50%, -50%); box-shadow: 0 4px 14px rgb(41 30 23 / .15); }
+.demo-invalid-qr > strong { position: absolute; z-index: 3; right: -.35rem; bottom: 1.15rem; color: hsl(var(--primary) / .58); font-size: 2rem; letter-spacing: .08em; text-transform: uppercase; transform: rotate(-42deg); }
+.no-gym-member-intro { position: relative; min-height: 13rem; overflow: hidden; border-radius: 1.5rem; padding: 1.5rem; isolation: isolate; }
+.no-gym-member-intro::before { position: absolute; inset: 0; z-index: -1; content: ''; opacity: .55; background: linear-gradient(90deg, #fdfaf7 5%, rgb(253 250 247 / .94) 48%, rgb(253 250 247 / .12) 100%), url('/training-floor.webp') right center / 58% 100% no-repeat; }
 
 @media (min-width: 768px) {
   .member-app-shell { display: grid; grid-template-columns: 17.5rem minmax(0, 1fr); }
@@ -289,10 +306,15 @@ body[data-navigation-kind='public-auth'] .public-route-frame { opacity: .78; tra
 }
 
 @media (max-width: 460px) {
-  .member-home-hero { min-height: 31rem; padding: 2.25rem 1.5rem; }
+  .member-home-hero { min-height: 22rem; padding: 1.75rem 1.25rem; }
   .member-status-strip { grid-template-columns: 1fr; }
   .member-status-item + .member-status-item { border-top: 1px solid var(--color-surface); border-left: 0; }
   .member-bottom-nav { left: .35rem; right: .35rem; }
+  .demo-mode-banner { align-items: flex-start; gap: .5rem; padding: .65rem; }
+  .demo-mode-banner span { max-width: 12rem; }
+  .demo-mode-banner button { min-height: 2.75rem; }
+  .no-gym-member-intro { min-height: auto; padding: .75rem 0; }
+  .no-gym-member-intro::before { display: none; }
 }
 
 @keyframes ken-burns {

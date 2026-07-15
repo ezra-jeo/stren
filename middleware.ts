@@ -12,6 +12,11 @@ function authPath(url: URL, mode: 'signin' | 'signup', gymCode?: string): string
 }
 
 export const LEGACY_AUTH_REDIRECTS = [
+  {
+    pattern: /^\/app\/auth\/confirm\/?$/,
+    target: (_m: RegExpMatchArray, url: URL) => `/auth/confirm${url.search}`,
+    status: 307,
+  },
   { pattern: /^\/gym\/([^/]+)\/login\/?$/, target: (m: RegExpMatchArray, url: URL) => authPath(url, 'signin', m[1]) },
   { pattern: /^\/gym\/([^/]+)\/signup\/?$/, target: (m: RegExpMatchArray, url: URL) => authPath(url, 'signup', m[1]) },
   { pattern: /^\/login\/?$/, target: (_m: RegExpMatchArray, url: URL) => authPath(url, 'signin') },
@@ -53,18 +58,25 @@ function asMyGyms(rows: unknown): MyGym[] {
   });
 }
 
+export function isDemoMemberPath(pathname: string): boolean {
+  return pathname === '/member/demo' || pathname.startsWith('/member/demo/');
+}
+
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
   for (const redirect of LEGACY_AUTH_REDIRECTS) {
     const match = pathname.match(redirect.pattern);
-    if (match) return securityHeaders(NextResponse.redirect(new URL(redirect.target(match, new URL(request.url)), request.url), 308), pathname);
+    if (match) {
+      const status = 'status' in redirect ? redirect.status : 308;
+      return securityHeaders(NextResponse.redirect(new URL(redirect.target(match, new URL(request.url)), request.url), status), pathname);
+    }
   }
 
   let response = NextResponse.next({ request });
   const finish = (next: NextResponse) => securityHeaders(next, pathname);
   if (pathname.startsWith('/api')) return finish(response);
 
-  const isPublic = pathname === '/' || pathname.startsWith('/landing') || pathname === '/auth/callback' || pathname === '/reset-password' || pathname === '/for-gym-owners' || (/^\/gym\/[^/]+(?:\/.*)?$/.test(pathname));
+  const isPublic = pathname === '/' || pathname.startsWith('/landing') || pathname === '/auth/callback' || pathname === '/auth/confirm' || pathname === '/reset-password' || pathname === '/for-gym-owners' || (/^\/gym\/[^/]+(?:\/.*)?$/.test(pathname));
   if (isPublic) return finish(response);
 
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
@@ -105,6 +117,14 @@ export async function middleware(request: NextRequest) {
       if (activationError) return finish(NextResponse.redirect(new URL('/gyms?account_error=access', request.url)));
     }
     return finish(NextResponse.redirect(new URL(destination.path, request.url)));
+  }
+
+  if (isDemoMemberPath(pathname)) {
+    const requestHeaders = new Headers(request.headers);
+    requestHeaders.set('x-demo-mode', '1');
+    requestHeaders.set('x-user-role', 'member');
+    response = NextResponse.next({ request: { headers: requestHeaders } });
+    return finish(response);
   }
 
   if (pathname === '/gyms' || pathname === '/profile') return finish(response);

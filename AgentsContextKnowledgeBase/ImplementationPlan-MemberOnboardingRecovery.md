@@ -30,3 +30,12 @@ Red-green coverage must include the sign-in resolver/router timeouts, official r
 ## Explicitly deferred
 
 Google OAuth configuration, phone OTP/verified-phone matching, Personal Mode, production SMS/push, and invented member tools remain out of scope.
+
+## Corrective follow-up - 2026-07-15
+
+This follow-up supersedes only the recovery-request transport described above; the recovery proof and completion contract remains unchanged.
+
+- Password reset now uses Supabase's official admin-generated recovery token with Stren's existing Resend delivery instead of the provider's default `ConfirmationURL`. The first-party link opens `/auth/confirm`, where an explicit human action forwards the token hash to the server callback. Automatic email scanners can load the first page without consuming the one-time token.
+- A signup attempt for an existing confirmed email recognizes Supabase's obfuscated empty-identity response and provides direct Sign in and Reset password recovery actions instead of falsely claiming that a verification email was sent.
+- A gym-created member receives their Stren account email and a first-party one-time setup link; no temporary password is sent. The callback resolves gym access using the same client and exact user ID returned by `verifyOtp`, so an existing owner browser session cannot select the destination for the new member.
+- A verified member magic link reaches `/member?first_login=1`, where the member may set an eight-character-or-longer password or skip and continue. The `gym_users.role = 'member'` row, middleware, RLS, and permission checks remain the access boundary.

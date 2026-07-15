@@ -127,51 +127,71 @@ export interface AccessPerson {
 }
 
 /**
- * The gym's admin + staff, each with their stored overrides. Reads profiles and
- * overrides separately (no PostgREST join) so it degrades gracefully before the
- * overrides table exists.
+ * The gym's admin + staff, each with their stored overrides. The owner-only
+ * endpoint resolves the roster server-side so a browser RLS/embed mismatch can
+ * never masquerade as an empty People & access screen after sign-in.
  */
-export async function listAccessPeople(supabase: SupabaseClient, gymId: string): Promise<AccessPerson[]> {
-  const { data: profiles, error } = await supabase
-    .from('profiles')
-    .select('id, name, email, role')
-    .eq('gym_id', gymId)
-    .in('role', ['admin', 'staff']);
+export async function listAccessPeople(_supabase: SupabaseClient, _gymId: string): Promise<AccessPerson[]> {
+  const response = await fetch('/api/admin/access/people', { cache: 'no-store' });
+  const body = await response.json().catch(() => ({})) as { people?: unknown; error?: string };
+  if (!response.ok) throw new Error(body.error ?? 'Could not load your team.');
+  if (!Array.isArray(body.people)) throw new Error('The team response was invalid.');
 
-  if (error || !profiles) return [];
+  return body.people.flatMap((row): AccessPerson[] => {
+    if (!row || typeof row !== 'object') return [];
+    const person = row as Record<string, unknown>;
+    if (typeof person.userId !== 'string' || typeof person.name !== 'string' || typeof person.email !== 'string') return [];
+    const overrides = Array.isArray(person.overrides)
+      ? person.overrides.flatMap((override): { permission: PermissionKey; granted: boolean }[] => {
+        if (!override || typeof override !== 'object') return [];
+        const value = override as Record<string, unknown>;
+        return typeof value.permission === 'string' && PERMISSION_KEY_SET.has(value.permission) && typeof value.granted === 'boolean'
+          ? [{ permission: value.permission as PermissionKey, granted: value.granted }]
+          : [];
+      })
+      : [];
+    return [{ userId: person.userId, name: person.name, email: person.email, role: coerceRole(person.role), overrides }];
+  });
+}
 
-  const overridesByUser = new Map<string, { permission: PermissionKey; granted: boolean }[]>();
-  try {
-    const { data: overrides } = await supabase
-      .from('gym_user_permission_overrides')
-      .select('user_id, permission, granted')
-      .eq('gym_id', gymId);
+export type TeamRole = 'admin' | 'staff';
 
-    if (Array.isArray(overrides)) {
-      for (const row of overrides as { user_id?: unknown; permission?: unknown; granted?: unknown }[]) {
-        if (
-          typeof row.user_id === 'string' &&
-          typeof row.permission === 'string' &&
-          PERMISSION_KEY_SET.has(row.permission) &&
-          typeof row.granted === 'boolean'
-        ) {
-          const list = overridesByUser.get(row.user_id) ?? [];
-          list.push({ permission: row.permission as PermissionKey, granted: row.granted });
-          overridesByUser.set(row.user_id, list);
-        }
-      }
-    }
-  } catch {
-    // Overrides table not present yet — treat everyone as role defaults.
-  }
+export type TeamInviteResult = {
+  person: AccessPerson;
+  createdAccount: boolean;
+  magicLink: string | null;
+};
 
-  return (profiles as { id: string; name: string | null; email: string | null; role: string }[]).map((p) => ({
-    userId: p.id,
-    name: p.name ?? '',
-    email: p.email ?? '',
-    role: coerceRole(p.role),
-    overrides: overridesByUser.get(p.id) ?? [],
-  }));
+/** Owner-only API: attaches an existing account or creates a new staff-side account. */
+export async function addTeamPerson(input: {
+  name: string;
+  email: string;
+  role: TeamRole;
+}): Promise<TeamInviteResult> {
+  const response = await fetch('/api/admin/access/people', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(input),
+  });
+  const body = await response.json().catch(() => ({})) as Partial<TeamInviteResult> & { error?: string };
+  if (!response.ok || !body.person) throw new Error(body.error ?? 'Could not add this teammate.');
+  return {
+    person: body.person,
+    createdAccount: Boolean(body.createdAccount),
+    magicLink: typeof body.magicLink === 'string' ? body.magicLink : null,
+  };
+}
+
+/** Owner-only API: removes a non-owner gym-user and its gym-specific overrides. */
+export async function removeTeamPerson(userId: string): Promise<void> {
+  const response = await fetch('/api/admin/access/people', {
+    method: 'DELETE',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId }),
+  });
+  if (response.ok) return;
+  const body = await response.json().catch(() => ({})) as { error?: string };
+  throw new Error(body.error ?? 'Could not remove this teammate.');
 }
 
 /**

@@ -1,81 +1,71 @@
 "use client"
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react"
-import { createClient } from "@/lib/supabase"
-import { withTimeout } from "@/lib/async-guard"
-import { type CheckInResult } from "@/lib/engagement-hooks"
-import { Input } from "@/components/ui/input"
-import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { toast } from "sonner"
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Html5Qrcode as Html5QrcodeType } from "html5-qrcode"
-import { useAuth } from "@/lib/auth-context"
 import {
+  BadgeCheck,
+  Camera,
+  Check,
+  CircleAlert,
+  Info,
+  Loader2,
   LogIn,
   LogOut,
+  QrCode,
+  RefreshCw,
   Search,
-  User,
-  Phone,
-  Calendar,
-  Clock,
-  Camera,
-  Loader2,
-  AlertCircle,
+  ShieldCheck,
+  UserPlus,
+  Users,
+  WifiOff,
+  X,
 } from "lucide-react"
+import { createClient } from "@/lib/supabase"
+import { withTimeout } from "@/lib/async-guard"
+import { useAuth } from "@/lib/auth-context"
+import { playKioskFeedback } from "@/lib/kiosk-feedback"
+import {
+  KIOSK_RESULT_EXIT_MS,
+  KIOSK_RESULT_HOLD_MS,
+  KioskScanGate,
+} from "@/lib/kiosk-scan-gate"
+import styles from "./kiosk.module.css"
 
 const SCANNER_ELEMENT_ID = "kiosk-qr-reader"
-const KIOSK_RPC_TIMEOUT_MS = 10000
-const SCANNER_START_TIMEOUT_MS = 8000
+const KIOSK_RPC_TIMEOUT_MS = 10_000
+const SCANNER_START_TIMEOUT_MS = 8_000
+const PROCESSING_DELAY_MS = 180
+const SEARCH_DEBOUNCE_MS = 280
 
 type KioskMode = "qr" | "search"
+type CameraState = "starting" | "ready" | "denied" | "unavailable" | "unsupported"
+type Presentation = "idle" | "processing" | "result" | "exiting" | "persistent"
+type ResultKind = "checked_in" | "checked_out" | "unknown" | "inactive" | "offline" | "error"
 
-interface CheckedInEntry {
-  attendanceId: string
-  memberId: string
-  memberName: string
-  checkIn: string
+interface KioskResult {
+  kind: ResultKind
+  memberName?: string
+  avatarUrl?: string | null
+  time?: Date
+  occupancy?: number | null
 }
 
-type KioskErrorResult = {
+interface KioskErrorResult {
   error: string
   message?: string
-  member_name?: string
 }
 
-type KioskCheckinResult = {
+interface KioskCheckinResult {
   action: "checked_in" | "checked_out"
   attendance_id: string
   member_name?: string
-  duration_min?: number
+  avatar_url?: string | null
 }
 
-type KioskCheckoutResult = {
-  duration_min?: number
-}
-
-async function requestCameraPreflight(): Promise<void> {
-  if (typeof window === "undefined") return
-
-  if (!window.isSecureContext) {
-    throw new Error("Camera requires a secure context (HTTPS or localhost).")
-  }
-
-  if (!navigator.mediaDevices?.getUserMedia) {
-    throw new Error("Camera API is unavailable in this browser.")
-  }
-
-  let stream: MediaStream | null = null
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
-      audio: false,
-    })
-  } catch {
-    // Fallback for devices that can't satisfy facingMode=environment.
-    stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-  } finally {
-    stream?.getTracks().forEach((track) => track.stop())
-  }
+interface SearchMember {
+  id: string
+  name: string
+  email: string
 }
 
 function isJsonObject(value: unknown): value is Record<string, unknown> {
@@ -88,26 +78,94 @@ function isKioskErrorResult(value: unknown): value is KioskErrorResult {
 
 function isKioskCheckinResult(value: unknown): value is KioskCheckinResult {
   return (
-    isJsonObject(value) &&
-    (value.action === "checked_in" || value.action === "checked_out") &&
-    typeof value.attendance_id === "string"
+    isJsonObject(value)
+    && (value.action === "checked_in" || value.action === "checked_out")
+    && typeof value.attendance_id === "string"
   )
 }
 
-function isKioskCheckoutResult(value: unknown): value is KioskCheckoutResult {
-  return (
-    isJsonObject(value) &&
-    (!("duration_min" in value) || typeof value.duration_min === "number")
-  )
+function errorMessage(error: unknown): string {
+  if (error instanceof Error) return error.message
+  if (isJsonObject(error) && typeof error.message === "string") return error.message
+  return String(error ?? "")
+}
+
+function isOfflineError(error: unknown): boolean {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return true
+  return /network|failed to fetch|fetch failed|timeout|timed out|offline/i.test(errorMessage(error))
+}
+
+function cameraFailureFor(error: unknown): CameraState {
+  const message = errorMessage(error).toLowerCase()
+  if (/notallowed|permission|securityerror/.test(message)) return "denied"
+  if (/notfound|no camera|device|notreadable|could not start video|overconstrained|constraint/.test(message)) return "unavailable"
+  return "unsupported"
+}
+
+/**
+ * Prefer a rear camera when the device exposes one, but do not turn that
+ * preference into a hard kiosk failure. Some desktop webcams and embedded
+ * camera drivers reject facingMode constraints even when a camera is usable.
+ */
+function canRetryWithDefaultCamera(error: unknown): boolean {
+  return !/notallowed|permission|securityerror|notreadable|busy|in use|timeout|timed out/i.test(errorMessage(error))
+}
+
+function cameraDiagnosticFor(error: unknown): string {
+  const message = errorMessage(error).toLowerCase()
+  if (/timeout|timed out/.test(message)) return "START_TIMEOUT"
+  if (/notallowed|permission|securityerror/.test(message)) return "PERMISSION_DENIED"
+  if (/notreadable|busy|in use|could not start video/.test(message)) return "DEVICE_BUSY"
+  if (/notfound|no camera|device not found/.test(message)) return "NO_CAMERA"
+  if (/overconstrained|constraint/.test(message)) return "CONSTRAINT_REJECTED"
+  if (/element.*not found|html element/.test(message)) return "SCANNER_HOST_MISSING"
+  return "START_FAILED"
+}
+
+async function warmCameraForScanner(): Promise<void> {
+  let stream: MediaStream | null = null
+  try {
+    try {
+      stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "environment" },
+        audio: false,
+      })
+    } catch (preferredCameraError) {
+      if (!canRetryWithDefaultCamera(preferredCameraError)) throw preferredCameraError
+      stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
+    }
+  } finally {
+    stream?.getTracks().forEach((track) => track.stop())
+  }
+}
+
+function cameraFailureCopy(state: CameraState): string {
+  if (state === "denied") return "Camera permission was denied. Allow camera access for this site, then try again."
+  if (state === "unavailable") return "No usable camera is available. Another tab or app may already be using it."
+  return "This browser cannot start the kiosk camera here. Use a current browser on HTTPS, or search with staff."
+}
+
+function displayName(name: string | undefined): string {
+  const first = name?.trim().split(/\s+/)[0]
+  return first || "Member"
+}
+
+function formatTime(date: Date | undefined): string {
+  if (!date) return "now"
+  return date.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })
+}
+
+function maskEmail(email: string): string {
+  const [local, domain] = email.split("@")
+  if (!domain) return "Hidden for privacy"
+  return `${local.slice(0, 1) || "•"}${"•".repeat(Math.max(2, Math.min(5, local.length - 1)))}@${domain}`
 }
 
 export function KioskDisabledState() {
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
-      <h1 className="text-3xl font-bold">Check-ins are turned off</h1>
-      <p className="mt-3 max-w-md text-sm text-white/60">
-        The owner has disabled kiosk check-ins for this gym.
-      </p>
+    <div className={styles.disabledState}>
+      <h1>Check-ins are turned off</h1>
+      <p>The owner has disabled kiosk check-ins for this gym.</p>
     </div>
   )
 }
@@ -116,743 +174,625 @@ export default function KioskPage() {
   const supabase = useMemo(() => createClient(), [])
   const { activeGymId } = useAuth()
   const [pinnedGymId, setPinnedGymId] = useState<string | null>(null)
-  const [mode, setMode] = useState<KioskMode>("qr")
-  const [query, setQuery] = useState("")
-  const [results, setResults] = useState<
-    {
-      id: string
-      name: string
-      email: string
-      contactNumber: string | null
-      membershipStatus: string
-      planName: string
-      endDate: string
-    }[]
-  >([])
-  const [searched, setSearched] = useState(false)
-  const [checkedIn, setCheckedIn] = useState<CheckedInEntry[]>([])
-  const [scanResult, setScanResult] = useState<(CheckInResult & { memberName: string }) | null>(null)
-  const [scanStatus, setScanStatus] = useState<"initializing" | "scanning" | "processing" | "error">("initializing")
-  const [scanErrorMessage, setScanErrorMessage] = useState<string>("")
-  const [isSearching, setIsSearching] = useState(false)
-  const [actionPendingByMember, setActionPendingByMember] = useState<Record<string, "checkin" | "checkout">>({})
-  const [isLoadingCheckedIn, setIsLoadingCheckedIn] = useState(false)
   const [kioskEnabled, setKioskEnabled] = useState<boolean | null>(null)
+  const [mode, setMode] = useState<KioskMode>("qr")
+  const [cameraState, setCameraState] = useState<CameraState>("starting")
+  const [cameraDiagnostic, setCameraDiagnostic] = useState<string | null>(null)
+  const [networkOnline, setNetworkOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine !== false)
+  const [presentation, setPresentation] = useState<Presentation>("idle")
+  const [result, setResult] = useState<KioskResult | null>(null)
+  const [occupancy, setOccupancy] = useState<number | null>(null)
+  const [occupancyUnavailable, setOccupancyUnavailable] = useState(false)
+  const [query, setQuery] = useState("")
+  const [searchResults, setSearchResults] = useState<SearchMember[]>([])
+  const [searchState, setSearchState] = useState<"idle" | "searching" | "done" | "error">("idle")
+  const [connectOpen, setConnectOpen] = useState(false)
+  const [connectQr, setConnectQr] = useState("")
+  const [connectUrl, setConnectUrl] = useState("")
+
   const scannerRef = useRef<Html5QrcodeType | null>(null)
   const isStartingScannerRef = useRef(false)
   const isScannerActiveRef = useRef(false)
-  const isProcessingRef = useRef(false)
-  const isRefreshingCheckedInRef = useRef(false)
-  const refreshQueuedRef = useRef(false)
+  const scanGateRef = useRef(new KioskScanGate())
+  const processScanRef = useRef<(payload: string) => Promise<void>>(async () => {})
+  const resultHoldTimerRef = useRef<number | null>(null)
+  const resultExitTimerRef = useRef<number | null>(null)
+  const presentationRef = useRef<Presentation>("idle")
+  const userActivatedRef = useRef(false)
+  const occupancyRef = useRef<number | null>(null)
+  const occupancyEpochRef = useRef(0)
+  const searchRequestRef = useRef(0)
+  const runtimeRef = useRef({ gymId: null as string | null, enabled: false, mode: "qr" as KioskMode, online: true, presentation: "idle" as Presentation })
 
   useEffect(() => {
-    let stored: string | null = null
-    try { stored = window.localStorage?.getItem('stren.kiosk.gymId') ?? null } catch {}
-    const gymId = stored || activeGymId
-    if (gymId && !pinnedGymId) {
-      try { window.localStorage?.setItem('stren.kiosk.gymId', gymId) } catch {}
-      setPinnedGymId(gymId)
-    }
-  }, [activeGymId, pinnedGymId])
+    runtimeRef.current = { gymId: pinnedGymId, enabled: kioskEnabled === true, mode, online: networkOnline, presentation }
+    presentationRef.current = presentation
+  }, [kioskEnabled, mode, networkOnline, pinnedGymId, presentation])
 
-  useEffect(() => {
-    void refreshKioskAvailability()
-    const availabilityInterval = setInterval(refreshKioskAvailability, 30000)
+  const stopScanner = useCallback(async () => {
+    const scanner = scannerRef.current
+    scannerRef.current = null
+    isScannerActiveRef.current = false
+    if (!scanner) return
+    try { await scanner.stop() } catch { /* The stream may have failed before starting. */ }
+    try { scanner.clear() } catch { /* Html5Qrcode can already be detached here. */ }
+  }, [])
 
-    return () => {
-      clearInterval(availabilityInterval)
-    }
-  }, [supabase, pinnedGymId])
+  const clearResultTimers = useCallback(() => {
+    if (resultHoldTimerRef.current !== null) window.clearTimeout(resultHoldTimerRef.current)
+    if (resultExitTimerRef.current !== null) window.clearTimeout(resultExitTimerRef.current)
+    resultHoldTimerRef.current = null
+    resultExitTimerRef.current = null
+  }, [])
 
-  useEffect(() => {
-    if (kioskEnabled !== true) return
+  const returnToScanning = useCallback(() => {
+    clearResultTimers()
+    presentationRef.current = "idle"
+    setPresentation("idle")
+    setResult(null)
+    scanGateRef.current.settle()
+  }, [clearResultTimers])
 
-    loadCheckedIn()
-    const interval = setInterval(loadCheckedIn, 60000)
+  const showResult = useCallback((nextResult: KioskResult, autoReturn = true) => {
+    clearResultTimers()
+    presentationRef.current = autoReturn ? "result" : "persistent"
+    setResult(nextResult)
+    setPresentation(autoReturn ? "result" : "persistent")
 
-    const channel = supabase
-      .channel('kiosk-attendance')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'attendance' },
-        () => { void loadCheckedIn() }
-      )
-      .subscribe()
-
-    return () => {
-      clearInterval(interval)
-      void supabase.removeChannel(channel)
-    }
-  }, [supabase, kioskEnabled, pinnedGymId])
-
-  async function refreshKioskAvailability() {
-    if (!pinnedGymId) { setKioskEnabled(false); return }
-    const { data, error } = await supabase.rpc('kiosk_access_allowed', { p_gym_id: pinnedGymId })
-    if (error) {
-      setKioskEnabled(false)
-      void stopScanner()
-      return
-    }
-    const enabled = data === true
-    setKioskEnabled(enabled)
-    if (!enabled) void stopScanner()
-  }
-
-  async function loadCheckedIn() {
-    if (isRefreshingCheckedInRef.current) {
-      refreshQueuedRef.current = true
-      return
+    if (nextResult.kind === "checked_in" || nextResult.kind === "checked_out") {
+      playKioskFeedback("success", userActivatedRef.current)
+    } else if (nextResult.kind !== "offline") {
+      playKioskFeedback("error", userActivatedRef.current)
     }
 
-    isRefreshingCheckedInRef.current = true
-    setIsLoadingCheckedIn(true)
+    if (!autoReturn) return
+    resultHoldTimerRef.current = window.setTimeout(() => {
+      presentationRef.current = "exiting"
+      setPresentation("exiting")
+      resultExitTimerRef.current = window.setTimeout(returnToScanning, KIOSK_RESULT_EXIT_MS)
+    }, KIOSK_RESULT_HOLD_MS)
+  }, [clearResultTimers, returnToScanning])
+
+  const setKnownOccupancy = useCallback((next: number | null) => {
+    occupancyRef.current = next
+    setOccupancy(next)
+  }, [])
+
+  const refreshOccupancy = useCallback(async () => {
+    const gymId = runtimeRef.current.gymId
+    if (!gymId || !runtimeRef.current.enabled || !runtimeRef.current.online) return
+
+    const epochAtStart = occupancyEpochRef.current
     try {
       const { data, error } = await withTimeout(
-        supabase.rpc("kiosk_get_checked_in", { p_gym_id: pinnedGymId! }),
+        supabase.rpc("kiosk_get_occupancy", { p_gym_id: gymId }),
         KIOSK_RPC_TIMEOUT_MS,
-        "Loading checked-in members timed out.",
+        "Occupancy refresh timed out.",
       )
-      if (data && !error) {
-        setCheckedIn(
-          (data as { attendance_id: string; member_id: string; member_name: string; check_in: string }[]).map((d) => ({
-            attendanceId: d.attendance_id,
-            memberId: d.member_id,
-            memberName: d.member_name,
-            checkIn: d.check_in,
-          }))
-        )
+      if (error) throw error
+      if (epochAtStart !== occupancyEpochRef.current) return
+      if (typeof data === "number") {
+        setKnownOccupancy(data)
+        setOccupancyUnavailable(false)
       }
     } catch {
-      toast.error("Could not refresh checked-in members. Please try again.")
-    } finally {
-      setIsLoadingCheckedIn(false)
-      isRefreshingCheckedInRef.current = false
-
-      if (refreshQueuedRef.current) {
-        refreshQueuedRef.current = false
-        void loadCheckedIn()
-      }
+      if (epochAtStart === occupancyEpochRef.current) setOccupancyUnavailable(true)
     }
-  }
+  }, [setKnownOccupancy, supabase])
+
+  const refreshKioskAvailability = useCallback(async () => {
+    const gymId = runtimeRef.current.gymId
+    if (!gymId) return
+    if (!runtimeRef.current.online) {
+      setNetworkOnline(false)
+      return
+    }
+
+    const { data, error } = await supabase.rpc("kiosk_access_allowed", { p_gym_id: gymId })
+    if (error) {
+      if (isOfflineError(error)) setNetworkOnline(false)
+      else setKioskEnabled(false)
+      return
+    }
+    setKioskEnabled(data === true)
+  }, [supabase])
 
   const startScanner = useCallback(async () => {
-    if (isStartingScannerRef.current || isScannerActiveRef.current) return
+    const runtime = runtimeRef.current
+    if (
+      isStartingScannerRef.current
+      || isScannerActiveRef.current
+      || !runtime.gymId
+      || !runtime.enabled
+      || !runtime.online
+      || runtime.mode !== "qr"
+    ) return
+
+    if (typeof window === "undefined" || !window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
+      setCameraDiagnostic(typeof window !== "undefined" && !window.isSecureContext ? "INSECURE_CONTEXT" : "MEDIA_API_UNAVAILABLE")
+      setCameraState("unsupported")
+      return
+    }
 
     isStartingScannerRef.current = true
-    setScanStatus("initializing")
-    setScanErrorMessage("")
-
-    await stopScanner()
-
+    setCameraDiagnostic(null)
+    setCameraState("starting")
     try {
-      await requestCameraPreflight()
+      await warmCameraForScanner()
       const { Html5Qrcode } = await import("html5-qrcode")
-      const scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false })
-      scannerRef.current = scanner
-
-      await withTimeout(
-        scanner.start(
-          { facingMode: "environment" },
-          { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1 },
-          async (decodedText) => {
-            if (isProcessingRef.current) return
-            isProcessingRef.current = true
-            setScanStatus("processing")
-
-            try {
-              await handleQrScan(decodedText)
-            } catch (err) {
-              toast.error("Check-in failed. Please try again.")
-              console.error("[Kiosk] scan error:", err)
-              setScanResult(null)
-            } finally {
-              setTimeout(() => {
-                isProcessingRef.current = false
-                setScanStatus("scanning")
-              }, 3000)
-            }
-          },
-          () => { /* ignore non-QR frames */ }
-        ),
-        SCANNER_START_TIMEOUT_MS,
-        "Camera initialization timed out.",
-      )
-
-      isScannerActiveRef.current = true
-      setScanStatus("scanning")
-    } catch (err) {
-      console.error("[Kiosk] Scanner failed to start:", err)
-      setScanStatus("error")
-
-      if (scannerRef.current) {
-        try {
-          await scannerRef.current.stop()
-        } catch {
-          // Ignore stop failures when start did not complete.
-        }
-        try {
-          await scannerRef.current.clear()
-        } catch {
-          // Ignore clear failures when scanner did not render yet.
-        }
-        scannerRef.current = null
+      const startCamera = async (scanner: Html5QrcodeType, constraints: MediaTrackConstraints) => {
+        await withTimeout(
+          scanner.start(
+            constraints,
+            { fps: 10, qrbox: { width: 250, height: 250 }, aspectRatio: 1 },
+            (decodedText) => {
+              const current = runtimeRef.current
+              if (!current.enabled || !current.online || current.mode !== "qr" || current.presentation !== "idle") return
+              if (!scanGateRef.current.tryLock(decodedText)) return
+              void processScanRef.current(decodedText)
+            },
+            () => scanGateRef.current.recordEmptyFrame(),
+          ),
+          SCANNER_START_TIMEOUT_MS,
+          "Camera initialization timed out.",
+        )
       }
-      isScannerActiveRef.current = false
+      const disposeScanner = async (scanner: Html5QrcodeType) => {
+        try { await scanner.stop() } catch { /* The request may have failed before a stream was attached. */ }
+        try { scanner.clear() } catch { /* The scanner host can already be detached. */ }
+      }
 
-      const name =
-        typeof err === "object" && err !== null && "name" in err
-          ? String((err as { name?: unknown }).name ?? "")
-          : ""
+      let scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false })
+      scannerRef.current = scanner
+      try {
+        await startCamera(scanner, { facingMode: "environment" })
+      } catch (preferredCameraError) {
+        if (!canRetryWithDefaultCamera(preferredCameraError)) throw preferredCameraError
 
-      const message =
-        typeof err === "object" && err !== null && "message" in err
-          ? String((err as { message?: unknown }).message ?? "")
-          : ""
-
-      const normalized = `${name} ${message}`.toLowerCase()
-      const blockedByPermission = normalized.includes("notallowederror") || normalized.includes("permission denied")
-      const insecureContext = typeof window !== "undefined" && !window.isSecureContext
-      const cameraBusy = normalized.includes("notreadableerror") || normalized.includes("could not start video source")
-
-      const nextMessage = blockedByPermission
-        ? "Camera access is blocked. Allow camera permission for this site, then retry."
-        : cameraBusy
-          ? "Camera is already in use by another tab or app. Close other camera users, then retry."
-        : insecureContext
-          ? "Camera requires a secure context (HTTPS or localhost)."
-          : "Could not access camera. Use manual search instead."
-
-      setScanErrorMessage(nextMessage)
-      toast.error(nextMessage)
+        await disposeScanner(scanner)
+        scanner = new Html5Qrcode(SCANNER_ELEMENT_ID, { verbose: false })
+        scannerRef.current = scanner
+        await startCamera(scanner, {})
+      }
+      isScannerActiveRef.current = true
+      setCameraDiagnostic(null)
+      setCameraState("ready")
+    } catch (error) {
+      await stopScanner()
+      setCameraDiagnostic(cameraDiagnosticFor(error))
+      setCameraState(cameraFailureFor(error))
     } finally {
       isStartingScannerRef.current = false
     }
-  }, [])
+  }, [stopScanner])
 
-  async function stopScanner() {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.stop()
-      } catch { /* already stopped */ }
-
-      try {
-        await scannerRef.current.clear()
-      } catch {
-        // Ignore clear errors when scanner was never fully started.
-      }
-
-      scannerRef.current = null
+  const performScan = useCallback(async (qrCode: string) => {
+    const gymId = runtimeRef.current.gymId
+    if (!gymId) {
+      scanGateRef.current.settle()
+      return
     }
 
-    isScannerActiveRef.current = false
-  }
+    let resolved = false
+    const processingTimer = window.setTimeout(() => {
+      if (!resolved) {
+        presentationRef.current = "processing"
+        setPresentation("processing")
+      }
+    }, PROCESSING_DELAY_MS)
+
+    try {
+      const { data, error } = await withTimeout(
+        supabase.rpc("kiosk_checkin", { p_qr_code: qrCode, p_gym_id: gymId }),
+        KIOSK_RPC_TIMEOUT_MS,
+        "Kiosk request timed out.",
+      )
+      resolved = true
+      window.clearTimeout(processingTimer)
+
+      if (error) throw error
+      if (isKioskErrorResult(data)) {
+        if (data.error === "membership_inactive") {
+          showResult({ kind: "inactive", occupancy: occupancyRef.current })
+        } else if (data.error === "unknown_qr" || data.error === "not_found") {
+          showResult({ kind: "unknown", occupancy: occupancyRef.current })
+        } else {
+          showResult({ kind: "error", occupancy: occupancyRef.current })
+        }
+        return
+      }
+      if (!isKioskCheckinResult(data)) {
+        showResult({ kind: "error", occupancy: occupancyRef.current })
+        return
+      }
+
+      const delta = data.action === "checked_in" ? 1 : -1
+      const currentOccupancy = occupancyRef.current
+      const nextOccupancy = currentOccupancy === null ? null : Math.max(0, currentOccupancy + delta)
+      occupancyEpochRef.current += 1
+      setKnownOccupancy(nextOccupancy)
+      setOccupancyUnavailable(false)
+      void refreshOccupancy()
+      showResult({
+        kind: data.action,
+        memberName: data.member_name?.trim() || displayName(data.member_name),
+        avatarUrl: typeof data.avatar_url === "string" ? data.avatar_url : null,
+        time: new Date(),
+        occupancy: nextOccupancy,
+      })
+    } catch (error) {
+      resolved = true
+      window.clearTimeout(processingTimer)
+      if (isOfflineError(error)) {
+        setNetworkOnline(false)
+        showResult({ kind: "offline", occupancy: occupancyRef.current }, false)
+      } else {
+        showResult({ kind: "error", occupancy: occupancyRef.current })
+      }
+    }
+  }, [refreshOccupancy, setKnownOccupancy, showResult, supabase])
+
+  processScanRef.current = performScan
+
+  const performSearch = useCallback(async (rawQuery: string) => {
+    const q = rawQuery.trim()
+    const gymId = runtimeRef.current.gymId
+    if (q.length < 3 || !gymId || !runtimeRef.current.online) {
+      setSearchResults([])
+      setSearchState("idle")
+      return
+    }
+
+    const request = ++searchRequestRef.current
+    setSearchState("searching")
+    try {
+      const { data, error } = await withTimeout(
+        supabase.rpc("kiosk_search_members", { p_query: q, p_gym_id: gymId }),
+        KIOSK_RPC_TIMEOUT_MS,
+        "Member search timed out.",
+      )
+      if (error) throw error
+      if (request !== searchRequestRef.current) return
+      setSearchResults(((data ?? []) as SearchMember[]).slice(0, 8))
+      setSearchState("done")
+    } catch (error) {
+      if (request !== searchRequestRef.current) return
+      if (isOfflineError(error)) {
+        setNetworkOnline(false)
+        setMode("qr")
+        showResult({ kind: "offline", occupancy: occupancyRef.current }, false)
+        return
+      }
+      setSearchResults([])
+      setSearchState("error")
+    }
+  }, [showResult, supabase])
 
   useEffect(() => {
-    if (!kioskEnabled) {
+    if (pinnedGymId) return
+    let stored: string | null = null
+    try { stored = window.localStorage.getItem("stren.kiosk.gymId") } catch { /* Storage can be disabled on kiosks. */ }
+    const nextGymId = stored || activeGymId
+    if (!nextGymId) return
+    try { window.localStorage.setItem("stren.kiosk.gymId", nextGymId) } catch { /* Keep the in-memory pin. */ }
+    setPinnedGymId(nextGymId)
+  }, [activeGymId, pinnedGymId])
+
+  useEffect(() => {
+    if (!pinnedGymId) return
+    void refreshKioskAvailability()
+    const interval = window.setInterval(refreshKioskAvailability, 30_000)
+    return () => window.clearInterval(interval)
+  }, [pinnedGymId, refreshKioskAvailability])
+
+  useEffect(() => {
+    if (!pinnedGymId || kioskEnabled !== true) return
+    void refreshOccupancy()
+    const interval = window.setInterval(refreshOccupancy, 60_000)
+    return () => window.clearInterval(interval)
+  }, [kioskEnabled, pinnedGymId, refreshOccupancy])
+
+  useEffect(() => {
+    if (mode !== "qr" || kioskEnabled !== true || !networkOnline || !pinnedGymId) {
       void stopScanner()
-      return () => { void stopScanner() }
+      return
     }
-    if (mode === "qr") {
-      const timer = setTimeout(() => startScanner(), 100)
-      return () => {
-        clearTimeout(timer)
-        void stopScanner()
-      }
-    } else {
-      void stopScanner()
-    }
-    return () => { void stopScanner() }
-  }, [mode, startScanner, kioskEnabled])
+    const timer = window.setTimeout(() => { void startScanner() }, 40)
+    return () => window.clearTimeout(timer)
+  }, [kioskEnabled, mode, networkOnline, pinnedGymId, startScanner, stopScanner])
 
   useEffect(() => {
     const onVisibilityChange = () => {
       if (document.visibilityState === "hidden") {
         void stopScanner()
-        return
-      }
-
-      if (mode === "qr" && kioskEnabled) {
+      } else if (runtimeRef.current.mode === "qr" && runtimeRef.current.enabled && runtimeRef.current.online) {
         void startScanner()
       }
     }
-
     document.addEventListener("visibilitychange", onVisibilityChange)
+    return () => document.removeEventListener("visibilitychange", onVisibilityChange)
+  }, [startScanner, stopScanner])
+
+  useEffect(() => {
+    const markUserActivated = () => { userActivatedRef.current = true }
+    window.addEventListener("pointerdown", markUserActivated, { once: true, capture: true })
+    window.addEventListener("keydown", markUserActivated, { once: true, capture: true })
     return () => {
-      document.removeEventListener("visibilitychange", onVisibilityChange)
+      window.removeEventListener("pointerdown", markUserActivated, true)
+      window.removeEventListener("keydown", markUserActivated, true)
     }
-  }, [mode, startScanner, kioskEnabled])
+  }, [])
 
-  async function handleQrScan(qrCode: string) {
-    const { data, error } = await withTimeout(
-      supabase.rpc("kiosk_checkin", { p_qr_code: qrCode, p_gym_id: pinnedGymId! }),
-      KIOSK_RPC_TIMEOUT_MS,
-      "QR check-in timed out.",
-    )
-
-    if (error) {
-      console.error("[Kiosk] RPC error:", error)
-      throw new Error(error.message)
+  useEffect(() => {
+    const onOffline = () => {
+      setNetworkOnline(false)
+      setMode("qr")
+      showResult({ kind: "offline", occupancy: occupancyRef.current }, false)
     }
-
-    if (isKioskErrorResult(data)) {
-      if (data.error === "unknown_qr") {
-        toast.error("Unknown QR code.")
-      } else if (data.error === "rejected") {
-        const rejectedMemberName =
-          typeof data.member_name === "string" && data.member_name.trim().length > 0
-            ? data.member_name
-            : "this member"
-        toast.error(`Cannot check in — ${rejectedMemberName}'s account has been rejected.`)
-      } else {
-        toast.error(
-          typeof data.message === "string" ? data.message : "Check-in failed."
-        )
-      }
-      return
+    const onOnline = () => {
+      setNetworkOnline(true)
+      if (presentationRef.current === "persistent") returnToScanning()
+      void refreshKioskAvailability()
+      void refreshOccupancy()
     }
-
-    if (!isKioskCheckinResult(data)) {
-      toast.error("Unexpected kiosk response.")
-      return
+    window.addEventListener("offline", onOffline)
+    window.addEventListener("online", onOnline)
+    return () => {
+      window.removeEventListener("offline", onOffline)
+      window.removeEventListener("online", onOnline)
     }
+  }, [refreshKioskAvailability, refreshOccupancy, returnToScanning, showResult])
 
-    const memberName =
-      typeof data.member_name === "string" && data.member_name.trim().length > 0
-        ? data.member_name
-        : "Member"
-
-    const checkInResult: CheckInResult & { memberName: string } = {
-      status: data.action === "checked_in" ? "checked_in" : "checked_out",
-      attendanceId: data.attendance_id,
-      memberName,
-      streak: null,
-      durationMin: typeof data.duration_min === "number" ? data.duration_min : null,
-    }
-
-    setScanResult(checkInResult)
-
-    if (data.action === "checked_in") {
-      toast.success(`${memberName} checked in!`)
-    } else {
-      const durationText =
-        typeof data.duration_min === "number" ? ` (${data.duration_min} min)` : ""
-      toast.success(`${memberName} checked out!${durationText}`)
-      setCheckedIn((prev) => prev.filter((c) => c.attendanceId !== data.attendance_id))
-    }
-
-    window.setTimeout(() => {
-      void loadCheckedIn()
-    }, 150)
-    setTimeout(() => setScanResult(null), 5000)
-  }
-
-  async function handleManualByMember(memberId: string, memberName: string, pendingKind: "checkin" | "checkout") {
-    if (actionPendingByMember[memberId]) return
-    setActionPendingByMember((prev) => ({ ...prev, [memberId]: pendingKind }))
-
-    try {
-      const { data, error } = await withTimeout(
-        supabase.rpc("kiosk_checkin_by_member", { p_member_id: memberId, p_gym_id: pinnedGymId! }),
-        KIOSK_RPC_TIMEOUT_MS,
-        pendingKind === "checkout" ? "Manual check-out timed out." : "Manual check-in timed out.",
-      )
-
-      if (error) throw error
-      if (isKioskErrorResult(data)) {
-        toast.error(typeof data.message === "string" ? data.message : "Kiosk action failed.")
-        return
-      }
-
-      if (!isKioskCheckinResult(data)) {
-        toast.error("Unexpected kiosk response.")
-        return
-      }
-
-      setScanResult({
-        status: data.action === "checked_in" ? "checked_in" : "checked_out",
-        attendanceId: data.attendance_id,
-        memberName,
-        streak: null,
-        durationMin: typeof data.duration_min === "number" ? data.duration_min : null,
-      })
-
-      if (data.action === "checked_in") {
-        toast.success(`${memberName} checked in!`)
-        setCheckedIn((prev) => {
-          const next = prev.filter((c) => c.memberId !== memberId && c.attendanceId !== data.attendance_id)
-          return [{ attendanceId: data.attendance_id, memberId, memberName, checkIn: new Date().toISOString() }, ...next]
-        })
-      } else {
-        const durationText = typeof data.duration_min === "number" ? ` (${data.duration_min} min)` : ""
-        toast.success(`${memberName} checked out!${durationText}`)
-        toast.success(`See you next time, ${memberName}!`)
-        setCheckedIn((prev) => prev.filter((c) => c.memberId !== memberId && c.attendanceId !== data.attendance_id))
-      }
-
-      window.setTimeout(() => {
-        void loadCheckedIn()
-      }, 150)
-
-      setQuery("")
-      setResults([])
-      setSearched(false)
-      setTimeout(() => setScanResult(null), 5000)
-    } catch (error) {
-      const message = error instanceof Error
-        ? error.message
-        : pendingKind === "checkout"
-          ? "Check-out failed."
-          : "Check-in failed."
-      toast.error(message)
-    } finally {
-      setActionPendingByMember((prev) => {
-        const next = { ...prev }
-        delete next[memberId]
-        return next
-      })
-    }
-  }
-
-  async function handleManualCheckIn(memberId: string, memberName: string) {
-    await handleManualByMember(memberId, memberName, "checkin")
-  }
-
-  async function handleManualCheckOut(memberId: string, memberName: string, _knownAttendanceId?: string) {
-    await handleManualByMember(memberId, memberName, "checkout")
-  }
-
-  async function handleSearch() {
-    if (isSearching) return
-
+  useEffect(() => {
+    if (mode !== "search") return
     const q = query.trim()
-    if (!q) return
-
-    setIsSearching(true)
-
-    try {
-      const { data, error } = await withTimeout(
-        supabase.rpc("kiosk_search_members", { p_query: q, p_gym_id: pinnedGymId! }),
-        KIOSK_RPC_TIMEOUT_MS,
-        "Member search timed out.",
-      )
-
-      if (error) {
-        toast.error("Search failed.")
-        return
-      }
-
-      setResults(
-        ((data ?? []) as {
-          id: string; name: string; email: string; contact_number: string | null;
-          membership_status: string | null; plan_name: string | null; end_date: string | null;
-        }[]).map((p) => ({
-          id: p.id,
-          name: p.name,
-          email: p.email,
-          contactNumber: p.contact_number,
-          membershipStatus: p.membership_status ?? "none",
-          planName: p.plan_name ?? "No plan",
-          endDate: p.end_date ?? "—",
-        }))
-      )
-      setSearched(true)
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Search failed."
-      toast.error(message)
-    } finally {
-      setIsSearching(false)
+    if (q.length < 3) {
+      setSearchResults([])
+      setSearchState("idle")
+      return
     }
+    const timer = window.setTimeout(() => { void performSearch(q) }, SEARCH_DEBOUNCE_MS)
+    return () => window.clearTimeout(timer)
+  }, [mode, performSearch, query])
+
+  useEffect(() => {
+    if (!connectOpen || typeof window === "undefined") return
+    const url = `${window.location.origin}/auth?mode=signup`
+    setConnectUrl(url)
+    let active = true
+    void import("qrcode")
+      .then(({ default: QRCode }) => QRCode.toDataURL(url, { width: 256, margin: 1, errorCorrectionLevel: "M" }))
+      .then((value) => { if (active) setConnectQr(value) })
+      .catch(() => { if (active) setConnectQr("") })
+    return () => { active = false }
+  }, [connectOpen])
+
+  useEffect(() => () => {
+    clearResultTimers()
+    void stopScanner()
+  }, [clearResultTimers, stopScanner])
+
+  const switchMode = (nextMode: KioskMode) => {
+    userActivatedRef.current = true
+    clearResultTimers()
+    scanGateRef.current.settle()
+    setResult(null)
+    presentationRef.current = "idle"
+    setPresentation("idle")
+    setMode(nextMode)
   }
 
-  const isCurrentlyCheckedIn = (memberId: string) =>
-    checkedIn.some((c) => c.memberId === memberId)
-
-  const membershipBadgeClass = (status: string) => {
-    if (status === "active") return "bg-emerald-500/20 text-emerald-400 border-emerald-500/30"
-    if (status === "none" || status === "pending") return "bg-yellow-500/20 text-yellow-400 border-yellow-500/30"
-    return "bg-red-500/20 text-red-400 border-red-500/30"
+  const openSearch = () => {
+    if (!networkOnline) return
+    switchMode("search")
+  }
+  const retryScanner = () => {
+    userActivatedRef.current = true
+    setCameraDiagnostic(null)
+    setCameraState("starting")
+    window.setTimeout(() => { void startScanner() }, 0)
   }
 
-  if (kioskEnabled !== true) return <KioskDisabledState />
+  if (kioskEnabled === false) return <KioskDisabledState />
+
+  const hasCameraFailure = cameraState === "denied" || cameraState === "unavailable" || cameraState === "unsupported"
+  const resultTitle = result?.kind === "checked_in"
+    ? "Checked in successfully"
+    : result?.kind === "checked_out"
+      ? "Checked out successfully"
+      : result?.kind === "unknown"
+        ? "QR code not recognized"
+        : result?.kind === "inactive"
+          ? "Membership inactive"
+          : result?.kind === "offline"
+            ? "No connection"
+            : "We couldn’t complete that scan"
 
   return (
-    <div className="flex flex-1 flex-col items-center gap-10 px-6 py-12">
+    <div className={styles.kioskPage}>
+      <section className={styles.kioskPanel} aria-busy={presentation === "processing"}>
+        <p className={styles.welcome}><BadgeCheck size={17} aria-hidden="true" />Welcome to Stren</p>
 
-      {/* Scan result banner */}
-      {scanResult && (
-        <div
-          className="w-full max-w-lg rounded-xl p-5 text-center animate-in fade-in slide-in-from-top-2"
-          style={{
-            background:
-              scanResult.status === "checked_in"
-                ? "linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-dark) 100%)"
-                : "linear-gradient(135deg, #4A5568 0%, #2D3748 100%)",
-            color: "white",
-          }}
-        >
-          <p className="text-2xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>
-            {scanResult.status === "checked_in" ? "Welcome!" : "See you next time!"}
-          </p>
-          <p className="text-lg opacity-90 mt-1">{scanResult.memberName}</p>
-          {scanResult.durationMin != null && (
-            <p className="mt-2 text-sm opacity-80">Session: {scanResult.durationMin} min</p>
-          )}
-        </div>
-      )}
-
-      {/* Mode toggle */}
-      <div
-        className="flex items-center gap-2 p-1 rounded-full"
-        style={{ backgroundColor: "rgba(255,255,255,0.1)" }}
-      >
-        {(["qr", "search"] as KioskMode[]).map((m) => (
+        <div className={styles.modeTabs} role="tablist" aria-label="Kiosk mode">
           <button
-            key={m}
-            onClick={() => setMode(m)}
-            className="flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-all"
-            style={{
-              backgroundColor: mode === m ? "var(--color-primary)" : "transparent",
-              color: mode === m ? "white" : "rgba(255,255,255,0.7)",
-            }}
+            id="kiosk-qr-tab"
+            type="button"
+            role="tab"
+            className={styles.modeTab}
+            aria-selected={mode === "qr"}
+            aria-controls="kiosk-qr-panel"
+            onClick={() => switchMode("qr")}
           >
-            {m === "qr" ? <Camera size={16} /> : <Search size={16} />}
-            {m === "qr" ? "QR Scan" : "Search"}
+            <QrCode size={18} aria-hidden="true" />QR Scan
           </button>
-        ))}
-      </div>
-
-      {/* QR Scanner */}
-      {mode === "qr" && (
-        <div className="w-full max-w-lg text-center">
-          <h1 className="mb-2 text-3xl font-bold" style={{ fontFamily: "var(--font-heading)" }}>
-            Scan QR Code
-          </h1>
-          <p className="mb-6 text-sm" style={{ color: "rgba(255,255,255,0.6)" }}>
-            Hold your QR code up to the camera
-          </p>
-          <div
-            className="relative max-w-sm mx-auto rounded-2xl overflow-hidden border-2"
-            style={{ borderColor: "var(--color-primary)" }}
+          <button
+            id="kiosk-search-tab"
+            type="button"
+            role="tab"
+            className={styles.modeTab}
+            aria-selected={mode === "search"}
+            aria-controls="kiosk-search-panel"
+            onClick={() => switchMode("search")}
+            disabled={!networkOnline}
           >
-            <div id={SCANNER_ELEMENT_ID} className="w-full" />
-          </div>
-          <div className="mt-4 flex items-center justify-center gap-2 text-sm">
-            {scanStatus === "initializing" && (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" style={{ color: "var(--color-primary)" }} />
-                <span style={{ color: "rgba(255,255,255,0.6)" }}>Initializing camera...</span>
-              </>
-            )}
-            {scanStatus === "scanning" && (
-              <>
-                <Camera className="h-4 w-4" style={{ color: "var(--color-primary)" }} />
-                <span style={{ color: "rgba(255,255,255,0.6)" }}>Scanning... point camera at QR code</span>
-              </>
-            )}
-            {scanStatus === "processing" && (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" style={{ color: "#48bb78" }} />
-                <span style={{ color: "#48bb78" }}>QR detected! Processing...</span>
-              </>
-            )}
-            {scanStatus === "error" && (
-              <>
-                <AlertCircle className="h-4 w-4" style={{ color: "#fc8181" }} />
-                <span style={{ color: "#fc8181" }}>{scanErrorMessage || "Camera unavailable"}</span>
-                <Button onClick={startScanner} size="sm" variant="outline" className="ml-2">
-                  Retry
-                </Button>
-              </>
-            )}
-          </div>
-          <p className="mt-3 text-xs" style={{ color: "rgba(255,255,255,0.4)" }}>
-            No QR code?{" "}
-            <button
-              onClick={() => setMode("search")}
-              className="underline"
-              style={{ color: "var(--color-primary)" }}
-            >
-              Manual Search
-            </button>
-          </p>
+            <Search size={18} aria-hidden="true" />Search
+          </button>
         </div>
-      )}
 
-      {/* Search */}
-      {mode === "search" && (
-        <div className="w-full max-w-lg">
-          <h1
-            className="mb-2 text-3xl font-bold text-center"
-            style={{ fontFamily: "var(--font-heading)" }}
-          >
-            Member Check-In / Out
-          </h1>
-          <p className="mb-6 text-sm text-center" style={{ color: "rgba(255,255,255,0.6)" }}>
-            Search by name or contact number
-          </p>
-          <form
-            onSubmit={(e) => { e.preventDefault(); handleSearch() }}
-            className="flex gap-2"
-          >
-            <div className="relative flex-1">
-              <Search
-                className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2"
-                style={{ color: "rgba(255,255,255,0.4)" }}
-              />
-              <Input
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="e.g. Marco or 09171234567"
-                className="pl-10"
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.1)",
-                  borderColor: "rgba(255,255,255,0.2)",
-                  color: "white",
-                }}
-              />
-            </div>
-              <Button type="submit" disabled={isSearching} style={{ backgroundColor: "var(--color-primary)", color: "white" }}>
-              {isSearching ? "Searching..." : "Search"}
-            </Button>
-          </form>
+        {mode === "qr" ? (
+          <div id="kiosk-qr-panel" role="tabpanel" aria-labelledby="kiosk-qr-tab" className={styles.stage} data-stage={presentation}>
+            <div className={styles.idleLayer}>
+              <div className={styles.intro}>
+                <h1>Check in or check out</h1>
+                <p>Scan your Stren QR code to continue.</p>
+              </div>
 
-          {searched && (
-            <div className="mt-4 space-y-2">
-              {results.length === 0 ? (
-                <p className="text-sm text-center py-4" style={{ color: "rgba(255,255,255,0.5)" }}>
-                  No members found.
-                </p>
+              {hasCameraFailure ? (
+                <div className={styles.cameraFailure} role="alert">
+                  <Camera className={styles.cameraFailureIcon} size={36} aria-hidden="true" />
+                  <h2>{cameraState === "denied" ? "Camera permission needed" : "Camera unavailable"}</h2>
+                  <p>{cameraFailureCopy(cameraState)}</p>
+                  {cameraDiagnostic && <small className={styles.cameraDiagnostic}>Diagnostic code: {cameraDiagnostic}</small>}
+                  <div className={styles.inlineActions}>
+                    <button type="button" className={styles.primaryAction} onClick={retryScanner}>Retry camera</button>
+                    <button type="button" className={styles.secondaryAction} onClick={openSearch}>Open Search</button>
+                  </div>
+                </div>
               ) : (
-                results.map((m) => {
-                  const inGym = isCurrentlyCheckedIn(m.id)
-                  return (
-                    <div
-                      key={m.id}
-                      className="flex items-center justify-between rounded-lg p-4"
-                      style={{
-                        backgroundColor: "rgba(255,255,255,0.05)",
-                        border: "1px solid rgba(255,255,255,0.1)",
-                      }}
-                    >
-                      <div className="flex flex-col gap-1">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4" style={{ color: "var(--color-primary)" }} />
-                          <span className="font-medium">{m.name}</span>
-                          <Badge variant="outline" className={membershipBadgeClass(m.membershipStatus)}>
-                            {m.membershipStatus}
-                          </Badge>
-                        </div>
-                        <div
-                          className="flex items-center gap-4 text-xs"
-                          style={{ color: "rgba(255,255,255,0.5)" }}
-                        >
-                          {m.contactNumber && (
-                            <span className="flex items-center gap-1">
-                              <Phone className="h-3 w-3" />
-                              {m.contactNumber}
-                            </span>
-                          )}
-                          {m.planName !== "No plan" && <span>{m.planName}</span>}
-                          {m.endDate !== "—" && (
-                            <span className="flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              Exp: {m.endDate}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      {inGym ? (
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleManualCheckOut(
-                            m.id,
-                            m.name,
-                            checkedIn.find((c) => c.memberId === m.id)?.attendanceId,
-                          )}
-                          disabled={!!actionPendingByMember[m.id]}
-                          className="gap-1.5 border-red-500/40 bg-transparent text-red-400 hover:bg-red-500/20 hover:text-red-300"
-                        >
-                          <LogOut className="h-4 w-4" />
-                          {actionPendingByMember[m.id] === "checkout" ? "Checking Out..." : "Check Out"}
-                        </Button>
-                      ) : (
-                        <Button
-                          size="sm"
-                          onClick={() => handleManualCheckIn(m.id, m.name)}
-                          disabled={!!actionPendingByMember[m.id]}
-                          className="gap-1.5"
-                          style={{ backgroundColor: "var(--color-primary)", color: "white" }}
-                        >
-                          <LogIn className="h-4 w-4" />
-                          {actionPendingByMember[m.id] === "checkin" ? "Checking In..." : "Check In"}
-                        </Button>
-                      )}
+                <>
+                  <div className={styles.scannerFrame}>
+                    <div id={SCANNER_ELEMENT_ID} className={styles.scannerMount} />
+                    <span className={`${styles.corner} ${styles.cornerTopLeft}`} />
+                    <span className={`${styles.corner} ${styles.cornerTopRight}`} />
+                    <span className={`${styles.corner} ${styles.cornerBottomLeft}`} />
+                    <span className={`${styles.corner} ${styles.cornerBottomRight}`} />
+                    <div className={styles.cameraState}>
+                      <span>
+                        {cameraState === "ready" ? <Camera size={15} aria-hidden="true" /> : <Loader2 size={15} className="animate-spin" aria-hidden="true" />}
+                        {cameraState === "ready" ? "Camera ready" : "Preparing camera…"}
+                      </span>
                     </div>
-                  )
-                })
+                    {presentation === "processing" && (
+                      <div className={styles.processing}><span><Loader2 size={17} className="animate-spin" aria-hidden="true" />Checking membership…</span></div>
+                    )}
+                  </div>
+                  <p className={styles.scanInstruction}><Info size={16} aria-hidden="true" />Hold your phone or printed QR code up to the camera.</p>
+                </>
               )}
             </div>
-          )}
+
+            <div className={styles.resultLayer} aria-live="polite" aria-atomic="true">
+              {result && (
+                <div className={styles.resultCard} data-kind={result.kind}>
+                  {(result.kind === "checked_in" || result.kind === "checked_out") ? (
+                    <div className={styles.resultMemberPhoto}>
+                      {result.avatarUrl
+                        ? <img src={result.avatarUrl} alt={`${result.memberName ?? "Member"} profile photo`} />
+                        : <span aria-label={`${result.memberName ?? "Member"} profile photo unavailable`}>{result.memberName?.slice(0, 1).toUpperCase() ?? "M"}</span>}
+                      <i aria-hidden="true"><Check size={17} strokeWidth={3} /></i>
+                    </div>
+                  ) : (
+                    <div className={styles.resultSymbol}>
+                      {result.kind === "offline"
+                          ? <WifiOff size={39} aria-hidden="true" />
+                          : <CircleAlert size={39} aria-hidden="true" />}
+                    </div>
+                  )}
+                  {(result.kind === "checked_in" || result.kind === "checked_out") && <p className={styles.verificationLabel}>Verify member photo</p>}
+                  {result.kind === "checked_in" && <p className={styles.resultKicker}>Welcome in</p>}
+                  {result.kind === "checked_out" && <p className={styles.resultKicker}>Visit complete</p>}
+                  <h2>{resultTitle}</h2>
+                  {result.kind === "checked_in" && <p className={styles.resultDetail}><strong>{result.memberName}</strong> checked in at <strong>{formatTime(result.time)}</strong>.</p>}
+                  {result.kind === "checked_out" && <p className={styles.resultDetail}><strong>{result.memberName}</strong> checked out at <strong>{formatTime(result.time)}</strong>.</p>}
+                  {result.kind === "unknown" && <p className={styles.resultDetail}>We couldn’t identify this code. Please try again or ask staff for help.</p>}
+                  {result.kind === "inactive" && <p className={styles.resultDetail}>This membership is expired or inactive. Please see the front desk for assistance.</p>}
+                  {result.kind === "offline" && <p className={styles.resultDetail}>The kiosk is temporarily offline. Please try again in a moment or ask staff for assistance.</p>}
+                  {result.kind === "error" && <p className={styles.resultDetail}>Please try again, or ask staff for assistance.</p>}
+                  {typeof result.occupancy === "number" && (
+                    <>
+                      <hr className={styles.resultDivider} />
+                      <div className={styles.resultOccupancy}><Users size={22} aria-hidden="true" />{result.occupancy}<span>currently in the gym</span></div>
+                    </>
+                  )}
+                  {result.kind === "checked_in" && <p className={styles.resultReassurance}><LogOut size={17} aria-hidden="true" />Your visit is active. Scan this QR again when you’re ready to leave.</p>}
+                  {result.kind === "checked_out" && <p className={styles.resultReassurance}><LogIn size={17} aria-hidden="true" />You’re all set. Scan again next time to check in.</p>}
+                  {result.kind === "inactive" && <p className={styles.resultReassurance}><ShieldCheck size={16} aria-hidden="true" />Manual search is available for staff verification.</p>}
+                  {result.kind === "offline" && <p className={styles.reconnect}><RefreshCw size={17} className="animate-spin" aria-hidden="true" />Reconnecting…</p>}
+                  {(result.kind === "unknown" || result.kind === "inactive" || result.kind === "error") && (
+                    <div className={styles.resultActions}>
+                      <button type="button" className={styles.primaryAction} onClick={returnToScanning}>Try scanning again</button>
+                      <button type="button" className={styles.secondaryAction} onClick={openSearch}>Use manual search</button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        ) : (
+          <section id="kiosk-search-panel" role="tabpanel" aria-labelledby="kiosk-search-tab" className={styles.searchPanel}>
+            <h1>Manual search</h1>
+            <p>Staff can look up a member by name or email.</p>
+            <form className={styles.searchForm} onSubmit={(event) => { event.preventDefault(); void performSearch(query) }}>
+              <Search size={19} aria-hidden="true" />
+              <input
+                type="search"
+                className={styles.searchInput}
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder="Enter at least 3 characters"
+                aria-label="Search members by name or email"
+                autoComplete="off"
+              />
+            </form>
+            <small className={styles.searchHint}>{searchState === "searching" ? "Searching…" : "Results are limited and email addresses are masked."}</small>
+            {searchState === "error" && <p className={styles.searchError} role="alert">Search is unavailable. Please ask a manager for help.</p>}
+            {searchState === "done" && (
+              searchResults.length > 0 ? (
+                <div className={styles.searchResults} aria-live="polite">
+                  {searchResults.map((member) => (
+                    <div key={member.id} className={styles.searchResult}>
+                      <span className={styles.searchIdentity} aria-hidden="true">{member.name.slice(0, 1).toUpperCase()}</span>
+                      <div><p className={styles.searchResultName}>{member.name}</p><p className={styles.searchResultEmail}>{maskEmail(member.email)}</p></div>
+                    </div>
+                  ))}
+                </div>
+              ) : <p className={styles.searchEmpty}>No matching members found.</p>
+            )}
+            <p className={styles.staffNote}><ShieldCheck size={18} aria-hidden="true" />To protect members, a manager must confirm any manual check-in or check-out in Admin.</p>
+          </section>
+        )}
+
+        <section className={styles.utilityRow} aria-label="Kiosk utilities">
+          <div className={styles.utilityItem}>
+            <span className={styles.utilityIcon}><Users size={21} aria-hidden="true" /></span>
+            <div>
+              {occupancyUnavailable && occupancy === null ? <strong>Occupancy unavailable</strong> : <strong><span className={styles.occupancyNumber}>{occupancy ?? "—"}</span> currently in the gym</strong>}
+              <small>{networkOnline ? "Live occupancy" : occupancy === null ? "Waiting for a connection" : "Last known occupancy"}</small>
+            </div>
+          </div>
+          <button type="button" className={styles.utilityButton} onClick={openSearch} disabled={!networkOnline}>
+            <span className={styles.utilityIcon}><Search size={21} aria-hidden="true" /></span>
+            <span><strong>Manual search</strong><small>Look up your account</small></span>
+          </button>
+          <button type="button" className={styles.utilityButton} onClick={() => { userActivatedRef.current = true; setConnectOpen(true) }}>
+            <span className={styles.utilityIcon}><UserPlus size={21} aria-hidden="true" /></span>
+            <span><strong>Create or connect account</strong><small>New here? Get started</small></span>
+          </button>
+        </section>
+        <p className={styles.reassurance}><ShieldCheck size={16} aria-hidden="true" />Members will immediately see whether their membership is active.</p>
+      </section>
+
+      {connectOpen && (
+        <div className={styles.connectDialog} role="dialog" aria-modal="true" aria-labelledby="connect-title">
+          <div className={styles.connectCard}>
+            <button type="button" className={styles.closeDialog} onClick={() => setConnectOpen(false)} aria-label="Close account connection options"><X size={19} aria-hidden="true" /></button>
+            <h2 id="connect-title">Use your own phone</h2>
+            <p>Scan this code to create a Stren account or connect to your gym without entering a password on the kiosk.</p>
+            <div className={styles.connectQr}>{connectQr ? <img src={connectQr} alt="QR code for Stren account setup" /> : <Loader2 className="animate-spin" aria-label="Preparing account QR code" />}</div>
+            {connectUrl && <code>{connectUrl.replace(/^https?:\/\//, "")}</code>}
+          </div>
         </div>
       )}
-
-      {/* Currently in gym */}
-      <div className="w-full max-w-2xl">
-        <h2
-          className="mb-4 flex items-center gap-2 text-xl font-semibold"
-          style={{ fontFamily: "var(--font-heading)" }}
-        >
-          <Clock className="h-5 w-5" style={{ color: "var(--color-primary)" }} />
-          Currently in the Gym
-          <Badge
-            variant="outline"
-            className="ml-1"
-            style={{ borderColor: "rgba(212,149,106,0.4)", color: "var(--color-primary)" }}
-          >
-            {isLoadingCheckedIn ? "..." : checkedIn.length}
-          </Badge>
-        </h2>
-        {checkedIn.length === 0 ? (
-          <p className="text-sm" style={{ color: "rgba(255,255,255,0.5)" }}>
-            No one is currently checked in.
-          </p>
-        ) : (
-          <div className="grid gap-2 sm:grid-cols-2">
-            {checkedIn.map((c) => (
-              <div
-                key={c.attendanceId}
-                className="flex items-center justify-between rounded-lg p-3"
-                style={{
-                  backgroundColor: "rgba(255,255,255,0.05)",
-                  border: "1px solid rgba(255,255,255,0.1)",
-                }}
-              >
-                <div>
-                  <p className="font-medium">{c.memberName}</p>
-                  <p className="text-xs" style={{ color: "rgba(255,255,255,0.5)" }}>
-                    Since{" "}
-                    {new Date(c.checkIn).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </p>
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => handleManualCheckOut(c.memberId, c.memberName, c.attendanceId)}
-                  disabled={!!actionPendingByMember[c.memberId]}
-                  className="gap-1.5 border-red-500/40 bg-transparent text-red-400 hover:bg-red-500/20 hover:text-red-300"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
-                  {actionPendingByMember[c.memberId] === "checkout" ? "Out..." : "Out"}
-                </Button>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   )
 }

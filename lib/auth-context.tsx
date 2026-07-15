@@ -76,7 +76,7 @@ function readCache(userId: string): AuthProfile | null {
 function writeCache(userId: string, profile: AuthProfile) { try { sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ userId, at: Date.now(), profile })); } catch {} }
 
 export function shouldSkipAuthBootstrap(pathname: string | null | undefined): boolean {
-  return pathname === '/' || pathname === '/auth' || pathname === '/reset-password' || pathname === '/for-gym-owners';
+  return pathname === '/' || pathname === '/auth' || pathname === '/auth/confirm' || pathname === '/reset-password' || pathname === '/for-gym-owners';
 }
 
 export function shouldDeferAuthBootstrap(pathname: string | null | undefined): boolean {

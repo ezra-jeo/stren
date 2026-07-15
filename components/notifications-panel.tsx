@@ -7,6 +7,7 @@ import { useAuth } from '@/lib/auth-context';
 import { Bell, UserPlus, LogIn, AlertCircle, X, CheckCheck, CreditCard, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { privateCacheKey } from '@/lib/private-cache';
+import { ViewportOverlay } from '@/components/ui/viewport-overlay';
 
 interface Notification {
   id: string;
@@ -48,7 +49,6 @@ export function NotificationsPanel() {
   const supabase = useMemo(() => createClient(), []);
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
-  const panelRef = useRef<HTMLDivElement>(null);
   const loadScopeRef = useRef<string | null>(null);
   const [notificationsScopeKey, setNotificationsScopeKey] = useState<string | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -117,17 +117,6 @@ export function NotificationsPanel() {
     };
   }, [activeScope, supabase]);
 
-  // Close on outside click
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    if (open) document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
-
   async function markAllRead() {
     if (!activeScope) return;
     const { error } = await supabase
@@ -154,7 +143,7 @@ export function NotificationsPanel() {
   }
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative">
       {/* Bell button */}
       <button
         onClick={() => setOpen(!open)}
@@ -175,22 +164,17 @@ export function NotificationsPanel() {
 
       {/* Dropdown */}
       {open && (
-        <>
-          <div
-            className="fixed inset-0 z-110"
-            style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
-            onClick={() => setOpen(false)}
-          />
-          <div className="fixed inset-0 z-120 flex items-center justify-center p-4">
-          <div
-            className="w-[calc(100vw-2rem)] max-w-sm rounded-2xl shadow-xl overflow-hidden"
-            style={{ backgroundColor: '#ffffff', border: '1px solid var(--admin-border)' }}
-          >
+        <ViewportOverlay
+          onClose={() => setOpen(false)}
+          labelledBy="manager-notifications-title"
+          panelClassName="w-[calc(100vw-2rem)] max-w-sm overflow-hidden rounded-2xl shadow-xl"
+          panelStyle={{ backgroundColor: '#ffffff', border: '1px solid var(--admin-border)' }}
+        >
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: '1px solid var(--admin-border)' }}>
             <div className="flex items-center gap-2">
               <Bell size={16} style={{ color: 'var(--color-primary)' }} />
-              <span className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>Notifications</span>
+              <span id="manager-notifications-title" className="text-sm font-semibold" style={{ color: '#1A1A1A' }}>Notifications</span>
               {unreadCount > 0 && (
                 <span className="text-xs px-1.5 py-0.5 rounded-full font-medium" style={{ backgroundColor: 'var(--color-primary-glow)', color: 'var(--color-primary)' }}>
                   {unreadCount} new
@@ -243,9 +227,7 @@ export function NotificationsPanel() {
               ))
             )}
           </div>
-          </div>
-          </div>
-        </>
+        </ViewportOverlay>
       )}
     </div>
   );

@@ -8,6 +8,102 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Demo Experience, Staff Modal & Kiosk Identity Verification
+
+#### Added
+- A route-isolated `/member/demo/**` experience uses the real responsive member shell and Home presentation with a fixed Stren Demo Gym, persistent sample-data banner, the signed-in account identity, static attendance/occupancy/recommendation data, and demo-only navigation targets.
+- Demo Profile now combines the account's real name, email, avatar/contact fallbacks, and account creation date with clearly sample membership data. Its QR is deliberately non-encoded CSS noise, blurred, watermarked DEMO, centered on the official Stren mark, and labeled unusable.
+- Migration `024_kiosk_member_photo_verification.sql` returns the member's existing avatar URL with successful QR check-in/out results so front-desk staff can compare the person with the account photo.
+
+#### Changed
+- Preview the demo now opens the persistent route-based preview rather than replacing the no-gym Home with four disconnected tiles. Exit demo replaces the current history entry with `/gyms`, preserving the signed-in session.
+- Kiosk success results remain readable for three seconds and show a large profile photo or initials fallback before returning to the already-warm scanner.
+
+#### Fixed
+- The Add teammate dialog now portals to the document body, so route animation can no longer constrain its fixed positioning or clip its backdrop to the admin content panel.
+- Every visible Demo Mode action is safe by construction: check-in, profile edit, photo/upload, settings, Feed, and ranking interactions either use static demo routes or an accessible preview-only notice and never construct a real mutation or QR payload.
+
+#### Verification
+- Focused staff, kiosk, demo, Gym hub, and middleware regressions (**58 tests**), the complete bounded unit/integration inventory (**409/409 tests**), lint, isolated source typecheck, and production build pass. The in-app browser runtime could not initialize in this desktop session; authenticated visual evidence remains a genuine follow-up limitation, while desktop/mobile shell and navigation contracts are regression-covered.
+
+### Admin Team Visibility & Notification Overlay Reliability
+
+#### Fixed
+- People & access now loads the team from the resolved active gym after sign-in instead of relying on a stale or not-yet-hydrated legacy profile field. A failed team query is displayed with a Retry action rather than as “No admin or staff accounts yet.”
+- Admin notifications now use the shared viewport portal with dialog semantics, so the backdrop covers the entire browser window instead of being clipped and offset by route-transition animation.
+
+#### Verification
+- Focused People & access and notification-overlay regressions (**13 tests**), lint, isolated source typecheck, production build, and the complete **398**-test unit/integration suite with coverage pass.
+
+### Account Creation, Recovery & Member Setup Safety
+
+#### Added
+- A first-party secure-link confirmation page prevents email scanners from consuming one-time password-recovery and member setup tokens before the person uses them.
+- Gym-created members are shown a skippable first-login choice to set a password immediately or continue and use Settings later.
+
+#### Changed
+- Password-reset delivery now uses a server-generated Supabase recovery token sent through Stren's existing Resend channel. The signed HTTP-only recovery proof and single-use completion flow remain unchanged.
+- Member onboarding email identifies the Stren account email, explains that no temporary password is sent, and provides the secure one-time account link.
+
+#### Fixed
+- Creating an account with an existing confirmed email no longer silently shows a false verification-email state; the page identifies the existing account and offers Sign in or Reset password.
+- Auth callbacks resolve gym access from the exact newly verified session instead of a separate potentially stale browser session, keeping gym-created `member` accounts on `/member` and out of manager financial views.
+- Onboarding now reports setup-link generation or delivery failure to staff instead of presenting the operation as a fully successful email send.
+- Password-recovery emails that contain the invalid Next.js source path `/app/auth/confirm` no longer end on Netlify's 404 page; middleware temporarily redirects them to `/auth/confirm` without dropping the one-time token, while generated first-party links remain rooted at the correct public route.
+
+#### Verification
+- Lint, typecheck, production build, focused account/recovery regressions (**43 tests**), and the complete **395**-test unit/integration suite with coverage pass. The hosted-path compatibility follow-up additionally passes **33** focused recovery/routing tests and a production build that lists `/auth/confirm`; later complete-suite attempts showed no failures but exceeded the local 120/180-second command ceilings before printing a final summary.
+
+### Member Experience Visual Reliability
+
+#### Added
+- The member-home Check in control now opens a pre-generated account QR in a full-viewport dialog, with Profile retained as a fallback only if QR generation fails.
+- Settings, member notifications, and the home QR use one accessible portaled overlay that supports Escape, backdrop dismissal, and body-scroll locking above the persistent mobile navigation.
+
+#### Changed
+- The member-home hero is shorter on phones, with tighter spacing that keeps the greeting, Check in control, and availability message visible without consuming most of the first screen.
+- The canonical logo and member-home photograph are dimensioned and compressed for their rendered sizes, reducing their payloads from roughly 536 KB and 3.58 MB to 94 KB and 607 KB. Service-worker cache version v9 retires older cached image responses.
+
+#### Fixed
+- Notification switches persist independently for the active member and gym by using the database's composite preference key; failed writes still restore the prior visible value.
+- Settings and notification dialogs no longer inherit a transformed route container, appear as a clipped dark rectangle, or sit underneath a highlighted mobile navigation item.
+- Saving a member's name or contact number refreshes the shared authenticated profile immediately, so headers and other views update without changing tabs.
+- A stale cached logo response with a non-image content type is discarded and replaced instead of being reused by Brave or another standards-strict browser.
+
+#### Verification
+- Lint, typecheck, production build, and **382** unit/integration tests pass. A local Chromium check at 390 x 844 confirms the compact hero, correct overlay layering, and successful direct and optimized PNG logo responses.
+
+### Account & Team Access Recovery
+
+#### Added
+- Owners can add an existing Stren account to the active gym as staff or admin, create a new staff-side account with a one-time setup link, adjust the existing plain-language access switches for either role, and remove a non-owner teammate without deleting their global account.
+
+#### Fixed
+- People & access now reads the unified `gym_users` relationship instead of deleted profile tenancy columns, so existing admins and staff appear for their owner.
+- Member onboarding uses an exact normalized email lookup and recovers an older Auth account that lacks a profile row, attaching it to the gym instead of returning a duplicate-email error.
+- Saved-gym and membership-verification actions retry through the confirmed browser session when the public-page server action has not yet received its matching session cookie; access remains enforced by the existing database RPCs.
+
+### Kiosk Redesign & Scanner Safety
+
+#### Added
+- A bright, responsive Stren Kiosk surface with the official Stren mark, a large retained live-camera viewport, QR Scan and Search modes, safe phone-based account connection, occupancy-only utility context, and clear touch/keyboard controls from desktop monitors through compact phones.
+- Distinct accessible in-panel states for processing, check-in and check-out success, unrecognized QR, inactive membership, offline recovery, camera permission denial, and unavailable/unsupported camera hardware. Reduced-motion users receive the same bounded sequence with opacity-only transitions.
+- Migration `023_kiosk_privacy_and_scan_integrity.sql`: count-only occupancy, a minimum-three-character name/email lookup returning only the required identity fields, manager-only manual attendance toggles, and a per-member/gym advisory lock around QR toggle transactions.
+- Regression coverage for the scanner callback, pinned gym, scan rearm, check-in/out, result timing, camera cleanup, offline/inactive states, private lookup, feedback, and database contracts.
+
+#### Changed
+- The public kiosk no longer retrieves or renders the detailed checked-in member list. Manual search masks email and directs any attendance action through an authorized manager/Admin confirmation.
+- Account connection now opens a QR code on the kiosk so a member can continue on their own phone rather than entering a password on the shared device.
+- Check-in is now an explicit green arrival experience with entry iconography and active-visit guidance; check-out is a Stren-peach visit-complete experience with exit iconography and finished-visit guidance.
+
+#### Fixed
+- Scanner callbacks now read the current pinned gym rather than the initial null state. Camera startup performs a short permission/device warm-up before handing the camera to the retained scanner, restoring compatibility with drivers that otherwise stall during the first video transition.
+- Camera startup now retries once without a rear-camera preference when a device rejects `facingMode`; permission-denied, insecure-context, and camera-busy failures remain explicit rather than being retried.
+- Camera negotiation uses the previous kiosk's compatible square stream ratio; the redesigned viewport remains visually wide without requiring webcams to provide a nonstandard 1.25 camera aspect ratio.
+- Camera initialization now matches the complete known-good legacy contract: environment-first permission warm-up with any-camera fallback, literal environment facing mode, and a 250px decode box. Retry waits for the scanner host to remount, and failures expose a stable non-sensitive diagnostic code.
+- One continuously visible QR cannot immediately toggle a confirmed check-in back out: decoding locks through the result, then re-arms the same payload only after four empty camera frames. The camera stays warm during a 160 ms entrance, 3,000 ms readable hold for member-photo verification, and 140 ms exit.
+- Confirmed occupancy updates only after the mutation succeeds; stale refresh responses cannot overwrite a newer confirmed count, and unavailable data is never displayed as zero.
+
 ### Perceived Performance & Navigation Continuity
 
 #### Added
@@ -22,6 +118,8 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Service-worker cache version advanced to v7; the auth route is no longer included in the static app shell and remains network-only.
 
 #### Fixed
+- The animated loader and member shell now request the canonical PNG logo rather than PNG bytes mislabeled as SVG, which some browsers correctly reject.
+- The service worker no longer caches or replays CSS/JavaScript across deployments; a new cache version clears poisoned entries, media cache entries require their expected MIME type, and `sw.js` is always revalidated on Netlify.
 - Sign-out and actual gym switches now use the complete animated Stren lockup while private content remains masked; switching between Admin and Member views at the same gym navigates directly instead of showing a blank privacy screen.
 - The member sidebar account pill now opens the member profile, and the auth card's panel wordmark is the single clickable route back to landing (the out-of-place top-left duplicate has been removed).
 - A late initial `getUser`, same-scope request, profile/gym fetch, members/payment response, or notification refresh can no longer resurrect an old account or reveal data from a previous gym.

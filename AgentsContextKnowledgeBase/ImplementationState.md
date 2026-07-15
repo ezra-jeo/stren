@@ -2,9 +2,58 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-14 (**Auth Session & Account Access Recovery remains implemented and verified against the linked hosted project; Perceived Performance & Navigation Continuity is complete and verified in the unshipped working tree.**)
+Last updated: 2026-07-15 (**Demo Experience, Staff Modal & Kiosk Identity Verification; Admin Team Visibility & Notification Overlay Reliability; Account Creation, Recovery & Member Setup Safety; Member Experience Visual Reliability; Account & Team Access Recovery; Perceived Performance & Navigation Continuity; and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
 
 ---
+
+## Workstream (implemented in working tree 2026-07-15): Demo Experience, Staff Modal & Kiosk Identity Verification
+
+| Unit | Scope | Status |
+|---|---|---|
+| DX1 | Route-isolated, read-only connected-member preview using the shared responsive member shell and Home presentation | Implemented (Codex, working tree, 2026-07-15) - `/member/demo/**` preserves the authenticated account, substitutes one centralized Stren Demo Gym fixture, keeps every navigation target inside Demo Mode, and returns to the no-gym Gym hub through an always-visible Exit demo action |
+| DX2 | Complete demo-safe Profile with real account identity, sample membership, blocked edit/photo controls, and deliberately invalid QR treatment | Implemented (Codex, working tree, 2026-07-15) - the profile remains renderable with identity fallbacks; the QR is CSS noise rather than an encoded payload, is blurred, marked DEMO, and never reads the account QR |
+| DX3 | Add-teammate overlay viewport repair and kiosk member-photo verification | Implemented (Codex, working tree, 2026-07-15) - the teammate dialog now uses the shared document-body portal; migration 024 adds the existing member avatar URL to successful kiosk toggles, and the three-second result card presents it prominently with an initials fallback |
+
+Verification: focused staff/kiosk/demo/middleware regressions (**58 tests**), the complete bounded unit/integration inventory (**409/409 tests**), `npm run lint`, isolated source typecheck, and production build pass. The in-app browser plugin could not initialize in this desktop session because its runtime attempted to redefine a protected process binding. Migration 024 is prepared locally and has not been applied to the linked hosted project.
+
+## Workstream (implemented in working tree 2026-07-15): Admin Team Visibility & Notification Overlay Reliability
+
+| Unit | Scope | Status |
+|---|---|---|
+| TN1 | People & access team loading after a fresh sign-in or active-gym transition | Implemented (Codex, working tree, 2026-07-15) - the screen reads the resolved active gym rather than the legacy profile shim, tolerates either supported profile-embed shape, and offers a Retry state instead of presenting a failed read as an empty team |
+| TN2 | Admin notification overlay stacking, viewport coverage, and dialog semantics | Implemented (Codex, working tree, 2026-07-15) - the panel now uses the shared document-body viewport portal, so the animated route container cannot clip or offset its backdrop |
+
+Verification: focused People & access / overlay regressions (**13 tests**), `npm run lint`, isolated source typecheck (the user’s live Next development process has a malformed ignored `.next/dev` artifact), production build, and the complete **398/398** unit/integration suite with coverage pass. No database migration is required.
+
+## Workstream (implemented in working tree 2026-07-15): Account Creation, Recovery & Member Setup Safety
+
+| Unit | Scope | Status |
+|---|---|---|
+| AR1 | Existing-account signup detection and actionable sign-in/password-recovery guidance | Implemented (Codex, working tree, 2026-07-15) - Supabase's obfuscated duplicate response no longer becomes a false verification-email success state |
+| AR2 | Scanner-safe first-party recovery links, secure confirmation, recovery proof completion, and truthful delivery failures | Implemented (Codex, working tree, 2026-07-15) - reset email delivery uses a server-verifiable token hash and requires an explicit human confirmation before consuming it |
+| AR3 | Gym-created member account email, one-time setup link, session-bound member routing, and optional password setup | Implemented (Codex, working tree, 2026-07-15) - the callback resolves the exact verified account with the same Auth client, routes the `member` gym user to `/member`, and offers Set password or Skip for now before continuing |
+| AR4 | Hosted recovery-link path compatibility | Implemented (Codex, working tree, 2026-07-15) - malformed legacy links that expose the Next.js source prefix as `/app/auth/confirm` now receive a temporary redirect to the real `/auth/confirm` route with the one-time recovery parameters preserved; first-party link generation remains pinned to the root route even if a configured site URL contains `/app` |
+
+Verification: `npm run lint`, `npm run typecheck`, production build, focused account/recovery regressions (**43 tests**), and the complete **395/395** unit/integration suite with coverage pass. AR4 additionally passes **33** focused recovery/routing tests, lint, typecheck, and a production build that includes `/auth/confirm` plus middleware; the current complete-suite runs showed no failures but did not emit a summary before the 120/180-second local ceilings. No database migration is required.
+
+## Workstream (implemented in working tree 2026-07-15): Member Experience Visual Reliability
+
+| Unit | Scope | Status |
+|---|---|---|
+| V1 | Per-gym notification preference persistence and immediate shared-profile refresh after personal-info edits | Implemented (Codex, working tree, 2026-07-15) - notification writes match the `(member_id, gym_id)` database key and saved identity fields update every current consumer without a tab change |
+| V2 | Shared full-viewport overlays for settings, member notifications, and a pre-generated home check-in QR | Implemented (Codex, working tree, 2026-07-15) - dialogs portal above transformed route content and the mobile navigation; Check in opens the ready QR in place rather than redirecting to Profile |
+| V3 | Compact mobile home hero, reduced-size canonical logo/photo assets, and service-worker image-cache rollover | Implemented (Codex, working tree, 2026-07-15) - the narrow hero is 352 px high, logo/photo payloads are reduced from 536 KB/3.58 MB to 94 KB/607 KB, and cache v9 replaces stale or invalid image responses |
+
+Verification: `npm run lint`, `npm run typecheck`, production build, and **382/382** unit/integration tests pass. A local Chromium probe at 390 x 844 confirmed the 352 px hero, overlay layer 100 above mobile navigation layer 40, and HTTP 200 `image/png` responses for both direct and optimized logo requests.
+
+## Workstream (implemented in working tree 2026-07-14): Account & Team Access Recovery
+
+| Unit | Scope | Status |
+|---|---|---|
+| AT1 | Browser-session fallback for saved-gym and membership-verification mutations on public gym pages and the Gym hub | Implemented (Codex, working tree, 2026-07-14) - database-enforced browser RPCs recover when a freshly confirmed browser session has not yet reached a server action cookie |
+| AT2 | Existing-account member onboarding plus owner-managed staff/admin listing, attachment, new-account setup link, access switches, and removal | Implemented (Codex, working tree, 2026-07-14) - the team list now reads `gym_users`; exact profile email lookup and missing-profile Auth recovery prevent duplicate-account failure; only an owner may manage non-owner team access |
+
+Verification: linked Supabase migrations 001–021 are confirmed applied; `npm run typecheck`, `npm run lint`, the production build, and focused account/access regressions pass (**14 tests**, including member verification, existing-account onboarding, team endpoint, team UI, and public profile actions). The complete coverage run did not finish before the local 60-second command ceiling; it showed no test failure before timeout.
 
 ## Workstream (in progress 2026-07-14): Google OAuth
 
@@ -15,6 +64,16 @@ Spec: [ImplementationPlan-GoogleOAuth.md](ImplementationPlan-GoogleOAuth.md) - b
 | G1 | Working Google sign-in controls, PKCE callback, gym-context preservation, bounded launch/callback recovery | Implemented (Codex, working tree, 2026-07-14) - focused component/callback regressions green |
 | G2 | Local Supabase provider configuration, hosted deployment contract, and environment handoff | Implemented (Codex, 2026-07-14) - hosted Google Auth is enabled, deployment preflight passes, and the authorization endpoint redirects to Google without exposing credentials |
 | G3 | Hosted Google provider enablement and real-browser verification | In progress (Codex, 2026-07-14) - the feature branch must be deployed before a real browser exchange can reach the new `/auth` client handler; hosted app currently serves the prior preview UI |
+
+## Workstream (implemented in working tree 2026-07-14): Kiosk Redesign & Scanner Safety
+
+| Unit | Scope | Status |
+|---|---|---|
+| K1 | Bright, responsive Stren kiosk surface using the official mark, real camera feed, Scan/Search tabs, occupancy-only utility row, phone-safe account QR, distinct success/failure/camera/offline states, focus/live regions, and reduced-motion crossfades | Implemented (Codex, working tree, 2026-07-15) - desktop through mobile CSS adapts the single central panel without exposing the public checked-in roster; arrival and visit-complete results now use distinct iconography, color treatment, status labels, and guidance |
+| K2 | Correct QR check-in/check-out state machine, scan lock/rearm contract, retained camera stream, membership/offline handling, bounded processing state, restrained audio/haptic feedback, and safe manual lookup | Implemented (Codex, working tree, 2026-07-15) - the stale pinned-gym callback and repeat-scan checkout path are corrected; a result is visible immediately after confirmation and returns to the warm scanner in 1,300 ms; the exact legacy camera contract (environment-first warm-up, literal facing mode, 250px decode box, square stream) is restored with default-camera fallback, remount-safe retry, and stable public diagnostic codes |
+| K3 | Migration `023_kiosk_privacy_and_scan_integrity.sql`: count-only occupancy RPC, minimum-three-character name/email lookup with a reduced response, `members:manage` protection for manual toggle RPC use, and per-member/gym advisory-lock serialization | Shipped to linked Supabase project (2026-07-15) - migrations 022 and 023 are in local/remote parity; the count-only occupancy RPC is available without exposing the checked-in roster |
+
+Verification: `npm run lint`, `npm run typecheck`, production build, and **388/388** unit/integration tests pass. Linked Supabase migration parity is verified through migration 023. The complete Playwright command reached its 120-second local shell ceiling after public checks began completing; the isolated Chromium auth check passes in 2.4 s but the local Playwright development-server process did not exit. There is no credentialed kiosk E2E fixture in this workspace; scanner/RPC/camera/offline/timing behavior is regression-covered in `kiosk-terminal.test.tsx`.
 
 ## Workstream (completed in working tree 2026-07-14): Perceived Performance & Navigation Continuity
 
@@ -27,8 +86,9 @@ Source brief: the user-provided end-to-end perceived-performance request and `do
 | P3 | Auth/logout/gym-switch safety: immediate privacy boundary, late-response epochs, atomic scoped switching with rollback, scoped member/notification requests, non-sensitive short-lived auth draft | Implemented (Codex, working tree, 2026-07-14) - stale initial auth, account-to-account, logout timeout, gym rollback, member/payment, and notification scope regressions are green; profile/gym request-sequence guards enforce last-request-wins ordering |
 | P4 | Landing/auth intent transitions, first-load and revisit behavior, full failure/offline matrix, performance profiling, responsive/reduced-motion browser QA, required screenshots/recording, final documentation/changelog | Implemented (Codex, working tree, 2026-07-14) - production desktop/mobile landing-to-auth, slow CPU/network, warm revisit, reduced motion, screenshots, browser timing observations, middleware telemetry bypass, and cache-v7 cleanup are complete |
 | P5 | Follow-up navigation polish: animated privacy masking on sign-out and actual gym changes, direct same-gym Admin/Member view changes, member account-pill profile affordance, and one coherent auth landing control | Implemented (Codex, working tree, 2026-07-14) - focused loader, gym-switcher, member-shell, and auth-surface regressions are green; the current desktop session could not attach its in-app browser for a final visual capture |
+| P6 | Device-safe canonical loader asset and deploy-safe public asset caching | Implemented (Codex, working tree, 2026-07-14) - replaced PNG bytes incorrectly served as `.svg`, removed the mismatched favicon declaration, and advanced the service worker so styles/scripts are network-only while cached media must match its expected MIME type |
 
-Verification after the ENOSPC recovery: `npm run lint`, `npm run typecheck`, `git diff --check`, the production build, and the canonical coverage run pass (**70 files, 349 tests**; 60.07% statements / 52.27% branches / 57.41% functions / 63.64% lines). Production-backed Playwright passes **14 public desktop/mobile checks**; **8 credentialed checks are skipped** because no `E2E_*` accounts are available. A 4x CPU / 150 ms / 1.6 Mbps desktop profile recorded cold FCP/LCP at 1.38 s and warm FCP/LCP at 0.38/0.50 s in the local harness; mobile and reduced-motion journeys are visually verified, with public transition durations at `0s` under reduced motion. Evidence is in `stren-performance-audit/` under the Codex visualization output for this task. Authenticated owner/member tab, rapid gym-switch, logout-with-live-private-request, and immediate second-account browser journeys remain staging preflight items; their race and leakage boundaries are covered locally by integration tests. This work remains unshipped until a developer commits and opens the PR.
+Verification after the ENOSPC recovery: `npm run lint`, `npm run typecheck`, `git diff --check`, the production build, and the canonical coverage run pass (**71 files, 353 tests**; 60.18% statements / 52.31% branches / 57.69% functions / 63.77% lines). Production-backed Playwright passes **14 public desktop/mobile checks**; **8** credentialed checks are skipped because no `E2E_*` accounts are available. A 4x CPU / 150 ms / 1.6 Mbps desktop profile recorded cold FCP/LCP at 1.38 s and warm FCP/LCP at 0.38/0.50 s in the local harness; mobile and reduced-motion journeys are visually verified, with public transition durations at `0s` under reduced motion. Evidence is in `stren-performance-audit/` under the Codex visualization output for this task. Authenticated owner/member tab, rapid gym-switch, logout-with-live-private-request, and immediate second-account browser journeys remain staging preflight items; their race and leakage boundaries are covered locally by integration tests. This work remains unshipped until a developer commits and opens the PR.
 
 ## Platform remediation phases
 

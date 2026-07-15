@@ -28,6 +28,11 @@ export interface OnboardingEmailPayload {
   magicLink: string   // one-time login URL from Supabase
 }
 
+export interface PasswordResetEmailPayload {
+  to: string
+  resetLink: string
+}
+
 export interface OwnerInquiryEmailPayload {
   gymName: string
   contactName: string
@@ -91,10 +96,11 @@ async function generateQrBase64Png(payload: string): Promise<string> {
 function buildEmailHtml(params: {
   memberName: string
   gymName: string
+  accountEmail: string
   qrCid: string
   magicLink: string
 }): string {
-  const { memberName, gymName, qrCid, magicLink } = params
+  const { memberName, gymName, accountEmail, qrCid, magicLink } = params
 
   return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -161,9 +167,9 @@ function buildEmailHtml(params: {
                 Optional: set up your account
               </p>
               <p style="margin:0 0 20px;font-size:14px;color:#52525b;line-height:1.6;">
-                Click the button below to log in and access your membership
-                details, streak, and leaderboard. This link works once and
-                expires in 24 hours.
+                Your Stren account email is <strong>${accountEmail}</strong>.
+                No temporary password is sent by email. Use this secure one-time
+                link to sign in, then choose a password or skip that step for now.
               </p>
               <table cellpadding="0" cellspacing="0">
                 <tr>
@@ -186,9 +192,8 @@ function buildEmailHtml(params: {
             <td style="padding:20px 32px;background:#fafafa;border-top:1px solid #e4e4e7;">
               <p style="margin:0;font-size:12px;color:#a1a1aa;line-height:1.6;">
                 This email was sent by staff at ${gymName} when creating your
-                membership. If you believe this was sent in error, you can
-                safely ignore it — no account has been activated without the
-                login link above.
+                membership. If you believe this was sent in error, do not use
+                the sign-in link and contact the gym directly.
               </p>
             </td>
           </tr>
@@ -208,17 +213,19 @@ function buildEmailHtml(params: {
 function buildEmailText(params: {
   memberName: string
   gymName: string
+  accountEmail: string
   qrPayload: string
   magicLink: string
 }): string {
-  const { memberName, gymName, qrPayload, magicLink } = params
+  const { memberName, gymName, accountEmail, qrPayload, magicLink } = params
   return [
     `Welcome to ${gymName}, ${memberName}!`,
     ``,
     `Your membership is active. Show your QR code at the kiosk to check in.`,
     `QR data: ${qrPayload}`,
     ``,
-    `Use the login link below to access your account:`,
+    `Your Stren account email is ${accountEmail}.`,
+    `No temporary password is sent by email. Use this secure one-time link to sign in, then choose a password or skip that step for now:`,
     magicLink,
     ``,
     `If you did not request this, you can ignore this email.`,
@@ -238,8 +245,8 @@ export async function sendOnboardingEmail(
   const qrCid = "member-qr@stren.app"
   const qrPngBase64 = await generateQrBase64Png(qrPayload)
 
-  const html = buildEmailHtml({ memberName, gymName, qrCid, magicLink })
-  const text = buildEmailText({ memberName, gymName, qrPayload, magicLink })
+  const html = buildEmailHtml({ memberName, gymName, accountEmail: to, qrCid, magicLink })
+  const text = buildEmailText({ memberName, gymName, accountEmail: to, qrPayload, magicLink })
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 12000)
@@ -292,6 +299,51 @@ export async function sendOnboardingEmail(
 
   const data = (await res.json()) as { id?: string }
   return { ok: true, messageId: data.id ?? "unknown" }
+}
+
+export async function sendPasswordResetEmail(payload: PasswordResetEmailPayload): Promise<SendResult> {
+  const safeLink = escapeHtml(payload.resetLink)
+  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;color:#18181b;background:#f4f4f5;padding:24px"><div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px"><h1 style="font-size:24px;margin:0 0 12px">Reset your Stren password</h1><p style="line-height:1.6;color:#52525b">Open the secure confirmation page below, then choose a new password. The link works once.</p><p style="margin:24px 0"><a href="${safeLink}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Continue password reset</a></p><p style="font-size:12px;color:#71717a">If you did not request this, you can safely ignore this email.</p></div></body></html>`
+  const text = [
+    "Reset your Stren password",
+    "",
+    "Open the secure confirmation page below, then choose a new password. The link works once.",
+    payload.resetLink,
+    "",
+    "If you did not request this, you can safely ignore this email.",
+  ].join("\n")
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 12000)
+  try {
+    const response = await fetch("https://api.resend.com/emails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${getResendKey()}` },
+      body: JSON.stringify({
+        from: getFromAddress(),
+        to: [payload.to],
+        subject: "Reset your Stren password",
+        html,
+        text,
+      }),
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      let message = `Resend error ${response.status}`
+      try {
+        const body = await response.json() as { message?: string }
+        if (body.message) message = body.message
+      } catch {}
+      return { ok: false, error: message }
+    }
+    const data = await response.json() as { id?: string }
+    return { ok: true, messageId: data.id || "unknown" }
+  } catch (error) {
+    if (error instanceof Error && error.name === "AbortError") return { ok: false, error: "Resend request timed out." }
+    return { ok: false, error: error instanceof Error ? error.message : "Email send failed." }
+  } finally {
+    clearTimeout(timeout)
+  }
 }
 
 export async function sendOwnerInquiryEmail(payload: OwnerInquiryEmailPayload): Promise<SendResult> {

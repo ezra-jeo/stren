@@ -1187,16 +1187,13 @@ export type Database = {
           member_name: string
         }[]
       }
+      kiosk_get_occupancy: { Args: { p_gym_id: string }; Returns: number }
       kiosk_search_members: {
         Args: { p_query: string; p_gym_id: string }
         Returns: {
-          contact_number: string
           email: string
-          end_date: string
           id: string
-          membership_status: string
           name: string
-          plan_name: string
         }[]
       }
       kiosk_update_streak: {
