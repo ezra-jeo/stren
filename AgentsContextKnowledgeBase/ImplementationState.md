@@ -2,7 +2,18 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-15 (**Demo Experience, Staff Modal & Kiosk Identity Verification; Admin Team Visibility & Notification Overlay Reliability; Account Creation, Recovery & Member Setup Safety; Member Experience Visual Reliability; Account & Team Access Recovery; Perceived Performance & Navigation Continuity; and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
+Last updated: 2026-07-15 (**Password Recovery & Gym Page Theme Reliability; Demo Experience, Staff Modal & Kiosk Identity Verification; Admin Team Visibility & Notification Overlay Reliability; Account Creation, Recovery & Member Setup Safety; Member Experience Visual Reliability; Account & Team Access Recovery; Perceived Performance & Navigation Continuity; and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
+
+---
+
+## Workstream (implemented in working tree 2026-07-15): Password Recovery & Gym Page Theme Reliability
+
+| Unit | Scope | Status |
+|---|---|---|
+| RT1 | Expired password-recovery link affordance | Implemented (Codex, working tree, 2026-07-15) - Request a new reset link now opens the email request form in place, so the visible action immediately leads to a usable recovery path rather than relying on navigation away from the invalid-link state |
+| RT2 | Gym-owned public-page brand boundary | Implemented (Codex, working tree, 2026-07-15) - the public gym page and its Studio preview scope the gym primary/secondary palette to their own rendered subtree instead of relying on a global `:root` override that can lose to or leak into Stren branding |
+
+Verification: focused password-reset, public-layout branding, Studio, and public-preview regressions (**39 tests**), `npm run lint`, `npm run typecheck`, and a production build pass. No database migration is required.
 
 ---
 

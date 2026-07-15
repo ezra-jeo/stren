@@ -8,6 +8,15 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Password Recovery & Gym Page Theme Reliability
+
+#### Fixed
+- On an invalid or expired password-reset link, **Request a new reset link** now opens the email request form in place so the person can immediately request a fresh secure link.
+- Public gym pages now scope each gym's primary and secondary colors to that gym's public-page subtree. This prevents global Stren tokens from overriding an owner's saved palette and avoids one gym's palette leaking into platform chrome.
+
+#### Verification
+- Focused password-reset, public-layout branding, Studio, and public-preview regressions (**39 tests**), lint, typecheck, and a production build pass.
+
 ### Demo Experience, Staff Modal & Kiosk Identity Verification
 
 #### Added

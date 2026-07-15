@@ -104,7 +104,11 @@ describe('/reset-password', () => {
     render(<ResetPasswordPage />);
 
     expect(await screen.findByRole('heading', { name: /invalid or expired reset link/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /request a new reset link/i })).toHaveAttribute('href', '/reset-password');
+    const user = userEvent.setup();
+    await user.click(screen.getByRole('button', { name: /request a new reset link/i }));
+
+    expect(await screen.findByRole('heading', { name: /reset your password/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/email address/i)).toBeInTheDocument();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });
