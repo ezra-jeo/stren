@@ -22,6 +22,8 @@ const MATRIX: Record<PermissionKey, Record<Role, boolean>> = {
   'members:payment_history:view': { owner: true, admin: true,  staff: false, member: false },
   'payments:view':                { owner: true, admin: true,  staff: false, member: false },
   'payments:create':              { owner: true, admin: true,  staff: false, member: false },
+  'payments:discount':            { owner: true, admin: true,  staff: false, member: false },
+  'payments:reverse':             { owner: true, admin: false, staff: false, member: false },
   'plans:manage':                 { owner: true, admin: true,  staff: false, member: false },
   'promos:manage':                { owner: true, admin: true,  staff: false, member: false },
   'announcements:manage':         { owner: true, admin: true,  staff: false, member: false },
@@ -145,11 +147,13 @@ describe('ACCESS_SWITCHES — §7.9 frozen list', () => {
     expect(money?.permissions).toEqual(['dashboard:finance:view', 'reports:finance:view']);
     const studio = ACCESS_SWITCHES.find((s) => s.id === 'gym-studio');
     expect(studio?.permissions).toEqual(['gym_page:view', 'gym_page:edit']);
+    const payments = ACCESS_SWITCHES.find((s) => s.id === 'record-payments');
+    expect(payments?.permissions).toEqual(['payments:create', 'payments:discount', 'payments:view']);
   });
 
   it('never exposes owner-only, never-delegable keys as switches', () => {
     const exposed = new Set(ACCESS_SWITCHES.flatMap((s) => s.permissions));
-    for (const key of ['gym_page:publish', 'features:manage', 'roles:manage', 'cache:revalidate'] as PermissionKey[]) {
+    for (const key of ['payments:reverse', 'gym_page:publish', 'features:manage', 'roles:manage', 'cache:revalidate'] as PermissionKey[]) {
       expect(exposed.has(key)).toBe(false);
     }
   });

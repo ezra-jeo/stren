@@ -2,7 +2,22 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-15 (**Password Recovery & Gym Page Theme Reliability; Demo Experience, Staff Modal & Kiosk Identity Verification; Admin Team Visibility & Notification Overlay Reliability; Account Creation, Recovery & Member Setup Safety; Member Experience Visual Reliability; Account & Team Access Recovery; Perceived Performance & Navigation Continuity; and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
+Last updated: 2026-07-16 (**Financial Integrity, Reporting & Recovery Shot 1 is implemented and verified locally in the unshipped working tree; Shot 2 remains queued and no hosted migration or data mutation has occurred. Password Recovery & Gym Page Theme Reliability; Demo Experience, Staff Modal & Kiosk Identity Verification; Admin Team Visibility & Notification Overlay Reliability; Account Creation, Recovery & Member Setup Safety; Member Experience Visual Reliability; Account & Team Access Recovery; Perceived Performance & Navigation Continuity; and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
+
+---
+
+## Workstream (in progress 2026-07-16): Financial Integrity, Reporting & Recovery
+
+Spec: [ImplementationPlan-FinancialIntegrityAndRecovery.md](ImplementationPlan-FinancialIntegrityAndRecovery.md) · decision: [ADR 0007](../docs/adr/0007-financial-ledger-separates-money-from-access.md) · prompts: [Shot 1](prompts/Codex-Financial-Integrity-Reports-OneShot.md), [Shot 2](prompts/Codex-Data-Recovery-Migrations-OneShot.md).
+
+| Unit | Scope | Status |
+|---|---|---|
+| FI1 | Shot 1 — append-only financial ledger, atomic/idempotent payment-membership RPCs, server-enforced discounts, labeled legacy backfill, ledger-derived dashboard/reports, and reconciliation | Implemented (Codex, working tree, 2026-07-16) — migration 025, RPC-only payment/renewal/onboarding writes, owner reversal/adjustment/reconciliation controls, regenerated types, and real PostgreSQL RLS/rollback/concurrency coverage pass on a production-shaped disposable database |
+| FI2 | Shot 2 — clean database bootstrap/seed, complete deployment parity, database and Storage backup coverage, recovery runbook, and isolated restore with FI1 reconciliation | Queued — GPT Codex 5.6 Sol, high effort (`xhigh` for hosted restore); depends on FI1 and explicit approval for external/paid operations |
+
+FI1 verification: synthetic pre-backfill inventory was **1 membership / PHP 80.00** and legacy `payments` **0 / PHP 0.00**; post-backfill was **1 reconstructed event / PHP 80.00**, with a zero-row rerun. Final synthetic reconciliation across 1,013 exercised events was payments **PHP 446.80**, refunds **PHP -40.00**, voids **PHP -60.00**, adjustments **PHP 11.30**, net **PHP 358.10**, and zero missing links, duplicate keys, or impossible reversals. Focused contracts (**115/115**), complete unit/integration suite (**419/419**), database behavior/concurrency/fail-closed suites, lint, typecheck, and production build pass.
+
+Launch gate: Stren remains suitable for synthetic internal testing only until FI2 passes its clean-bootstrap, deployment, backup, and isolated-restore gates. The existing migration-001 clean-bootstrap ordering defect remains assigned to FI2. Migration 025 was not applied to the linked hosted project; no hosted data mutation, commit, or push occurred.
 
 ---
 

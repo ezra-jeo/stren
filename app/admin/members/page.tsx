@@ -40,9 +40,11 @@ interface MemberRow {
 interface PaymentRow {
   id: string
   amount_paid: number
-  payment_method: "cash" | "gcash"
+  payment_method: "cash" | "gcash" | null
   created_at: string | null
   plan_name: string
+  kind: "payment" | "refund" | "void" | "adjustment"
+  reason: string | null
 }
 
 interface PlanOption {
@@ -96,6 +98,7 @@ export default function MembersPage() {
   const [renewPlanId, setRenewPlanId] = useState("")
   const [renewPaymentMethod, setRenewPaymentMethod] = useState<"cash" | "gcash">("cash")
   const [renewLoading, setRenewLoading] = useState(false)
+  const [renewRequestKey, setRenewRequestKey] = useState("")
   const [onboardOpen, setOnboardOpen] = useState(false)
   const plansCacheRef = useRef<{ scopeKey: string; cachedAt: number; plans: PlanOption[] } | null>(null)
   const activeMembersRequestRef = useRef<string | null>(null)
@@ -184,7 +187,7 @@ export default function MembersPage() {
           .eq("gym_id", gymId),
         supabase
           .from("memberships")
-          .select("id, member_id, start_date, end_date, status, amount_paid, payment_method, created_at, membership_plans!memberships_plan_id_fkey(name)")
+          .select("id, member_id, start_date, end_date, status, created_at, membership_plans!memberships_plan_id_fkey(name)")
           .eq("gym_id", gymId)
           .order("created_at", { ascending: false }),
       ])
@@ -266,12 +269,15 @@ export default function MembersPage() {
     const requestKey = `${privateCacheKey("admin-member-payments", activeScope)}:${memberId}`
     const expectedScopeKey = privateCacheKey("admin-members", activeScope)
     activePaymentsRequestRef.current = requestKey
-    const { data, error } = await supabase
-      .from("memberships")
-      .select("id, amount_paid, payment_method, created_at, membership_plans!memberships_plan_id_fkey(name)")
-      .eq("member_id", memberId)
-      .eq("gym_id", activeScope.gymId)
-      .order("created_at", { ascending: false })
+    const { data, error } = await supabase.rpc("financial_transaction_history", {
+      p_member_id: memberId,
+      p_limit: 200,
+      p_offset: 0,
+      p_method: undefined,
+      p_search: undefined,
+      p_from_date: undefined,
+      p_to_date: undefined,
+    })
     if (activePaymentsRequestRef.current !== requestKey || currentScopeKeyRef.current !== expectedScopeKey) return
     if (error) {
       toast.error("Payment history could not be loaded.")
@@ -279,12 +285,22 @@ export default function MembersPage() {
       return
     }
     setSelectedPayments(
-      (data ?? []).map((p) => ({
+      (((data as { rows?: Array<{
+        id: string
+        ledger_amount: number
+        payment_method: "cash" | "gcash" | null
+        occurred_at: string | null
+        plan_name: string
+        kind: "payment" | "refund" | "void" | "adjustment"
+        reason: string | null
+      }> } | null)?.rows) ?? []).map((p) => ({
         id: p.id,
-        amount_paid: p.amount_paid,
+        amount_paid: p.ledger_amount,
         payment_method: p.payment_method,
-        created_at: p.created_at,
-        plan_name: (p.membership_plans as unknown as { name: string })?.name ?? "Unknown",
+        created_at: p.occurred_at,
+        plan_name: p.plan_name,
+        kind: p.kind,
+        reason: p.reason,
       }))
     )
   }
@@ -345,6 +361,7 @@ export default function MembersPage() {
   async function openRenewDialog(member: MemberRow) {
     setRenewMember(member)
     setRenewPaymentMethod("cash")
+    setRenewRequestKey(crypto.randomUUID())
     setRenewPlans([])
     setRenewPlanId("")
     setRenewOpen(true)
@@ -364,31 +381,18 @@ export default function MembersPage() {
     if (!plan) { toast.error("Please select a membership plan"); return }
 
     setRenewLoading(true)
-    const startDate = new Date()
-    const endDate = new Date()
-    endDate.setDate(endDate.getDate() + plan.duration_days)
-    const startDateValue = startDate.toISOString().split("T")[0]
-
-    const { error: insertError } = await supabase.from("memberships").insert({
-      member_id: renewMember.profile_id,
-      plan_id: plan.id,
-      start_date: startDateValue,
-      end_date: endDate.toISOString().split("T")[0],
-      status: "active",
-      payment_method: renewPaymentMethod,
-      amount_paid: plan.price,
-      gym_id: activeScope.gymId,
+    const idempotencyKey = renewRequestKey || crypto.randomUUID()
+    setRenewRequestKey(idempotencyKey)
+    const { error: insertError } = await supabase.rpc("record_membership_payment", {
+      p_member_id: renewMember.profile_id,
+      p_plan_id: plan.id,
+      p_payment_method: renewPaymentMethod,
+      p_idempotency_key: idempotencyKey,
+      p_promo_id: undefined,
+      p_requested_start_date: undefined,
     })
 
     if (insertError) { toast.error("Failed to renew: " + insertError.message); setRenewLoading(false); return }
-
-    await supabase
-      .from("memberships")
-      .update({ status: "expired" })
-      .eq("member_id", renewMember.profile_id)
-      .eq("gym_id", activeScope.gymId)
-      .eq("status", "active")
-      .neq("start_date", startDateValue)
 
     toast.success(renewMember.name + " renewed successfully!")
     setRenewLoading(false)
@@ -397,6 +401,7 @@ export default function MembersPage() {
     setRenewPlans([])
     setRenewPlanId("")
     setRenewPaymentMethod("cash")
+    setRenewRequestKey("")
     void fetchMembers(true)
   }
 
@@ -583,7 +588,9 @@ export default function MembersPage() {
                       className="flex items-center justify-between rounded-lg px-3 py-2 text-xs"
                       style={{ backgroundColor: A.surface2, border: `1px solid ${A.border}` }}
                     >
-                      <span style={{ color: A.text }}>{p.plan_name}</span>
+                      <span style={{ color: A.text }}>
+                        {p.plan_name} · {p.kind}{p.reason ? ` · ${p.reason}` : ""}
+                      </span>
                       <span className="flex items-center gap-2">
                         <span
                           className="rounded-full px-2 py-0.5"
@@ -593,9 +600,11 @@ export default function MembersPage() {
                             border: `1px solid ${p.payment_method === "gcash" ? "#BFDBFE" : "#BBF7D0"}`,
                           }}
                         >
-                          {p.payment_method}
+                          {p.payment_method ?? "adjustment"}
                         </span>
-                        <span className="font-semibold" style={{ color: A.text }}>₱{p.amount_paid.toLocaleString()}</span>
+                        <span className="font-semibold" style={{ color: A.text }}>
+                          {p.amount_paid < 0 ? "−" : ""}₱{Math.abs(p.amount_paid).toLocaleString()}
+                        </span>
                       </span>
                     </div>
                   ))}

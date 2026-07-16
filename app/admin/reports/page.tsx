@@ -1,6 +1,6 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { AdminReportsClient } from '@/components/admin/AdminReportsClient'
-import type { ReportsData } from '@/components/admin/AdminReportsClient'
+import type { FinancialReconciliation, ReportsData } from '@/components/admin/AdminReportsClient'
 import { requirePermission } from '@/lib/permissions-server'
 
 const MAX_DAYS = 14
@@ -10,7 +10,10 @@ const MAX_REVENUE_DAYS = 31
 export default async function ReportsPage() {
   await requirePermission('reports:attendance:view')
   const supabase = await createServerSupabaseClient()
-  const { data } = await supabase.rpc('admin_reports_data', { p_days: 14 })
+  const [{ data }, { data: reconciliation }] = await Promise.all([
+    supabase.rpc('admin_reports_data', { p_days: 14 }),
+    supabase.rpc('financial_reconciliation', { p_from_date: '2000-01-01', p_to_date: '2100-01-01' }),
+  ])
 
   if (!data) {
     const empty: ReportsData = {
@@ -23,6 +26,9 @@ export default async function ReportsPage() {
       peakHours: [],
       revenueByDayOfMonth: [],
       methodBreakdown: { cashTotal: 0, cashCount: 0, gcashTotal: 0, gcashCount: 0 },
+      reconciliation: reconciliation
+        ? reconciliation as unknown as FinancialReconciliation
+        : undefined,
     }
     return <AdminReportsClient data={empty} />
   }
@@ -50,6 +56,9 @@ export default async function ReportsPage() {
           gcashTotal: raw.method_breakdown.gcash_total,
           gcashCount: raw.method_breakdown.gcash_count,
         }
+      : undefined,
+    reconciliation: reconciliation
+      ? reconciliation as unknown as FinancialReconciliation
       : undefined,
   }
 

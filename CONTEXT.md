@@ -42,6 +42,24 @@ _Avoid_: personal mode, trial gym, real dashboard
 A member whose gym-user row is active but whose subscription has expired. Sees the renewal lock screen (saved stats named, never deleted), can't check in, off the leaderboard until renewal.
 _Avoid_: expired member (ambiguous with the subscription row), churned
 
+### Memberships & money
+
+**Membership**:
+One paid access period at one gym, with explicit start/end dates and access status. It may reference the transaction that created it, but it is never the financial source of truth.
+_Avoid_: payment, receipt, transaction
+
+**Financial transaction**:
+One immutable event in the gym's financial ledger: a payment, refund, void, or reasoned adjustment. Corrections append a linked event; they never rewrite or delete the original.
+_Avoid_: membership payment row, editable payment, correction overwrite
+
+**Financial ledger**:
+The append-only collection of financial transactions. It is the only source for revenue, payment history, reconciliation, and financial exports after cutover.
+_Avoid_: payments list (ambiguous), membership revenue
+
+**Effective membership**:
+The membership that grants access on the gym's Manila business date: its status permits access and its start/end dates contain that date.
+_Avoid_: latest membership (creation order is not access truth)
+
 ### Access control
 
 **Permission**:

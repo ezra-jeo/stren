@@ -8,6 +8,23 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Financial Integrity & Ledger-Derived Reporting
+
+#### Added
+- Migration `025_financial_integrity_and_reporting.sql` introduces the append-only, tenant-pinned `financial_transactions` ledger; exact/reconstructed snapshots; immutable payment/refund/void/adjustment events; server-owned discounts; atomic and idempotent payment, reversal, and adjustment RPCs; Manila business dates; paid-period overlap protection; and a rerunnable labeled membership-history backfill.
+- Owners can record partial/full refunds, voids with an explicit access-cancellation choice, reasoned signed adjustments, and inspect all-time reconciliation totals and anomaly counts. Payment history is server-filtered and paginated beyond 1,000 events.
+- A read-only legacy inventory and executable PostgreSQL suites cover backfill, rollback, cent rounding, future entitlement, concurrency, immutability, pagination, signed reporting, two-gym RLS, and the fail-closed nonempty-`payments` gate.
+
+#### Changed
+- Payments, renewals, and member onboarding use the same trusted payment RPC; browsers no longer supply authoritative amounts or write membership money fields directly.
+- Dashboard and report revenue now derive from signed ledger events, while membership totals derive from active `member` gym users and start-date-aware effective access. Membership plans support structured benefits captured in financial snapshots.
+- Added owner-only, non-delegable `payments:reverse` and owner/admin `payments:discount` permission defaults; regenerated database types and bumped the package to `2.3.0`.
+
+#### Verification
+- Migration 025 applies transactionally to a fresh production-shaped disposable PostgreSQL database. Synthetic pre-backfill inventory was **1 membership / PHP 80.00**, legacy `payments` **0 / PHP 0.00**; post-backfill was **1 reconstructed ledger event / PHP 80.00**, and a rerun inserted zero rows.
+- Executed database behavior and parallel-session suites pass, including rollback, RLS, two-gym isolation, 1,005-row pagination, and fail-closed legacy-payment handling. Final synthetic reconciliation: **1,013 events**, payments **PHP 446.80**, refunds **PHP -40.00**, voids **PHP -60.00**, adjustments **PHP 11.30**, net **PHP 358.10**, with all four anomaly counts at zero.
+- Focused contracts (**115/115 tests**), complete unit/integration suite (**419/419 tests**), lint, typecheck, and production build pass. No hosted migration or data mutation was performed.
+
 ### Password Recovery & Gym Page Theme Reliability
 
 #### Fixed

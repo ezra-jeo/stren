@@ -17,16 +17,25 @@ import {
   SummaryBox,
 } from "@/lib/admin-ui"
 import { toast } from "sonner"
-import { Search, Plus, CreditCard, Check, X } from "lucide-react"
+import { Search, Plus, CreditCard, X, RotateCcw, SlidersHorizontal } from "lucide-react"
 
 interface PaymentRow {
   id: string
   member_name: string
   member_id: string
   plan_name: string
-  amount_paid: number
-  payment_method: "cash" | "gcash"
-  created_at: string
+  ledger_amount: number
+  remaining_reversible_amount: number
+  payment_method: "cash" | "gcash" | null
+  occurred_at: string
+  kind: "payment" | "refund" | "void" | "adjustment"
+  reason: string | null
+}
+
+interface PaymentHistoryResponse {
+  rows: PaymentRow[]
+  total_count: number
+  net_total: number
 }
 
 interface MemberOption { id: string; name: string; contact_number: string | null }
@@ -43,7 +52,7 @@ interface PromoOption {
 
 export default function PaymentsPage() {
   const supabase = useMemo(() => createClient(), [])
-  const { profile } = useAuth()
+  const { profile, activeScope } = useAuth()
   const [payments, setPayments] = useState<PaymentRow[]>([])
   const [memberOptions, setMemberOptions] = useState<MemberOption[]>([])
   const [planOptions, setPlanOptions] = useState<PlanOption[]>([])
@@ -52,6 +61,22 @@ export default function PaymentsPage() {
   const [search, setSearch] = useState("")
   const [isLoading, setIsLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [totalCount, setTotalCount] = useState(0)
+  const [netTotal, setNetTotal] = useState(0)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const [reverseTarget, setReverseTarget] = useState<PaymentRow | null>(null)
+  const [reverseKind, setReverseKind] = useState<"refund" | "void">("refund")
+  const [reverseAmount, setReverseAmount] = useState("")
+  const [reverseReason, setReverseReason] = useState("")
+  const [revokeMembership, setRevokeMembership] = useState(false)
+  const [reverseRequestKey, setReverseRequestKey] = useState("")
+  const [reversing, setReversing] = useState(false)
+  const [adjustmentOpen, setAdjustmentOpen] = useState(false)
+  const [adjustmentMemberId, setAdjustmentMemberId] = useState("")
+  const [adjustmentAmount, setAdjustmentAmount] = useState("")
+  const [adjustmentReason, setAdjustmentReason] = useState("")
+  const [adjustmentRequestKey, setAdjustmentRequestKey] = useState("")
+  const [adjusting, setAdjusting] = useState(false)
 
   // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -60,31 +85,36 @@ export default function PaymentsPage() {
   const [selectedPlanId, setSelectedPlanId] = useState("")
   const [selectedPromoId, setSelectedPromoId] = useState("")
   const [payMethod, setPayMethod] = useState<"cash" | "gcash">("cash")
+  const [paymentRequestKey, setPaymentRequestKey] = useState("")
 
-  const fetchData = useCallback(async () => {
-    const { data, error: paymentsError } = await supabase
-      .from("memberships")
-      .select("id, member_id, amount_paid, payment_method, created_at, profiles!memberships_member_id_fkey(name), membership_plans!memberships_plan_id_fkey(name)")
-      .order("created_at", { ascending: false })
+  const fetchData = useCallback(async (offset = 0) => {
+    if (offset > 0) setLoadingMore(true)
+    const { data, error: paymentsError } = await supabase.rpc("financial_transaction_history", {
+      p_member_id: undefined,
+      p_limit: 100,
+      p_offset: offset,
+      p_method: methodFilter === "all" ? undefined : methodFilter,
+      p_search: search.trim() || undefined,
+      p_from_date: undefined,
+      p_to_date: undefined,
+    })
 
     if (paymentsError) console.error("payments fetch error:", paymentsError)
+    const history = (data ?? { rows: [], total_count: 0, net_total: 0 }) as unknown as PaymentHistoryResponse
+    setPayments((current) => offset === 0 ? history.rows : [...current, ...history.rows])
+    setTotalCount(history.total_count)
+    setNetTotal(history.net_total)
 
-    setPayments(
-      (data ?? []).map((p) => ({
-        id: p.id,
-        member_name: (p.profiles as unknown as { name: string })?.name ?? "Unknown",
-        member_id: p.member_id ?? "",
-        plan_name: (p.membership_plans as unknown as { name: string })?.name ?? "Unknown",
-        amount_paid: p.amount_paid,
-        payment_method: p.payment_method,
-        created_at: p.created_at ?? new Date().toISOString(),
-      }))
-    )
+    if (offset > 0) {
+      setLoadingMore(false)
+      return
+    }
 
     const { data: gymUsers } = await supabase
       .from("gym_users")
       .select("profiles!gym_users_user_id_fkey(id, name, contact_number)")
       .eq("gym_id", profile?.gymId ?? "")
+      .eq("role", "member")
       .eq("status", "active")
     setMemberOptions((gymUsers ?? []).flatMap((row) => row.profiles ? [row.profiles as MemberOption] : []))
 
@@ -116,9 +146,10 @@ export default function PaymentsPage() {
       })),
     )
     setIsLoading(false)
-  }, [supabase, profile?.gymId])
+    setLoadingMore(false)
+  }, [supabase, profile?.gymId, methodFilter, search])
 
-  useEffect(() => { fetchData() }, [fetchData])
+  useEffect(() => { void fetchData(0) }, [fetchData])
 
   const filteredMembers = useMemo(() => {
     if (!memberSearch.trim()) return memberOptions
@@ -172,6 +203,94 @@ export default function PaymentsPage() {
     setSelectedPromoId("")
     setPayMethod("cash")
     setSaving(false)
+    setPaymentRequestKey("")
+  }
+
+  function openReversal(payment: PaymentRow) {
+    setReverseTarget(payment)
+    setReverseKind("refund")
+    setReverseAmount(String(payment.remaining_reversible_amount))
+    setReverseReason("")
+    setRevokeMembership(false)
+    setReverseRequestKey(crypto.randomUUID())
+  }
+
+  function closeReversal() {
+    setReverseTarget(null)
+    setReverseReason("")
+    setReverseAmount("")
+    setReverseRequestKey("")
+    setReversing(false)
+  }
+
+  async function handleReversePayment() {
+    if (!reverseTarget) return
+    const amount = reverseKind === "void"
+      ? reverseTarget.remaining_reversible_amount
+      : Number(reverseAmount)
+    if (!Number.isFinite(amount) || amount <= 0 || amount > reverseTarget.remaining_reversible_amount) {
+      toast.error("Enter an amount within the remaining reversible balance.")
+      return
+    }
+    if (reverseReason.trim().length < 3) {
+      toast.error("A reason is required.")
+      return
+    }
+
+    setReversing(true)
+    const idempotencyKey = reverseRequestKey || crypto.randomUUID()
+    setReverseRequestKey(idempotencyKey)
+    const { error } = await supabase.rpc("reverse_financial_transaction", {
+      p_transaction_id: reverseTarget.id,
+      p_kind: reverseKind,
+      p_amount: amount,
+      p_reason: reverseReason.trim(),
+      p_revoke_membership: revokeMembership,
+      p_idempotency_key: idempotencyKey,
+    })
+    if (error) {
+      toast.error("Could not reverse the payment: " + error.message)
+      setReversing(false)
+      return
+    }
+    toast.success(reverseKind === "void" ? "Payment voided." : "Refund recorded.")
+    closeReversal()
+    void fetchData(0)
+  }
+
+  function openAdjustment() {
+    setAdjustmentMemberId("")
+    setAdjustmentAmount("")
+    setAdjustmentReason("")
+    setAdjustmentRequestKey(crypto.randomUUID())
+    setAdjustmentOpen(true)
+  }
+
+  async function handleAdjustment() {
+    const amount = Number(adjustmentAmount)
+    if (!adjustmentMemberId) { toast.error("Please select a member."); return }
+    if (!Number.isFinite(amount) || amount === 0) { toast.error("Enter a non-zero amount."); return }
+    if (adjustmentReason.trim().length < 3) { toast.error("A reason is required."); return }
+
+    setAdjusting(true)
+    const idempotencyKey = adjustmentRequestKey || crypto.randomUUID()
+    setAdjustmentRequestKey(idempotencyKey)
+    const { error } = await supabase.rpc("record_financial_adjustment", {
+      p_member_id: adjustmentMemberId,
+      p_amount: amount,
+      p_reason: adjustmentReason.trim(),
+      p_idempotency_key: idempotencyKey,
+      p_occurred_at: undefined,
+    })
+    if (error) {
+      toast.error("Could not record the adjustment: " + error.message)
+      setAdjusting(false)
+      return
+    }
+    toast.success("Financial adjustment recorded.")
+    setAdjustmentOpen(false)
+    setAdjusting(false)
+    void fetchData(0)
   }
 
   async function handleRecordPayment() {
@@ -180,22 +299,15 @@ export default function PaymentsPage() {
 
     setSaving(true)
 
-    const startDate = new Date()
-    const endDate = new Date()
-    endDate.setDate(endDate.getDate() + selectedPlan.duration_days)
-    const startDateStr = startDate.toISOString().split("T")[0]
-    const endDateStr = endDate.toISOString().split("T")[0]
-
-    const { error } = await supabase.from("memberships").insert({
-      member_id: selectedMember.id,
-      plan_id: selectedPlanId,
-      start_date: startDateStr,
-      end_date: endDateStr,
-      status: "active",
-      payment_method: payMethod,
-      amount_paid: payableAmount,
-      gym_id: profile?.gymId ?? null,
-      created_by: profile?.id ?? null,
+    const idempotencyKey = paymentRequestKey || crypto.randomUUID()
+    setPaymentRequestKey(idempotencyKey)
+    const { error } = await supabase.rpc("record_membership_payment", {
+      p_member_id: selectedMember.id,
+      p_plan_id: selectedPlanId,
+      p_payment_method: payMethod,
+      p_idempotency_key: idempotencyKey,
+      p_promo_id: selectedPromoId || undefined,
+      p_requested_start_date: undefined,
     })
 
     if (error) {
@@ -205,33 +317,11 @@ export default function PaymentsPage() {
       return
     }
 
-    // Expire any previous active membership for this member
-    await supabase
-      .from("memberships")
-      .update({ status: "expired" })
-      .eq("member_id", selectedMember.id)
-      .eq("status", "active")
-      .neq("start_date", startDateStr)
-
     toast.success(`Payment recorded for ${selectedMember.name}!`)
     setDialogOpen(false)
     resetDialog()
-    fetchData()
+    void fetchData(0)
   }
-
-  const filtered = useMemo(() => {
-    let list = payments
-    if (methodFilter !== "all") list = list.filter((p) => p.payment_method === methodFilter)
-    if (search.trim()) {
-      const q = search.trim().toLowerCase()
-      list = list.filter(
-        (p) => p.member_name.toLowerCase().includes(q) || p.plan_name.toLowerCase().includes(q)
-      )
-    }
-    return list
-  }, [payments, methodFilter, search])
-
-  const totalFiltered = filtered.reduce((sum, p) => sum + p.amount_paid, 0)
 
   if (isLoading) {
     return <LoadingSkeleton rows={5} h={72} />
@@ -243,10 +333,18 @@ export default function PaymentsPage() {
         title="Payments"
         subtitle="All membership payments and renewals"
         action={
-          <PrimaryBtn onClick={() => setDialogOpen(true)}>
-            <Plus size={16} />
-            Record Payment
-          </PrimaryBtn>
+          <div className="flex flex-wrap gap-2">
+            {activeScope?.role === "owner" && (
+              <PrimaryBtn onClick={openAdjustment}>
+                <SlidersHorizontal size={16} />
+                Adjustment
+              </PrimaryBtn>
+            )}
+            <PrimaryBtn onClick={() => { setPaymentRequestKey(crypto.randomUUID()); setDialogOpen(true) }}>
+              <Plus size={16} />
+              Record Payment
+            </PrimaryBtn>
+          </div>
         }
       />
 
@@ -270,13 +368,13 @@ export default function PaymentsPage() {
         <div className="flex items-center gap-3">
           <CreditCard className="h-5 w-5 shrink-0" style={{ color: A.primary }} />
         <div>
-            <p className="text-xs" style={{ color: A.muted }}>Filtered total ({filtered.length} payments)</p>
-            <p className="text-lg font-bold" style={{ color: A.text }}>₱{totalFiltered.toLocaleString()}</p>
+            <p className="text-xs" style={{ color: A.muted }}>Net total ({totalCount} ledger events)</p>
+            <p className="text-lg font-bold" style={{ color: A.text }}>₱{netTotal.toLocaleString()}</p>
           </div>
         </div>
       </ACard>
 
-      {filtered.length === 0 ? (
+      {payments.length === 0 ? (
         <EmptyState
           icon={<CreditCard size={40} />}
           title="No payments found"
@@ -284,7 +382,7 @@ export default function PaymentsPage() {
         />
       ) : (
         <div className="space-y-2">
-          {filtered.map((p) => (
+          {payments.map((p) => (
             <ACard key={p.id} className="p-4">
               <div className="flex items-center justify-between rounded-lg">
               <div className="flex items-start gap-3 min-w-0 flex-1">
@@ -292,7 +390,8 @@ export default function PaymentsPage() {
                 <div className="min-w-0">
                   <p className="font-medium text-sm" style={{ color: A.text }}>{p.member_name}</p>
                   <p className="text-xs" style={{ color: A.muted }}>
-                    {p.plan_name} · {p.created_at.split("T")[0]}
+                    {p.plan_name} · {p.kind} · {p.occurred_at.split("T")[0]}
+                    {p.reason ? ` · ${p.reason}` : ""}
                   </p>
                 </div>
               </div>
@@ -305,15 +404,33 @@ export default function PaymentsPage() {
                     border: `1px solid ${p.payment_method === "gcash" ? "#BFDBFE" : "#BBF7D0"}`,
                   }}
                 >
-                  {p.payment_method}
+                  {p.payment_method ?? "adjustment"}
                 </span>
                 <span className="font-semibold text-sm" style={{ color: A.text }}>
-                  ₱{p.amount_paid.toLocaleString()}
+                  {p.ledger_amount < 0 ? "−" : ""}₱{Math.abs(p.ledger_amount).toLocaleString()}
                 </span>
+                {activeScope?.role === "owner" && p.kind === "payment" && p.remaining_reversible_amount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => openReversal(p)}
+                    className="inline-flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-semibold"
+                    style={{ color: A.primary, border: `1px solid ${A.border}` }}
+                  >
+                    <RotateCcw size={12} />
+                    Reverse
+                  </button>
+                )}
               </div>
               </div>
             </ACard>
           ))}
+          {payments.length < totalCount && (
+            <div className="flex justify-center pt-2">
+              <PrimaryBtn onClick={() => void fetchData(payments.length)} disabled={loadingMore}>
+                {loadingMore ? "Loading..." : `Load more (${payments.length} of ${totalCount})`}
+              </PrimaryBtn>
+            </div>
+          )}
         </div>
       )}
 
@@ -441,6 +558,91 @@ export default function PaymentsPage() {
 
           <PrimaryBtn onClick={handleRecordPayment} disabled={saving || !selectedMember || !selectedPlanId}>
             {saving ? "Recording..." : "Confirm and Record Payment"}
+          </PrimaryBtn>
+        </div>
+      </Modal>
+
+      <Modal open={reverseTarget !== null} onClose={closeReversal} title="Reverse Payment" width={520}>
+        <div className="space-y-4">
+          <ChoicePicker
+            label="Correction type"
+            value={reverseKind}
+            onChange={(value) => {
+              const kind = value as "refund" | "void"
+              setReverseKind(kind)
+              if (kind === "void" && reverseTarget) setReverseAmount(String(reverseTarget.remaining_reversible_amount))
+            }}
+            options={[
+              { value: "refund", label: "Refund", sub: "Return some or all of the remaining payment" },
+              { value: "void", label: "Void", sub: "Reverse the full remaining payment" },
+            ]}
+          />
+          <label className="block text-sm font-medium" style={{ color: A.text2 }}>
+            Amount
+            <input
+              type="number"
+              min="0.01"
+              step="0.01"
+              max={reverseTarget?.remaining_reversible_amount}
+              disabled={reverseKind === "void"}
+              value={reverseAmount}
+              onChange={(event) => setReverseAmount(event.target.value)}
+              className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none disabled:opacity-60"
+              style={{ backgroundColor: A.surface2, border: `1px solid ${A.border}`, color: A.text }}
+            />
+          </label>
+          <label className="block text-sm font-medium" style={{ color: A.text2 }}>
+            Reason
+            <textarea
+              value={reverseReason}
+              onChange={(event) => setReverseReason(event.target.value)}
+              rows={3}
+              className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ backgroundColor: A.surface2, border: `1px solid ${A.border}`, color: A.text }}
+            />
+          </label>
+          <label className="flex items-start gap-2 text-sm" style={{ color: A.text2 }}>
+            <input type="checkbox" checked={revokeMembership} onChange={(event) => setRevokeMembership(event.target.checked)} />
+            Also cancel the linked membership access. Leave unchecked to preserve access.
+          </label>
+          <PrimaryBtn onClick={handleReversePayment} disabled={reversing || !reverseReason.trim()}>
+            {reversing ? "Recording..." : reverseKind === "void" ? "Record Void" : "Record Refund"}
+          </PrimaryBtn>
+        </div>
+      </Modal>
+
+      <Modal open={adjustmentOpen} onClose={() => { setAdjustmentOpen(false); setAdjusting(false) }} title="Financial Adjustment" width={520}>
+        <div className="space-y-4">
+          <ChoicePicker
+            label="Member"
+            value={adjustmentMemberId}
+            onChange={setAdjustmentMemberId}
+            options={memberOptions.map((member) => ({ value: member.id, label: member.name, sub: member.contact_number ?? undefined }))}
+          />
+          <label className="block text-sm font-medium" style={{ color: A.text2 }}>
+            Signed amount
+            <input
+              type="number"
+              step="0.01"
+              value={adjustmentAmount}
+              onChange={(event) => setAdjustmentAmount(event.target.value)}
+              placeholder="Use a negative amount to reduce revenue"
+              className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ backgroundColor: A.surface2, border: `1px solid ${A.border}`, color: A.text }}
+            />
+          </label>
+          <label className="block text-sm font-medium" style={{ color: A.text2 }}>
+            Reason
+            <textarea
+              value={adjustmentReason}
+              onChange={(event) => setAdjustmentReason(event.target.value)}
+              rows={3}
+              className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
+              style={{ backgroundColor: A.surface2, border: `1px solid ${A.border}`, color: A.text }}
+            />
+          </label>
+          <PrimaryBtn onClick={handleAdjustment} disabled={adjusting || !adjustmentMemberId || !adjustmentReason.trim()}>
+            {adjusting ? "Recording..." : "Record Adjustment"}
           </PrimaryBtn>
         </div>
       </Modal>

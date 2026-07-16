@@ -16,7 +16,7 @@ export type PermissionKey =
   | 'dashboard:view' | 'dashboard:finance:view'
   | 'reports:attendance:view' | 'reports:finance:view'
   | 'members:view' | 'members:manage' | 'members:payment_history:view'
-  | 'payments:view' | 'payments:create'
+  | 'payments:view' | 'payments:create' | 'payments:discount' | 'payments:reverse'
   | 'plans:manage' | 'promos:manage' | 'announcements:manage'
   | 'gym_page:view' | 'gym_page:edit' | 'gym_page:publish'
   | 'features:manage' | 'roles:manage'
@@ -30,7 +30,7 @@ export const PERMISSION_KEYS: readonly PermissionKey[] = [
   'dashboard:view', 'dashboard:finance:view',
   'reports:attendance:view', 'reports:finance:view',
   'members:view', 'members:manage', 'members:payment_history:view',
-  'payments:view', 'payments:create',
+  'payments:view', 'payments:create', 'payments:discount', 'payments:reverse',
   'plans:manage', 'promos:manage', 'announcements:manage',
   'gym_page:view', 'gym_page:edit', 'gym_page:publish',
   'features:manage', 'roles:manage',
@@ -48,7 +48,7 @@ export const ROLE_DEFAULT_PERMISSIONS: Record<Role, readonly PermissionKey[]> = 
     'dashboard:view', 'dashboard:finance:view',
     'reports:attendance:view', 'reports:finance:view',
     'members:view', 'members:manage', 'members:payment_history:view',
-    'payments:view', 'payments:create',
+    'payments:view', 'payments:create', 'payments:discount',
     'plans:manage', 'promos:manage', 'announcements:manage',
     'kiosk:use', 'cache:revalidate',
   ],
@@ -69,7 +69,7 @@ export interface AccessSwitch {
 export const ACCESS_SWITCHES: readonly AccessSwitch[] = [
   { id: 'money-numbers', label: 'Can see money numbers (dashboard & reports)', permissions: ['dashboard:finance:view', 'reports:finance:view'] },
   { id: 'manage-members', label: 'Can manage members', permissions: ['members:manage'] },
-  { id: 'record-payments', label: 'Can record payments', permissions: ['payments:create', 'payments:view'] },
+  { id: 'record-payments', label: 'Can record payments', permissions: ['payments:create', 'payments:discount', 'payments:view'] },
   { id: 'manage-plans', label: 'Can manage plans', permissions: ['plans:manage'] },
   { id: 'manage-promos', label: 'Can manage promos', permissions: ['promos:manage'] },
   { id: 'post-announcements', label: 'Can post announcements', permissions: ['announcements:manage'] },

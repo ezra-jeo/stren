@@ -15,6 +15,7 @@ describe('staff onboarding', () => {
     expect(code).toMatch(/buildAuthConfirmationUrl/i);
     expect(code).toMatch(/type["']?\s*[:,=]\s*["']magiclink["']/i);
     expect(code).toMatch(/role:\s*["']member["']/i);
-    expect(code).toMatch(/created_by:\s*user\.id/i);
+    expect(code).toMatch(/\.rpc\(["']record_membership_payment["']/i);
+    expect(code).not.toMatch(/from\(["']memberships["']\)\.(?:insert|update)/i);
   });
 });

@@ -32,7 +32,7 @@ type FormState = {
   email: string
   planId: string
   paymentMethod: "cash" | "gcash"
-  amountPaid: string
+  idempotencyKey: string
 }
 
 const INITIAL_FORM: FormState = {
@@ -40,7 +40,7 @@ const INITIAL_FORM: FormState = {
   email: "",
   planId: "",
   paymentMethod: "cash",
-  amountPaid: "",
+  idempotencyKey: "",
 }
 
 const MAX_PHOTO_SIZE_BYTES = 5 * 1024 * 1024
@@ -153,7 +153,6 @@ export function OnboardMemberModal({ open, onClose, onSuccess }: Props) {
       setForm((current) => ({
         ...current,
         planId: current.planId || nextPlans[0]?.id || "",
-        amountPaid: current.amountPaid || (nextPlans[0] ? String(nextPlans[0].price) : ""),
       }))
     } catch (error) {
       const message = error instanceof Error ? error.message : "Failed to load plans"
@@ -360,14 +359,15 @@ export function OnboardMemberModal({ open, onClose, onSuccess }: Props) {
     setSubmitError("")
     try {
       const avatarUrl = await uploadPhoto(photoDataUrl)
-      const amountPaid = Number(form.amountPaid)
+      const idempotencyKey = form.idempotencyKey || crypto.randomUUID()
+      setForm((current) => ({ ...current, idempotencyKey }))
       const payload = {
         name: trimmedName,
         email: trimmedEmail,
         avatarUrl,
         planId: form.planId,
         paymentMethod: form.paymentMethod,
-        amountPaid: Number.isFinite(amountPaid) ? amountPaid : undefined,
+        idempotencyKey,
       }
 
       const timeout = createRequestTimeout(20000)
@@ -538,19 +538,9 @@ export function OnboardMemberModal({ open, onClose, onSuccess }: Props) {
                 />
               </div>
 
-              <div className="sm:col-span-2">
-                <label className="mb-1.5 block text-xs font-medium" style={{ color: A.muted }}>Amount Paid (PHP)</label>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.amountPaid}
-                  onChange={(e) => setForm((current) => ({ ...current, amountPaid: e.target.value }))}
-                  placeholder="0"
-                  className="w-full rounded-lg px-3 py-2 text-sm outline-none"
-                  style={{ backgroundColor: A.surface2, border: `1px solid ${A.border}`, color: A.text }}
-                />
-              </div>
+              <p className="sm:col-span-2 text-xs" style={{ color: A.muted }}>
+                The final amount is calculated securely from the selected plan and any configured discount.
+              </p>
             </div>
 
             <div className="flex items-center justify-end gap-2">
@@ -674,7 +664,7 @@ export function OnboardMemberModal({ open, onClose, onSuccess }: Props) {
                 { label: "Email", value: form.email || "-" },
                 { label: "Plan", value: selectedPlanLabel || "-" },
                 { label: "Payment", value: form.paymentMethod === "cash" ? "Cash" : "GCash" },
-                { label: "Amount", value: `₱${Number(form.amountPaid || selectedPlan?.price || 0).toLocaleString()}` },
+                { label: "Amount", value: `₱${Number(selectedPlan?.price || 0).toLocaleString()}` },
               ]}
             />
 
