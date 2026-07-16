@@ -8,6 +8,25 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Data Recovery, Backup & Deployment Parity
+
+#### Added
+- Migration `000_bootstrap_prerequisites.sql` makes the immutable migration chain bootstrappable from an empty Supabase database without editing migration 001; migration `026_deployment_and_recovery_contract.sql` adds the required `gym-assets` bucket and a service-only snapshot of migrations, columns, exact function signatures, RLS, policies, grants, constraints, triggers, and buckets.
+- The development-only seed now uses unified accounts, two gyms, all representative roles plus a no-gym account, linked Shot 1 ledger/membership payments, attendance and onboarding-audit fixtures, and a fail-closed local-environment guard.
+- CI now starts local Supabase, resets and seeds from empty, checks generated database types, executes database/RLS/financial invariants, verifies the complete deployment contract through migration 026, and always tears the stack down.
+- Added a scheduled fail-closed backup workflow, encrypted off-site database and every-bucket Storage exports, SHA-256 object manifests, provider/PITR and retention status collection, backup-age policy checks, and the cataloged `docs/operations/BACKUP_AND_RECOVERY.md` runbook.
+- Added read-only recovery evidence capture and an isolated local restore drill covering durable database schemas and extensions, Auth, Storage bytes, generated types, two-gym RLS, live role/no-gym sign-in routing, attendance/audit constraints, and Shot 1 reconciliation.
+
+#### Changed
+- Hosted deployment verification now requires a server secret and detects any missing application migration/object, forbidden legacy profile column, or unsafe financial grant instead of checking only the older unified-account surface.
+- Safe migration comparison, dry-run, post-apply, failed-migration, committed-schema/app-failure, forward-repair, and isolated-restore procedures are now canonical. Package version is `2.4.0`.
+
+#### Verification
+- A completely empty local database applies migrations `000`, `001`, and `005` through `026`, seeds successfully, matches generated TypeScript types, and passes the deployment and database invariant suites.
+- The final isolated local restore matched 7 Auth users, 7 profiles, 6 gym-user rows, 2 memberships, 2 attendance rows, 1 onboarding audit event, and 2 exact-snapshot ledger events. Both gym reconciliations matched (PHP 800 and PHP 900 net), all anomaly counts were zero, seven representative sign-ins resolved correctly, and 1 Storage bucket / 1 synthetic object matched by SHA-256. Measured RPO was **0.00 minutes** and RTO **1.95 minutes**.
+- Focused recovery/deployment contracts (**30/30**), the complete unit/integration coverage suite (**440/440**), lint, typecheck, and production build pass. Playwright reached terminal results for all 22 cases in production-server mode (**14 passed, 8 credential-gated skipped, 0 assertion failures**) but its local server-cleanup process did not exit before the five-minute shell ceiling.
+- No hosted migration, production restore, paid add-on, off-site infrastructure change, commit, push, merge, rebase, or tag was performed. Production retention, PITR/equivalent, off-site generations, hosted manual configuration, and an isolated hosted restore remain an explicitly blocked launch gate pending credentials, budget, and approval.
+
 ### Financial Integrity & Ledger-Derived Reporting
 
 #### Added

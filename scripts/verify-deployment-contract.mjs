@@ -28,9 +28,7 @@ const password =
 const missing = [];
 if (!supabaseUrl) missing.push("Supabase project URL or project ID");
 if (!anonKey) missing.push("Supabase publishable/anon key");
-if (!secretKey && (!email || !password)) {
-  missing.push("server secret or deployment-check account credentials");
-}
+if (!secretKey) missing.push("server secret for the full schema contract");
 
 if (missing.length > 0) {
   console.error(
@@ -53,7 +51,7 @@ if (missing.length > 0) {
       process.exitCode = 1;
     } else {
       console.log(
-        "Deployment contract verified: email confirmation, Google OAuth, and migrations 019/021 are live.",
+        "Deployment contract verified: Auth configuration and the complete schema through migration 026 are live.",
       );
     }
   } catch {

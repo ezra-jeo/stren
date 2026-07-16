@@ -46,6 +46,7 @@ Active implementation plan: [ImplementationPlan-FinancialIntegrityAndRecovery.md
 | `../CHANGELOG.md` | **The only changelog.** Keep-a-Changelog format, entry per release/phase; every merged PR adds or extends an entry | Every merged PR |
 | `../docs/adr/` | Architecture Decision Records — why load-bearing decisions were made | A hard-to-reverse, surprising, trade-off decision is made |
 | `../docs/adr/0007-financial-ledger-separates-money-from-access.md` | Accepted decision: memberships grant access; append-only financial transactions own money and reporting | Financial ledger or correction semantics change |
+| `../docs/operations/BACKUP_AND_RECOVERY.md` | Canonical database/Storage backup, monitoring, migration failure, isolated restore and reconciliation runbook | Backup policy, provider capability, restore procedure, ownership, RPO/RTO or recovery gate changes |
 
 ## Reference documents (read on demand only)
 

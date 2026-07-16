@@ -18,6 +18,12 @@ creds.txt
 coverage/
 playwright-report/
 test-results/
+debug.log
+backup-evidence/
+recovery-evidence/
+*.backup.enc
+*.dump
+supabase/.branches/
 
 # Build cache
 tsconfig.tsbuildinfo

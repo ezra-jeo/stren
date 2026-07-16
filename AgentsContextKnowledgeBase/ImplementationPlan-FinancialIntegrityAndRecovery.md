@@ -1,6 +1,6 @@
 # Financial Integrity, Reporting & Recovery
 
-**Status:** Queued — two ordered implementation shots approved 2026-07-16.
+**Status:** In progress — both shots are implemented and verified locally as of 2026-07-16; production sign-off is blocked on approved off-site retention, PITR/equivalent, hosted configuration and an isolated hosted restore.
 **Audit source:** Production-readiness audit completed 2026-07-15.
 **Recommended model / effort:** GPT Codex 5.6 Sol; Shot 1 `xhigh`, Shot 2 `high` (`xhigh` when an actual hosted restore drill is included).
 **Prompts:** [Shot 1](prompts/Codex-Financial-Integrity-Reports-OneShot.md) · [Shot 2](prompts/Codex-Data-Recovery-Migrations-OneShot.md)
@@ -298,6 +298,8 @@ Shot 2 is complete only when:
 - `Catalog.md`, `ImplementationState.md`, `CHANGELOG.md`, package version, and operational docs are updated in the implementation working tree;
 - no production restore, paid add-on, commit, or push was performed without the required human action.
 
+Current evidence (2026-07-16): clean bootstrap/seed/types/contracts pass, and an isolated local database/Auth/Storage restore passed with two-gym RLS, live representative sign-in routing, exact Storage hashes and Shot 1 reconciliation at measured RPO **0.00 minutes** / RTO **1.95 minutes**. The hosted/off-site/PITR portions remain an external approval dependency and are not represented as complete.
+
 ## 6. Cross-shot file ownership and sequencing
 
 Shot 1 may touch financial/membership/reporting UI, server routes, permissions, generated types, tests, and new forward migrations. Shot 2 owns bootstrap/seed, deployment verification, CI, backup scripts/runbook and restore evidence. Shot 2 may add a forward repair migration but must not redesign Shot 1's ledger contract.
@@ -314,4 +316,3 @@ Each implementing chat reports:
 - external operations performed or explicitly not performed;
 - remaining launch blockers;
 - working-tree state for the developer who will commit and deploy.
-

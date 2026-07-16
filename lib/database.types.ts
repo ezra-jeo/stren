@@ -118,7 +118,22 @@ export type Database = {
           id?: string
           member_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "checkins_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checkins_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       class_enrollments: {
         Row: {
@@ -148,6 +163,20 @@ export type Database = {
             columns: ["class_id"]
             isOneToOne: false
             referencedRelation: "classes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_enrollments_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "class_enrollments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -183,7 +212,22 @@ export type Database = {
           name?: string
           start_time?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "classes_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "classes_instructor_id_fkey"
+            columns: ["instructor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       feed_items: {
         Row: {
@@ -989,6 +1033,20 @@ export type Database = {
         }
         Relationships: [
           {
+            foreignKeyName: "payments_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payments_recorded_by_fkey"
             columns: ["recorded_by"]
             isOneToOne: false
@@ -1272,6 +1330,7 @@ export type Database = {
         }
         Returns: string
       }
+      deployment_contract_snapshot: { Args: never; Returns: Json }
       escape_ilike: { Args: { p_input: string }; Returns: string }
       financial_reconciliation: {
         Args: { p_from_date: string; p_to_date: string }
@@ -1511,6 +1570,8 @@ export type Database = {
         }[]
       }
       shares_active_gym: { Args: { p_user_id: string }; Returns: boolean }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       unsave_gym: { Args: { p_gym_id: string }; Returns: Json }
       verify_gym_membership: { Args: { p_gym_id: string }; Returns: Json }
       withdraw_membership_verification: {
