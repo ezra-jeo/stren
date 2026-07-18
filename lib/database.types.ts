@@ -390,6 +390,65 @@ export type Database = {
           },
         ]
       }
+      gym_claim_invites: {
+        Row: {
+          consent_method: string
+          consumed_at: string | null
+          created_at: string
+          created_by: string
+          delivery_status: string
+          expires_at: string
+          gym_id: string
+          id: string
+          invited_email: string
+          invited_name: string | null
+          invited_role: Database["public"]["Enums"]["user_role"]
+          superseded_at: string | null
+          token_hash: string
+          updated_at: string
+        }
+        Insert: {
+          consent_method: string
+          consumed_at?: string | null
+          created_at?: string
+          created_by: string
+          delivery_status?: string
+          expires_at: string
+          gym_id: string
+          id?: string
+          invited_email: string
+          invited_name?: string | null
+          invited_role?: Database["public"]["Enums"]["user_role"]
+          superseded_at?: string | null
+          token_hash: string
+          updated_at?: string
+        }
+        Update: {
+          consent_method?: string
+          consumed_at?: string | null
+          created_at?: string
+          created_by?: string
+          delivery_status?: string
+          expires_at?: string
+          gym_id?: string
+          id?: string
+          invited_email?: string
+          invited_name?: string | null
+          invited_role?: Database["public"]["Enums"]["user_role"]
+          superseded_at?: string | null
+          token_hash?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gym_claim_invites_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gym_feature_settings: {
         Row: {
           flags: Json
@@ -576,6 +635,7 @@ export type Database = {
           address: string | null
           amenities: string[] | null
           brand_color: string | null
+          branch_name: string | null
           code: string
           cover_focal: Json
           cover_path: string | null
@@ -602,6 +662,7 @@ export type Database = {
           address?: string | null
           amenities?: string[] | null
           brand_color?: string | null
+          branch_name?: string | null
           code: string
           cover_focal?: Json
           cover_path?: string | null
@@ -628,6 +689,7 @@ export type Database = {
           address?: string | null
           amenities?: string[] | null
           brand_color?: string | null
+          branch_name?: string | null
           code?: string
           cover_focal?: Json
           cover_path?: string | null
@@ -1055,6 +1117,41 @@ export type Database = {
           },
         ]
       }
+      platform_onboarding_events: {
+        Row: {
+          actor: string
+          created_at: string
+          detail: Json
+          event_type: string
+          gym_id: string | null
+          id: string
+        }
+        Insert: {
+          actor: string
+          created_at?: string
+          detail?: Json
+          event_type: string
+          gym_id?: string | null
+          id?: string
+        }
+        Update: {
+          actor?: string
+          created_at?: string
+          detail?: Json
+          event_type?: string
+          gym_id?: string | null
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_onboarding_events_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           active_gym_id: string | null
@@ -1164,6 +1261,38 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "membership_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provisioning_runs: {
+        Row: {
+          created_at: string
+          created_by: string
+          gym_id: string | null
+          idempotency_key: string
+          result: Json
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          gym_id?: string | null
+          idempotency_key: string
+          result: Json
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          gym_id?: string | null
+          idempotency_key?: string
+          result?: Json
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provisioning_runs_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
             referencedColumns: ["id"]
           },
         ]
@@ -1291,6 +1420,7 @@ export type Database = {
           address: string | null
           amenities: string[] | null
           brand_color: string | null
+          branch_name: string | null
           code: string
           cover_focal: Json
           cover_path: string | null
@@ -1319,6 +1449,26 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      claim_gym_ownership: {
+        Args: { p_token_hash: string }
+        Returns: Json
+      }
+      get_claim_invite_preview: {
+        Args: { p_token_hash: string }
+        Returns: Json
+      }
+      mark_claim_invite_delivery: {
+        Args: { p_gym_id: string; p_status: string; p_token_hash: string }
+        Returns: undefined
+      }
+      provision_gym_workspace: {
+        Args: { p_idempotency_key: string; p_payload: Json; p_token_hash: string }
+        Returns: Json
+      }
+      supersede_claim_invite: {
+        Args: { p_expires_at: string; p_gym_id: string; p_new_token_hash: string }
+        Returns: Json
       }
       create_member_notification: {
         Args: {

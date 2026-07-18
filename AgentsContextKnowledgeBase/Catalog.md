@@ -9,20 +9,22 @@
 1. **This file** — orientation + your update obligations.
 2. [AboutProject.md](AboutProject.md) — what Stren is, mission, north star, product principles. Read once per session; internalize before making any product-facing decision.
 3. [ImplementationState.md](ImplementationState.md) — what is shipped, in progress, and queued. Check before starting anything so you don't redo or collide.
-4. [ImplementationPlan-FinancialIntegrityAndRecovery.md](ImplementationPlan-FinancialIntegrityAndRecovery.md) — the active two-shot contract for the immutable financial ledger, reporting, migrations, backups, and restore verification.
-5. [ImplementationPlan-AccountSessionRecovery.md](ImplementationPlan-AccountSessionRecovery.md) — the latest completed corrective contract for confirmed-session routing, fail-closed gym access, and profile recovery.
-6. [../CLAUDE.md](../CLAUDE.md) — coding conventions, commands, test policy, branch rules. **Applies to ALL agents, not just Claude.**
-7. [../CONTEXT.md](../CONTEXT.md) — the project vocabulary. Use these terms exactly; they are canonical.
+4. [ImplementationPlan-AssistedOnboarding.md](ImplementationPlan-AssistedOnboarding.md) — the planned superadmin Assisted Onboarding wizard (operator-provisioned gyms + owner claim invitations); active on branch `super-admin`.
+5. [ImplementationPlan-FinancialIntegrityAndRecovery.md](ImplementationPlan-FinancialIntegrityAndRecovery.md) — the active two-shot contract for the immutable financial ledger, reporting, migrations, backups, and restore verification.
+6. [ImplementationPlan-AccountSessionRecovery.md](ImplementationPlan-AccountSessionRecovery.md) — the latest completed corrective contract for confirmed-session routing, fail-closed gym access, and profile recovery.
+7. [../CLAUDE.md](../CLAUDE.md) — coding conventions, commands, test policy, branch rules. **Applies to ALL agents, not just Claude.**
+8. [../CONTEXT.md](../CONTEXT.md) — the project vocabulary. Use these terms exactly; they are canonical.
 
 ---
 
 ## Core documents (this folder)
 
-Active implementation plan: [ImplementationPlan-FinancialIntegrityAndRecovery.md](ImplementationPlan-FinancialIntegrityAndRecovery.md).
+Active implementation plan: [ImplementationPlan-AssistedOnboarding.md](ImplementationPlan-AssistedOnboarding.md) (branch `super-admin`); [ImplementationPlan-FinancialIntegrityAndRecovery.md](ImplementationPlan-FinancialIntegrityAndRecovery.md) remains in progress (Shot 2 blocked on external production sign-off).
 
 | File | What it is | Who updates it | Update trigger |
 |---|---|---|---|
 | `Catalog.md` | This index + the maintenance rules | Any agent | Any doc is added, moved, renamed, or goes stale |
+| `ImplementationPlan-AssistedOnboarding.md` | **Planned workstream** (branch `super-admin`): internal `/superadmin/onboarding/new` operator wizard — platform-admin-gated gym provisioning, four-step setup, live previews, atomic/idempotent provisioning, secure 24-hour single-use owner-claim invitations | Planning/implementing agent | Scope/decision changes |
 | `ImplementationPlan-FinancialIntegrityAndRecovery.md` | **Active workstream**: two ordered shots for the immutable financial ledger/reporting and production migration/backup/restore resilience | Implementing agents | Scope, sequencing, financial contract, or recovery-gate changes |
 | `ImplementationPlan-GoogleOAuth.md` | In-progress supporting workstream: Google OAuth application contract, hosted Auth configuration, and verification | Implementing agent | Scope/configuration changes |
 | `ImplementationPlan-AccountSessionRecovery.md` | **Latest completed plan**: browser-session post-auth routing and fail-closed account/profile recovery | Implementing agent | Scope/decision changes |

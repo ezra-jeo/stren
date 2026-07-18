@@ -356,6 +356,33 @@ body[data-navigation-kind='public-auth'] .public-route-frame { opacity: .78; tra
   body[data-navigation-kind='public-auth'] .public-route-frame { opacity: 1; transform: none; }
   .stren-bootstrap-progress span { width: 100%; opacity: .55; transform: none; }
   video[autoplay] { display: none; }
+  .onboarding-step-enter, .onboarding-preview-crossfade, .onboarding-timeline-progress, .onboarding-check-pop {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
 }
+
+/* Assisted Onboarding (superadmin) — subtle, functional motion only. */
+@keyframes onboarding-step-enter-kf {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.onboarding-step-enter { animation: onboarding-step-enter-kf 180ms ease-out; }
+
+@keyframes onboarding-preview-crossfade-kf {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+.onboarding-preview-crossfade { animation: onboarding-preview-crossfade-kf 200ms ease-out; }
+
+.onboarding-timeline-progress { transition: width 200ms ease-out; }
+
+@keyframes onboarding-check-pop-kf {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.08); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.onboarding-check-pop { animation: onboarding-check-pop-kf 180ms ease-out; }
 
 

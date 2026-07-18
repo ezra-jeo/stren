@@ -4,6 +4,13 @@ import { permissionForPath, type PermissionKey } from '@/lib/permissions';
 import { choosePostAuthDestination } from '@/lib/post-auth-destination';
 import type { MyGym } from '@/lib/types';
 
+// Mirrors lib/platform-admin.ts's isPlatformAdminUser(). Inlined (not
+// imported) because that module pulls in next/headers via supabase-server,
+// which is unsafe to bundle into the Edge middleware runtime.
+export function isPlatformAdminUser(user: { app_metadata?: Record<string, unknown> } | null): boolean {
+  return user?.app_metadata?.platform_role === 'platform_admin';
+}
+
 function authPath(url: URL, mode: 'signin' | 'signup', gymCode?: string): string {
   const params = new URLSearchParams(url.search);
   params.set('mode', mode);
@@ -76,7 +83,7 @@ export async function middleware(request: NextRequest) {
   const finish = (next: NextResponse) => securityHeaders(next, pathname);
   if (pathname.startsWith('/api')) return finish(response);
 
-  const isPublic = pathname === '/' || pathname.startsWith('/landing') || pathname === '/auth/callback' || pathname === '/auth/confirm' || pathname === '/reset-password' || pathname === '/for-gym-owners' || (/^\/gym\/[^/]+(?:\/.*)?$/.test(pathname));
+  const isPublic = pathname === '/' || pathname.startsWith('/landing') || pathname === '/auth/callback' || pathname === '/auth/confirm' || pathname === '/reset-password' || pathname === '/for-gym-owners' || pathname === '/claim' || pathname.startsWith('/claim/') || (/^\/gym\/[^/]+(?:\/.*)?$/.test(pathname));
   if (isPublic) return finish(response);
 
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
@@ -117,6 +124,11 @@ export async function middleware(request: NextRequest) {
       if (activationError) return finish(NextResponse.redirect(new URL('/gyms?account_error=access', request.url)));
     }
     return finish(NextResponse.redirect(new URL(destination.path, request.url)));
+  }
+
+  if (pathname.startsWith('/superadmin')) {
+    if (!isPlatformAdminUser(user)) return finish(NextResponse.redirect(new URL('/gyms', request.url)));
+    return finish(response);
   }
 
   if (isDemoMemberPath(pathname)) {

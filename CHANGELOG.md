@@ -8,6 +8,19 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Assisted Onboarding — internal operator wizard (branch `super-admin`)
+
+#### Added
+- `/superadmin/onboarding/new`: an internal, platform-admin-gated wizard (reuses migration 020's `app_metadata.platform_role` — no new database role) that provisions a gym, its owner and staff, membership plans, operating hours, access switches, and an optional CSV member import in one atomic, idempotent server action, then sends the owner a secure 24-hour single-use claim invitation.
+- Migration `027_assisted_onboarding.sql`: `gym_claim_invites` (hashed token, one active invite per gym), `provisioning_runs` (idempotency replay), `platform_onboarding_events` (audit trail), `gyms.branch_name`, the `provision_gym_workspace` / `claim_gym_ownership` / `supersede_claim_invite` / `mark_claim_invite_delivery` / `get_claim_invite_preview` RPCs, and four new feature-toggle keys (`auto_approve_joins`, `staff_manual_checkin`, `checkin_requires_membership`, `occupancy_count`) with additive enforcement in the existing join/kiosk RPCs.
+- Public `/claim/[token]` page and `/api/claim/accept`: sign-in-or-create-account, explicit "Claim ownership of `<GymName>`" confirmation, and distinct expired/used/superseded/wrong-email states.
+- `/api/superadmin/onboarding/{slug-check,email-check,provision,resend-invite}` and three live wizard previews (owner dashboard, invite-QR poster, member experience) that update instantly from in-session wizard state — no static placeholder gym data.
+- 117 new focused tests (SQL contracts, authorization matrix, wizard steps, CSV import, provisioning idempotency/rollback-adjacent paths, claim lifecycle) alongside the complete existing suite.
+
+#### Notes
+- Migration 027 is prepared locally and was not applied to any database — this environment has no Docker/local Supabase, so it is verified by static SQL-contract tests and manual review against the deployed schema (019/020/023/025/026), not a live `db:reset`. Playwright E2E was not run (no platform-admin credential fixture). After signing in from `/claim/[token]`, the shared post-auth router does not return the visitor to the claim page — a known, documented gap, not fixed here to avoid touching the shared auth router.
+- `npm run lint`, `npx tsc --noEmit`, the complete unit/integration suite (**574/574**), and a production build all pass. No commits, pushes, or hosted changes were made; all work is staged in the working tree on `super-admin` for developer review.
+
 ### Data Recovery, Backup & Deployment Parity
 
 #### Added
