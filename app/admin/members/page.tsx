@@ -180,11 +180,7 @@ export default function MembersPage() {
 
     try {
       const memberQueries = Promise.all([
-        supabase
-          .from("gym_users")
-          .select("user_id, status, profiles!gym_users_user_id_fkey(id, name, email, contact_number, created_at)")
-          .eq("role", "member")
-          .eq("gym_id", gymId),
+        supabase.rpc("get_gym_member_directory"),
         supabase
           .from("memberships")
           .select("id, member_id, start_date, end_date, status, created_at, membership_plans!memberships_plan_id_fkey(name)")
@@ -209,16 +205,16 @@ export default function MembersPage() {
         if (!membershipMap.has(m.member_id)) membershipMap.set(m.member_id, m)
       }
 
-      const nextMembers: MemberRow[] = (profilesData ?? []).flatMap((gymUser) => {
-          const p = gymUser.profiles as unknown as { id: string; name: string; email: string; contact_number: string | null; created_at: string | null } | null
-          if (!p) return []
-          const m = membershipMap.get(p.id)
+      const nextMembers: MemberRow[] = (profilesData ?? []).flatMap((directoryEntry) => {
+          const p = directoryEntry as unknown as { user_id: string; name: string; email: string; contact_number: string | null; created_at: string | null; status: string }
+          if (!p.user_id) return []
+          const m = membershipMap.get(p.user_id)
           return {
-            profile_id: p.id,
+            profile_id: p.user_id,
             name: p.name,
             email: p.email,
             contact_number: p.contact_number,
-            profile_status: gymUser.status === "pending" ? "pending" : gymUser.status === "rejected" ? "rejected" : "active",
+            profile_status: p.status === "pending" ? "pending" : p.status === "rejected" ? "rejected" : p.status === "active" ? "active" : "rejected",
             membership_id: m?.id ?? null,
             plan_name: m ? ((m.membership_plans as unknown as { name: string })?.name ?? "Unknown") : null,
             start_date: m?.start_date ?? null,
@@ -335,7 +331,11 @@ export default function MembersPage() {
 
   async function handleProfileStatusChange(memberId: string, status: "active" | "rejected") {
     if (!activeScope) return
-    const { error } = await supabase.from("gym_users").update({ status }).eq("gym_id", activeScope.gymId).eq("user_id", memberId)
+    const { error } = await supabase.rpc("set_gym_user_status", {
+      p_user_id: memberId,
+      p_status: status === "active" ? "active" : "disabled",
+      p_reason: status === "active" ? "Member access restored by manager" : "Member access disabled by manager",
+    })
     if (error) {
       toast.error(status === "rejected" ? "Failed to ban member" : "Failed to unban member")
       return

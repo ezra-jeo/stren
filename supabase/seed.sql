@@ -168,16 +168,15 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.member_onboarding_events (
-  id, member_id, gym_id, created_by, email, qr_code, sent_via, magic_link_url
+  id, member_id, gym_id, created_by, email, sent_via, delivery_status
 ) VALUES (
   '50000000-0000-0000-0000-000000000001',
   'aaaaaaaa-0001-0001-0001-000000000004',
   '10000000-0000-0000-0000-000000000001',
   'aaaaaaaa-0001-0001-0001-000000000001',
   'member@ironworks.test',
-  'development-only-qr',
   'preview',
-  NULL
+  'not_attempted'
 )
 ON CONFLICT (id) DO NOTHING;
 

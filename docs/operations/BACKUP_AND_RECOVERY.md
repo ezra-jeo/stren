@@ -68,7 +68,7 @@ Before approval to apply:
 1. Confirm a fresh local `npm run db:reset:clean`, `npm run db:types:check`, and `npm run db:invariants` pass.
 2. Record non-sensitive source counts and financial reconciliation.
 3. Confirm a fresh database/Storage backup and acceptable latest recovery point.
-4. Confirm the application revision expects migration 026 and no seed option is present.
+4. Confirm the application revision expects migration 027 and no seed option is present.
 
 ### Apply and post-apply
 

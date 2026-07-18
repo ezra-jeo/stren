@@ -110,13 +110,14 @@ export default function PaymentsPage() {
       return
     }
 
-    const { data: gymUsers } = await supabase
-      .from("gym_users")
-      .select("profiles!gym_users_user_id_fkey(id, name, contact_number)")
-      .eq("gym_id", profile?.gymId ?? "")
-      .eq("role", "member")
-      .eq("status", "active")
-    setMemberOptions((gymUsers ?? []).flatMap((row) => row.profiles ? [row.profiles as MemberOption] : []))
+    const { data: gymUsers } = await supabase.rpc("get_gym_member_directory")
+    setMemberOptions((gymUsers ?? [])
+      .filter((row) => row.status === "active")
+      .map((row) => ({
+        id: row.user_id,
+        name: row.name,
+        contact_number: row.contact_number,
+      })))
 
     const { data: plans } = await supabase
       .from("membership_plans")

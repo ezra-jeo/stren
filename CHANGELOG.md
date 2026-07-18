@@ -8,6 +8,35 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Production Security & Tenant Closure — Shot A
+
+#### Added
+- Migration `027_production_security_tenant_closure.sql` replaces broad profile sharing with self-only base rows plus narrow active-gym directory RPCs, separates member status from owner-only role assignment, and enforces non-delegable authority with immediate stale-session invalidation.
+- Attendance now has a composite gym/member foreign key, ordered timestamps, attributable sources/corrections, one-open-session uniqueness, trusted active-gym-pinned RPCs, and quarantine preservation for historical rows that cannot satisfy the new invariants.
+- Membership verification now uses explicit pending/approved/rejected/withdrawn/expired state, authorized terminal-state decisions, deferred consistency checks, and immutable decision evidence.
+- Added resumable onboarding workflows with permission/business preflight, idempotent account attachment and payment completion, safe stage/delivery failures, terminal-affiliation refusal, and an append-only tenant-isolated privileged audit contract for role/status, verification, attendance, onboarding, plan, and membership changes.
+- Added executable two-gym PostgreSQL behavior coverage and real parallel-session attendance coverage, wired through `npm run db:test:security` and the local database invariant gate.
+
+#### Changed
+- Member and staff onboarding deliver setup links server-side and return only non-secret delivery state; manager responses, database events, UI, and shared profile reads no longer expose magic URLs, token hashes, QR secrets, or reusable credentials.
+- Admin member/payment/feed/dashboard and engagement call sites now consume secured directory, status, attendance, and onboarding RPCs instead of broad profile joins or direct privileged table writes.
+- Deployment parity now requires migration 027's functions, policies, least-privilege grants, constraints, triggers, and audit/onboarding tables; generated database types match the clean local schema. Package version is `2.5.0`.
+
+#### Verification
+- `npm run db:reset:clean`, `npm run db:test:security`, `node scripts/check-local-deployment-contract.mjs`, and `npm run db:types:check` pass against local Supabase/PostgreSQL. The security suite proves role surfaces, active-gym switching, private payment/attendance isolation, direct-write denial, cross-gym physical-key rejection, verification terminal states, immutable tenant audit, and rollback/resumption across every onboarding stage.
+- Complete unit/integration coverage passes (**440/440 tests**), with `npm run lint`, `npm run typecheck`, and `npm run build` green. Three targeted Chromium landing checks passed their assertions; Playwright's local development server remained alive until the shell timeout because external Google Font downloads were unavailable, and the full suite also retained the pre-existing auth-mode URL assertion failure.
+- No hosted migration, production mutation, real email, paid infrastructure change, restore, commit, push, merge, rebase, or tag was performed. Shot B and all hosted recovery/production gates remain explicitly open.
+
+### Production Security & Financial Closure Planning
+
+#### Added
+- Added the active two-shot closure plan for the unresolved post-ledger audit findings: tenant/profile isolation, non-delegable roles, attendance tenant consistency, verification/onboarding credential safety, privileged audit, legacy-payment lockdown, complete idempotency, membership date/report parity, database/CI enforcement, deployment drift detection, and recovery evidence.
+- Added paste-ready sequential implementation prompts for the security/tenant shot and the financial/reporting/recovery shot, plus an independent production-gate review prompt and temporary cross-task handoff.
+
+#### Changed
+- The initial Financial Integrity and Recovery plan is retained as the architecture/implementation record for commits `27a1113` and `b6e8f2f`; the new closure plan now owns the active launch gate.
+- Live status now records that Stren remains limited to synthetic internal testing until the Critical/High findings are fixed, independently reproduced as closed, and the external hosted recovery evidence is approved and completed.
+
 ### Data Recovery, Backup & Deployment Parity
 
 #### Added

@@ -1,6 +1,6 @@
 # Financial Integrity, Reporting & Recovery
 
-**Status:** In progress — both shots are implemented and verified locally as of 2026-07-16; production sign-off is blocked on approved off-site retention, PITR/equivalent, hosted configuration and an isolated hosted restore.
+**Status:** Initial shots committed (`27a1113`, `b6e8f2f`) on 2026-07-16. Superseded as the active workstream by [Production Security & Financial Closure](ImplementationPlan-ProductionSecurityAndFinancialClosure.md) after the post-implementation audit found unresolved production blockers. This document remains the ledger/recovery architecture and implementation record.
 **Audit source:** Production-readiness audit completed 2026-07-15.
 **Recommended model / effort:** GPT Codex 5.6 Sol; Shot 1 `xhigh`, Shot 2 `high` (`xhigh` when an actual hosted restore drill is included).
 **Prompts:** [Shot 1](prompts/Codex-Financial-Integrity-Reports-OneShot.md) · [Shot 2](prompts/Codex-Data-Recovery-Migrations-OneShot.md)

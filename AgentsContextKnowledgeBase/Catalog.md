@@ -9,21 +9,23 @@
 1. **This file** — orientation + your update obligations.
 2. [AboutProject.md](AboutProject.md) — what Stren is, mission, north star, product principles. Read once per session; internalize before making any product-facing decision.
 3. [ImplementationState.md](ImplementationState.md) — what is shipped, in progress, and queued. Check before starting anything so you don't redo or collide.
-4. [ImplementationPlan-FinancialIntegrityAndRecovery.md](ImplementationPlan-FinancialIntegrityAndRecovery.md) — the active two-shot contract for the immutable financial ledger, reporting, migrations, backups, and restore verification.
-5. [ImplementationPlan-AccountSessionRecovery.md](ImplementationPlan-AccountSessionRecovery.md) — the latest completed corrective contract for confirmed-session routing, fail-closed gym access, and profile recovery.
-6. [../CLAUDE.md](../CLAUDE.md) — coding conventions, commands, test policy, branch rules. **Applies to ALL agents, not just Claude.**
-7. [../CONTEXT.md](../CONTEXT.md) — the project vocabulary. Use these terms exactly; they are canonical.
+4. [ImplementationPlan-ProductionSecurityAndFinancialClosure.md](ImplementationPlan-ProductionSecurityAndFinancialClosure.md) — the active two-shot closure contract for tenant security, privileged writes, financial/reporting correctness, database enforcement, and production recovery evidence.
+5. [ImplementationPlan-FinancialIntegrityAndRecovery.md](ImplementationPlan-FinancialIntegrityAndRecovery.md) — the implementation record and architecture contract for the initial ledger/reporting and recovery shots.
+6. [ImplementationPlan-AccountSessionRecovery.md](ImplementationPlan-AccountSessionRecovery.md) — the latest completed corrective contract for confirmed-session routing, fail-closed gym access, and profile recovery.
+7. [../CLAUDE.md](../CLAUDE.md) — coding conventions, commands, test policy, branch rules. **Applies to ALL agents, not just Claude.**
+8. [../CONTEXT.md](../CONTEXT.md) — the project vocabulary. Use these terms exactly; they are canonical.
 
 ---
 
 ## Core documents (this folder)
 
-Active implementation plan: [ImplementationPlan-FinancialIntegrityAndRecovery.md](ImplementationPlan-FinancialIntegrityAndRecovery.md).
+Active implementation plan: [ImplementationPlan-ProductionSecurityAndFinancialClosure.md](ImplementationPlan-ProductionSecurityAndFinancialClosure.md).
 
 | File | What it is | Who updates it | Update trigger |
 |---|---|---|---|
 | `Catalog.md` | This index + the maintenance rules | Any agent | Any doc is added, moved, renamed, or goes stale |
-| `ImplementationPlan-FinancialIntegrityAndRecovery.md` | **Active workstream**: two ordered shots for the immutable financial ledger/reporting and production migration/backup/restore resilience | Implementing agents | Scope, sequencing, financial contract, or recovery-gate changes |
+| `ImplementationPlan-ProductionSecurityAndFinancialClosure.md` | **Active workstream**: two ordered closure shots for tenant/authorization safety followed by financial/reporting/database/recovery correctness | Implementing and reviewing agents | Finding status, sequencing, closure evidence, or launch-gate changes |
+| `ImplementationPlan-FinancialIntegrityAndRecovery.md` | Initial financial-ledger/reporting and recovery implementation record; its unresolved production gate is carried by the active closure plan | Implementing agents | Underlying financial architecture or recovery-contract changes |
 | `ImplementationPlan-GoogleOAuth.md` | In-progress supporting workstream: Google OAuth application contract, hosted Auth configuration, and verification | Implementing agent | Scope/configuration changes |
 | `ImplementationPlan-AccountSessionRecovery.md` | **Latest completed plan**: browser-session post-auth routing and fail-closed account/profile recovery | Implementing agent | Scope/decision changes |
 | `ImplementationPlan-MemberOnboardingRecovery.md` | **Latest completed plan**: bounded auth completion, secure recovery, useful no-gym home, saved gyms, membership verification | Implementing agent | Scope/decision changes |
@@ -32,7 +34,10 @@ Active implementation plan: [ImplementationPlan-FinancialIntegrityAndRecovery.md
 | `ImplementationPlan-UnifiedAccounts.md` | Completed plan: Unified Accounts & Auth Rebuild (shipped to `main` 2026-07-13 via `f04fb2f`) | — | Historical; do not extend |
 | `ImplementationPlan.md` | Completed plan: Gym Page Studio + permissions & feature toggles (shipped to `main` 2026-07-11; kept per rule 6) | — | Historical; do not extend |
 | `ImplementationState.md` | Live status of every phase and work unit | **The agent that ships the work, in the same PR** | Every merged PR |
-| `prompts/` | Packaged, paste-ready prompts for implementation agents, including the two financial-integrity/recovery shots | Planning agent | When an active plan's implementation prompts change |
+| `prompts/` | Packaged, paste-ready prompts for implementation and independent review agents | Planning agent | When an active plan's implementation/review prompts change |
+| `prompts/Codex-Production-Security-Tenant-Closure-OneShot.md` | Paste-ready Shot A prompt: profile privacy, role hierarchy, tenant-safe attendance, verification, onboarding credentials, and privileged audit | Planning/implementing agent | Shot A scope or verification changes |
+| `prompts/Codex-Financial-Reporting-Recovery-Closure-OneShot.md` | Paste-ready Shot B prompt: legacy-payment closure, idempotency, dates/status, reports, CI/database constraints, deployment and recovery evidence | Planning/implementing agent | Shot B scope or verification changes |
+| `prompts/Codex-Production-Readiness-Oversight.md` | Paste-ready independent audit prompt used after both closure shots are committed | Planning/reviewing agent | Audit method, evidence requirements, or launch labels change |
 | `prompts/Codex-Financial-Integrity-Reports-OneShot.md` | Paste-ready Shot 1 prompt: ledger, atomic/idempotent money path, discounts, reporting and reconciliation | Planning/implementing agent | Shot 1 scope or verification changes |
 | `prompts/Codex-Data-Recovery-Migrations-OneShot.md` | Paste-ready Shot 2 prompt: fresh migrations, deployment parity, backups and isolated restore | Planning/implementing agent | Shot 2 scope or recovery gates change |
 

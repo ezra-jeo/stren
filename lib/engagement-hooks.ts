@@ -46,27 +46,23 @@ export async function handleScan(memberId: string): Promise<CheckInResult> {
   }
 
   // Check for an open session (checked in but not out)
-  const { data: openSession } = await supabase
-    .from("attendance")
-    .select("*")
-    .eq("member_id", memberId)
-    .is("check_out", null)
-    .order("check_in", { ascending: false })
-    .limit(1)
-    .maybeSingle()
+  if (!gymId) throw new Error("No active gym is available for check-in")
+  const { data: toggle, error: toggleError } = await supabase.rpc("kiosk_checkin_by_member", {
+    p_member_id: memberId,
+    p_gym_id: gymId,
+  })
+  const toggleResult = toggle as {
+    action?: string
+    attendance_id?: string
+    duration_min?: number | null
+    message?: string
+  } | null
+  if (toggleError || !toggleResult?.attendance_id || !toggleResult.action) {
+    throw new Error(toggleResult?.message ?? toggleError?.message ?? "Failed to record attendance")
+  }
 
-  if (!openSession) {
+  if (toggleResult.action === "checked_in") {
     // ── CHECK IN ──
-    const { data: attendance, error } = await supabase
-      .from("attendance")
-      .insert({ member_id: memberId, gym_id: gymId })
-      .select()
-      .maybeSingle()
-
-    if (error || !attendance) {
-      throw new Error("Failed to check in: " + error?.message)
-    }
-
     // Run engagement hooks in parallel
     const streakPromise = updateStreak(memberId, gymId)
     const feedPromise = memberFeedEnabled
@@ -85,44 +81,26 @@ export async function handleScan(memberId: string): Promise<CheckInResult> {
 
     return {
       status: "checked_in",
-      attendanceId: attendance.id,
+      attendanceId: toggleResult.attendance_id,
       streak: streakResult,
       durationMin: null,
     }
   } else {
     // ── CHECK OUT ──
-    const now = new Date().toISOString()
-    const { data: updated, error } = await supabase
-      .from("attendance")
-      .update({ check_out: now })
-      .eq("id", openSession.id)
-      .select()
-      .maybeSingle()
-
-    if (error || !updated) {
-      throw new Error("Failed to check out: " + error?.message)
-    }
-
-    const checkInTime = new Date(openSession.check_in ?? "").getTime()
-    const checkOutTime = new Date(now).getTime()
-    const durationMin = Math.round((checkOutTime - checkInTime) / 60000)
-
     return {
       status: "checked_out",
-      attendanceId: openSession.id,
+      attendanceId: toggleResult.attendance_id,
       streak: null,
-      durationMin,
+      durationMin: toggleResult.duration_min ?? null,
     }
   }
 }
 
 async function postCheckInFeedItem(memberId: string, gymId: string | null) {
   if (!gymId) return
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name")
-    .eq("id", memberId)
-    .maybeSingle()
+  const { data: directory } = await supabase.rpc("get_gym_directory")
+  const profile = (directory as { user_id?: string; name?: string }[] | null)
+    ?.find((entry) => entry.user_id === memberId)
 
   const { data: streak } = await supabase
     .from("streaks")
@@ -158,11 +136,9 @@ async function postStreakMilestoneFeedItem(
   gymId: string | null,
   streak: number
 ) {
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("name")
-    .eq("id", memberId)
-    .maybeSingle()
+  const { data: directory } = await supabase.rpc("get_gym_directory")
+  const profile = (directory as { user_id?: string; name?: string }[] | null)
+    ?.find((entry) => entry.user_id === memberId)
 
   await supabase.from("feed_items").insert({
     member_id: memberId,

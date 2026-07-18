@@ -1,9 +1,8 @@
 "use client"
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import QRCode from "qrcode"
 import { toast } from "sonner"
-import { Camera, CheckCircle2, Copy, RotateCcw, Upload } from "lucide-react"
+import { Camera, CheckCircle2, RotateCcw, Upload } from "lucide-react"
 import { useAuth } from "@/lib/auth-context"
 import { createClient } from "@/lib/supabase"
 import { A, ChoicePicker, GhostBtn, Modal, PrimaryBtn, SummaryBox } from "@/lib/admin-ui"
@@ -18,11 +17,8 @@ interface PlanOption {
 interface OnboardResponse {
   memberId: string
   membershipId: string
-  qrCode: string
-  magicLink: string | null
-  redirectTo?: string
+  deliveryStatus: "sent" | "failed"
   emailSent?: boolean
-  emailError?: string
 }
 
 type Step = "details" | "photo" | "confirm" | "done"
@@ -96,7 +92,6 @@ export function OnboardMemberModal({ open, onClose, onSuccess }: Props) {
   const [cameraActive, setCameraActive] = useState(false)
   const [cameraError, setCameraError] = useState("")
   const [result, setResult] = useState<OnboardResponse | null>(null)
-  const [resultQrDataUrl, setResultQrDataUrl] = useState("")
   const [submitError, setSubmitError] = useState("")
 
   const selectedPlan = useMemo(() => plans.find((plan) => plan.id === form.planId) ?? null, [form.planId, plans])
@@ -111,7 +106,6 @@ export function OnboardMemberModal({ open, onClose, onSuccess }: Props) {
     setCameraActive(false)
     setCameraError("")
     setResult(null)
-    setResultQrDataUrl("")
     setSubmitError("")
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
@@ -177,26 +171,6 @@ export function OnboardMemberModal({ open, onClose, onSuccess }: Props) {
       void stopCamera()
     }
   }, [loadPlans, open, resetDraft, stopCamera])
-
-  useEffect(() => {
-    if (!result?.qrCode) {
-      setResultQrDataUrl("")
-      return
-    }
-
-    let active = true
-    void QRCode.toDataURL(result.qrCode, {
-      width: 220,
-      margin: 2,
-      color: { dark: "#2C2C2C", light: "#FFFFFF" },
-    }).then((dataUrl) => {
-      if (active) setResultQrDataUrl(dataUrl)
-    })
-
-    return () => {
-      active = false
-    }
-  }, [result?.qrCode])
 
   useEffect(() => {
     return () => {
@@ -394,22 +368,15 @@ export function OnboardMemberModal({ open, onClose, onSuccess }: Props) {
       const nextResult: OnboardResponse = {
         memberId: data.memberId ?? "",
         membershipId: data.membershipId ?? "",
-        qrCode: data.qrCode ?? "",
-        magicLink: data.magicLink ?? null,
-        redirectTo: typeof data.redirectTo === "string" ? data.redirectTo : undefined,
+        deliveryStatus: data.deliveryStatus === "sent" ? "sent" : "failed",
         emailSent: data.emailSent,
-        emailError: data.emailError,
       }
 
       setResult(nextResult)
       setStep("done")
       onSuccess()
 
-      if (nextResult.qrCode) {
-        // Result QR is rendered in the done step.
-      }
-
-      if (nextResult.emailError) {
+      if (nextResult.deliveryStatus === "failed") {
         toast.warning("Member onboarded, but email delivery failed")
       } else {
         toast.success("Member onboarded successfully")
@@ -421,28 +388,6 @@ export function OnboardMemberModal({ open, onClose, onSuccess }: Props) {
     } finally {
       setSubmitting(false)
     }
-  }
-
-  function copyText(text: string, successMessage: string) {
-    void (async () => {
-      try {
-        if (navigator.clipboard?.writeText) {
-          await navigator.clipboard.writeText(text)
-        } else {
-          const input = document.createElement("textarea")
-          input.value = text
-          input.style.position = "fixed"
-          input.style.opacity = "0"
-          document.body.appendChild(input)
-          input.select()
-          document.execCommand("copy")
-          document.body.removeChild(input)
-        }
-        toast.success(successMessage)
-      } catch {
-        toast.error("Failed to copy text")
-      }
-    })()
   }
 
   const selectedPlanLabel = selectedPlan
@@ -726,63 +671,18 @@ export function OnboardMemberModal({ open, onClose, onSuccess }: Props) {
               <p className="text-sm font-semibold" style={{ color: A.text }}>Member Onboarded</p>
             </div>
 
-            {resultQrDataUrl ? (
-              <div className="rounded-lg bg-white p-3 inline-block">
-                <img src={resultQrDataUrl} alt="Member QR code" className="h-44 w-44" />
-              </div>
-            ) : (
-              <p className="text-xs" style={{ color: A.muted }}>QR preview not available.</p>
-            )}
-
             <SummaryBox
               rows={[
                 { label: "Member ID", value: result.memberId || "-" },
                 { label: "Membership ID", value: result.membershipId || "-" },
-                { label: "Email Delivery", value: result.emailError ? "Failed (manual share needed)" : "Sent" },
+                { label: "Email Delivery", value: result.deliveryStatus === "sent" ? "Sent securely" : "Failed — retry available" },
               ]}
             />
 
-            {result.emailError && (
+            {result.deliveryStatus === "failed" && (
               <p className="text-xs" style={{ color: "var(--admin-expired-text)" }}>
-                {result.emailError}
+                The membership is active, but the welcome email was not delivered. Retry this onboarding request with the same details to resend it without duplicating payment or access.
               </p>
-            )}
-
-            {result.magicLink && (
-              <div>
-                <p className="mb-1 text-xs font-medium" style={{ color: A.muted }}>Magic Link (fallback copy)</p>
-                <div className="flex items-center gap-2">
-                  <input
-                    readOnly
-                    value={result.magicLink}
-                    className="w-full rounded-lg px-3 py-2 text-xs outline-none"
-                    style={{ backgroundColor: "#fff", border: `1px solid ${A.border}`, color: A.text }}
-                    onFocus={(e) => e.currentTarget.select()}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => copyText(result.magicLink ?? "", "Magic link copied")}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-2 text-xs font-medium"
-                    style={{ color: A.primary, border: `1px solid ${A.border}` }}
-                  >
-                    <Copy className="h-3 w-3" />
-                    Copy
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {result.redirectTo && (
-              <div>
-                <p className="mb-1 text-xs font-medium" style={{ color: A.muted }}>Magic Link Redirect Target</p>
-                <input
-                  readOnly
-                  value={result.redirectTo}
-                  className="w-full rounded-lg px-3 py-2 text-xs outline-none"
-                  style={{ backgroundColor: "#fff", border: `1px solid ${A.border}`, color: A.text }}
-                  onFocus={(e) => e.currentTarget.select()}
-                />
-              </div>
             )}
 
             <div className="flex items-center justify-between gap-2 pt-1">

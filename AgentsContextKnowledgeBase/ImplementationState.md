@@ -2,18 +2,36 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-16 (**Financial Integrity, Reporting & Recovery Shots 1 and 2 are implemented and verified locally in the unshipped working tree, including a successful isolated database/Auth/Storage restore with financial reconciliation; the production recovery gate remains blocked on approved off-site retention, PITR/equivalent, hosted configuration and an isolated hosted restore. No hosted migration or data mutation has occurred. Password Recovery & Gym Page Theme Reliability; Demo Experience, Staff Modal & Kiosk Identity Verification; Admin Team Visibility & Notification Overlay Reliability; Account Creation, Recovery & Member Setup Safety; Member Experience Visual Reliability; Account & Team Access Recovery; Perceived Performance & Navigation Continuity; and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
+Last updated: 2026-07-18 (**Production Security & Financial Closure Shot A is implemented and verified in the working tree through migration 027. The profile, role/status, attendance, verification, onboarding-credential, resumability, and privileged-audit Critical/High findings owned by Shot A have executable PostgreSQL regressions. Shot B remains queued, so Stren is still suitable for synthetic internal testing only and is not approved for a real-gym pilot or real payments. No hosted migration or data mutation has occurred.**)
 
 ---
 
-## Workstream (in progress 2026-07-16): Financial Integrity, Reporting & Recovery
+## Workstream (queued 2026-07-16): Production Security & Financial Closure
+
+Spec: [ImplementationPlan-ProductionSecurityAndFinancialClosure.md](ImplementationPlan-ProductionSecurityAndFinancialClosure.md) · prompts: [Shot A](prompts/Codex-Production-Security-Tenant-Closure-OneShot.md), [Shot B](prompts/Codex-Financial-Reporting-Recovery-Closure-OneShot.md), [independent gate review](prompts/Codex-Production-Readiness-Oversight.md).
+
+| Unit | Scope | Status |
+|---|---|---|
+| PS1 | Shot A — close broad profile reads, role escalation, cross-gym attendance, invalid verification reactivation, one-time credential disclosure, partial onboarding, and missing privileged audit boundaries | Implemented and verified (Codex, working tree, 2026-07-18) — migration 027, secured application contracts, clean reset/seed, two-gym owner/admin/staff/member PostgreSQL behavior tests, injected onboarding rollback/resumption, and real parallel attendance execution pass; no hosted apply |
+| PS2 | Shot B — close legacy payment writes, idempotency mismatch, duration/report-status errors, hidden report failures, CI fixture gaps, database constraints, deployment drift, and recovery evidence | Queued — run only after the developer commits PS1; GPT Codex 5.6 Sol at `xhigh` |
+| PS3 | Independent gate review — inspect both committed diffs, rerun adversarial database probes and isolated recovery, then issue the launch recommendation | Queued after PS1 and PS2 — GPT 5.6 Terra at `xhigh`; no implementation unless separately authorized |
+
+Audit baseline: same-gym private-profile disclosure, member-to-admin promotion, and cross-gym attendance injection/disclosure were reproducible against the effective local database. A rejected gym user could self-reactivate through historical membership evidence; onboarding exposed a generated one-time sign-in URL; authenticated legacy payment insert/update/delete remained possible; reversal idempotency accepted same-key/different-intent reuse; 30-day periods were inclusive for 31 dates; and dashboard/report membership buckets disagreed with access state. The current full finding set, smallest-fix boundaries, and evidence gates are canonical in the active plan.
+
+PS1 verification: a completely clean local database applies `027_production_security_tenant_closure.sql` and the updated seed. `npm run db:test:security` passes executable RLS/grant/constraint/RPC/rollback/audit assertions and two simultaneous PostgreSQL attendance sessions; the deployment contract through 027 and generated database types match. The complete unit/integration suite passes (**440/440**), as do lint, typecheck, and the production build. Three targeted Chromium landing checks reached passing assertions, but Playwright's local Next development server did not exit before the shell ceiling while repeatedly retrying unavailable Google Font downloads; the full run also exposed the pre-existing auth-mode URL assertion and remains non-gating for PS1's database-owned security proof.
+
+Launch gate: do not onboard a real gym or accept real payments until PS1 and PS2 are independently verified and all Critical/High code findings are closed. Hosted retention, PITR/equivalent, monitoring/configuration recreation, and an isolated hosted restore remain external Critical evidence gates requiring separate approval.
+
+---
+
+## Workstream (initial shots committed 2026-07-16): Financial Integrity, Reporting & Recovery
 
 Spec: [ImplementationPlan-FinancialIntegrityAndRecovery.md](ImplementationPlan-FinancialIntegrityAndRecovery.md) · decision: [ADR 0007](../docs/adr/0007-financial-ledger-separates-money-from-access.md) · prompts: [Shot 1](prompts/Codex-Financial-Integrity-Reports-OneShot.md), [Shot 2](prompts/Codex-Data-Recovery-Migrations-OneShot.md).
 
 | Unit | Scope | Status |
 |---|---|---|
-| FI1 | Shot 1 — append-only financial ledger, atomic/idempotent payment-membership RPCs, server-enforced discounts, labeled legacy backfill, ledger-derived dashboard/reports, and reconciliation | Implemented (Codex, working tree, 2026-07-16) — migration 025, RPC-only payment/renewal/onboarding writes, owner reversal/adjustment/reconciliation controls, regenerated types, and real PostgreSQL RLS/rollback/concurrency coverage pass on a production-shaped disposable database |
-| FI2 | Shot 2 — clean database bootstrap/seed, complete deployment parity, database and Storage backup coverage, recovery runbook, and isolated restore with FI1 reconciliation | Blocked (external production sign-off) — local implementation passes clean reset/seed, types, deployment/database contracts, every-bucket Storage backup, live Auth routing, and an isolated restore with FI1 reconciliation; approved off-site retention, PITR/equivalent, hosted manual configuration and an isolated hosted restore still require credentials, budget and explicit approval |
+| FI1 | Shot 1 — append-only financial ledger, atomic/idempotent payment-membership RPCs, server-enforced discounts, labeled legacy backfill, ledger-derived dashboard/reports, and reconciliation | Committed (`27a1113`, 2026-07-16) — architecture is retained, but closure defects in legacy grants, idempotency, date semantics, reporting status, onboarding and CI are queued under PS1/PS2 |
+| FI2 | Shot 2 — clean database bootstrap/seed, complete deployment parity, database and Storage backup coverage, recovery runbook, and isolated restore with FI1 reconciliation | Committed (`b6e8f2f`, 2026-07-16), production gate blocked — local restore evidence exists; hosted deployment parity, approved off-site retention, PITR/equivalent, monitoring/configuration and isolated hosted restore remain unproven |
 
 FI1 verification: synthetic pre-backfill inventory was **1 membership / PHP 80.00** and legacy `payments` **0 / PHP 0.00**; post-backfill was **1 reconstructed event / PHP 80.00**, with a zero-row rerun. Final synthetic reconciliation across 1,013 exercised events was payments **PHP 446.80**, refunds **PHP -40.00**, voids **PHP -60.00**, adjustments **PHP 11.30**, net **PHP 358.10**, and zero missing links, duplicate keys, or impossible reversals. Focused contracts (**115/115**), complete unit/integration suite (**419/419**), database behavior/concurrency/fail-closed suites, lint, typecheck, and production build pass.
 

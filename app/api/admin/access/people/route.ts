@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createAdminClient } from '@/lib/supabase-admin';
 import { createServerSupabaseClient } from '@/lib/supabase-server';
 import { apiRequirePermission, getMyAccess } from '@/lib/permissions-server';
+import { sendStaffInvitationEmail } from '@/lib/email';
 import type { SupabaseClient } from '@supabase/supabase-js';
 
 const addSchema = z.object({
@@ -26,7 +27,7 @@ async function authorizeOwner() {
   if (denied || access.role !== 'owner' || !access.gymId) {
     return { error: denied ?? NextResponse.json({ error: 'Only the owner can manage the team.' }, { status: 403 }) };
   }
-  return { user, gymId: access.gymId };
+  return { user, gymId: access.gymId, supabase };
 }
 
 /**
@@ -119,41 +120,64 @@ export async function POST(request: Request) {
   }
   if (!userId) return NextResponse.json({ error: 'Could not resolve that account.' }, { status: 400 });
 
-  if (!profile) {
-    const { error } = await admin.from('profiles').upsert({
+  let resolvedProfile = profile;
+  if (!resolvedProfile) {
+    const { data, error: lookupError } = await admin
+      .from('profiles')
+      .select('id, name, email')
+      .eq('id', userId)
+      .maybeSingle();
+    if (lookupError) return NextResponse.json({ error: 'Could not prepare that account.' }, { status: 500 });
+    resolvedProfile = data;
+  }
+  if (!resolvedProfile) {
+    const { error } = await admin.from('profiles').insert({
       id: userId,
       email,
       name,
       qr_code: crypto.randomUUID(),
-    }, { onConflict: 'id' });
+    });
     if (error) return NextResponse.json({ error: 'Could not prepare that account.' }, { status: 500 });
+    resolvedProfile = { id: userId, email, name };
   }
 
-  const { error: gymUserError } = await admin.from('gym_users').upsert({
-    gym_id: authorization.gymId,
-    user_id: userId,
-    role,
-    status: 'active',
-    added_by: authorization.user.id,
-    updated_at: new Date().toISOString(),
-  }, { onConflict: 'gym_id,user_id' });
+  const { error: gymUserError } = await authorization.supabase.rpc('provision_gym_staff', {
+    p_user_id: userId,
+    p_role: role,
+    p_reason: 'Owner added teammate through People & access',
+  });
   if (gymUserError) return NextResponse.json({ error: 'Could not add that teammate.' }, { status: 500 });
 
-  let magicLink: string | null = null;
+  let setupLink = `${siteUrl(request)}/auth?mode=signin`;
   if (createdAccount) {
-    const { data: link } = await admin.auth.admin.generateLink({
+    const { data: link, error } = await admin.auth.admin.generateLink({
       type: 'magiclink',
       email,
       options: { redirectTo: `${siteUrl(request)}/auth/callback` },
     });
-    magicLink = link.properties?.action_link ?? null;
+    if (error || !link.properties?.action_link) {
+      return NextResponse.json({
+        person: { userId, name: resolvedProfile.name, email: resolvedProfile.email, role, overrides: [] },
+        createdAccount,
+        deliveryStatus: 'failed',
+      }, { status: 207 });
+    }
+    setupLink = link.properties.action_link;
   }
 
-  return NextResponse.json({
-    person: { userId, name: profile?.name ?? name, email: profile?.email ?? email, role, overrides: [] },
-    createdAccount,
-    magicLink,
+  const { data: gym } = await admin.from('gyms').select('name').eq('id', authorization.gymId).maybeSingle();
+  const delivery = await sendStaffInvitationEmail({
+    to: email,
+    teammateName: resolvedProfile.name,
+    gymName: gym?.name ?? 'Your Gym',
+    setupLink,
   });
+
+  return NextResponse.json({
+    person: { userId, name: resolvedProfile.name, email: resolvedProfile.email, role, overrides: [] },
+    createdAccount,
+    deliveryStatus: delivery.ok ? 'sent' : 'failed',
+  }, { status: delivery.ok ? 200 : 207 });
 }
 
 export async function DELETE(request: Request) {
@@ -173,18 +197,11 @@ export async function DELETE(request: Request) {
     return NextResponse.json({ error: 'Only staff-side teammates can be removed here.' }, { status: 400 });
   }
 
-  const { error: overrideError } = await admin
-    .from('gym_user_permission_overrides')
-    .delete()
-    .eq('gym_id', authorization.gymId)
-    .eq('user_id', parsed.data.userId);
-  if (overrideError) return NextResponse.json({ error: 'Could not clear this teammate’s access settings.' }, { status: 500 });
-
-  const { error: removeError } = await admin
-    .from('gym_users')
-    .delete()
-    .eq('gym_id', authorization.gymId)
-    .eq('user_id', parsed.data.userId);
+  const { error: removeError } = await authorization.supabase.rpc('set_gym_user_status', {
+    p_user_id: parsed.data.userId,
+    p_status: 'disabled',
+    p_reason: 'Owner removed teammate through People & access',
+  });
   if (removeError) return NextResponse.json({ error: 'Could not remove this teammate.' }, { status: 500 });
   return NextResponse.json({ removed: true });
 }

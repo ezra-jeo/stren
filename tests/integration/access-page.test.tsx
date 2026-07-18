@@ -48,7 +48,7 @@ beforeEach(() => {
   h.addTeamPerson.mockReset().mockResolvedValue({
     person: { userId: 's2', name: 'Nina Staff', email: 'nina@grove.co', role: 'staff', overrides: [] },
     createdAccount: false,
-    magicLink: null,
+    deliveryStatus: 'sent',
   });
   h.removeTeamPerson.mockReset().mockResolvedValue(undefined);
 });

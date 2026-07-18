@@ -15,9 +15,9 @@ $$;
 SELECT pg_temp.assert_true(
   (SELECT array_agg(version ORDER BY version) = ARRAY[
     '000','001','005','006','007','008','009','010','011','012','013','014',
-    '015','016','017','018','019','020','021','022','023','024','025','026'
+    '015','016','017','018','019','020','021','022','023','024','025','026','027'
   ] FROM supabase_migrations.schema_migrations),
-  'canonical migration history through 026'
+  'canonical migration history through 027'
 );
 
 SELECT pg_temp.assert_true(
