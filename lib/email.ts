@@ -397,6 +397,62 @@ export async function sendPasswordResetEmail(payload: PasswordResetEmailPayload)
   }
 }
 
+export interface OwnerClaimEmailPayload {
+  to: string
+  ownerName: string
+  gymName: string
+  claimLink: string
+  expiresAt: string
+}
+
+/** Secure claim delivery. The raw link is accepted only at this email boundary. */
+export async function sendOwnerClaimEmail(payload: OwnerClaimEmailPayload): Promise<SendResult> {
+  const safeLink = escapeHtml(payload.claimLink)
+  const safeGymName = escapeHtml(payload.gymName)
+  const safeOwnerName = escapeHtml(payload.ownerName || 'there')
+  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;color:#18181b;background:#f4f4f5;padding:24px"><div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px"><h1 style="font-size:22px;margin:0 0 12px">You're invited to claim ${safeGymName}</h1><p style="line-height:1.6;color:#52525b">Hi ${safeOwnerName}, Stren has set up <strong>${safeGymName}</strong> for you. Sign in or create your account, then confirm ownership to start managing it.</p><p style="margin:24px 0"><a href="${safeLink}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Claim ${safeGymName} →</a></p><p style="font-size:12px;color:#71717a">This link expires 24 hours after it was sent and can only be used once. If you did not expect this invitation, you can ignore this email.</p></div></body></html>`
+  const text = [
+    `You're invited to claim ${payload.gymName}`,
+    '',
+    `Hi ${payload.ownerName || 'there'}, Stren has set up ${payload.gymName} for you. Sign in or create your account, then confirm ownership to start managing it.`,
+    payload.claimLink,
+    '',
+    'This link expires 24 hours after it was sent and can only be used once.',
+  ].join('\n')
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 12000)
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getResendKey()}` },
+      body: JSON.stringify({
+        from: getFromAddress(),
+        to: [payload.to],
+        subject: `You're invited to claim ${payload.gymName} on Stren`,
+        html,
+        text,
+      }),
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      let message = `Resend error ${response.status}`
+      try {
+        const body = await response.json() as { message?: string }
+        if (body.message) message = body.message
+      } catch {}
+      return { ok: false, error: message }
+    }
+    const data = await response.json() as { id?: string }
+    return { ok: true, messageId: data.id || 'unknown' }
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return { ok: false, error: 'Resend request timed out.' }
+    return { ok: false, error: error instanceof Error ? error.message : 'Email send failed.' }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 export async function sendOwnerInquiryEmail(payload: OwnerInquiryEmailPayload): Promise<SendResult> {
   const to = process.env.OWNER_INQUIRY_TO_EMAIL?.trim() || "bonakainu@gmail.com"
   const fields = [

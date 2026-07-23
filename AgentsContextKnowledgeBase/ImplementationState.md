@@ -2,7 +2,7 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-24 (**Shot A is committed at `408fe3c`; Shot B is committed at `7363c63`. Phase 1 Assisted Onboarding foundation is implemented in the working tree as migration 029 against the effective 028 schema; the clean-reset and official generated-type parity gates remain blocked by local Docker access. The source remains pinned at `origin/super-admin` commit `3c6f047` with merge base `b6e8f2f`. Stren remains suitable for synthetic internal testing only and is not approved for a real-gym pilot or real payments. No hosted migration or data mutation has occurred.**)
+Last updated: 2026-07-24 (**Shot A is committed at `408fe3c`; Shot B is committed at `7363c63`. Phase 1 Assisted Onboarding foundation remains preserved as migration 029 against the effective 028 schema; Phase 2 server/UI integration is implemented in the working tree with additive migration 030. Clean-reset, official generated-type parity, and live seeded/credentialed E2E gates remain blocked or gated by local Docker/fixture availability. The source remains pinned at `origin/super-admin` commit `3c6f047` with merge base `b6e8f2f`. Stren remains suitable for synthetic internal testing only and is not approved for a real-gym pilot or real payments. No hosted migration or data mutation has occurred.**)
 
 ---
 
@@ -12,11 +12,21 @@ Spec and three separate-chat prompts: [ImplementationPlan.md](ImplementationPlan
 
 | Unit | Scope | Status |
 |---|---|---|
-| SA1 | Phase 1 - rebuild Assisted Onboarding as migration 029 plus corrected platform authorization/provisioning spine on the migration-028 baseline | In progress (Codex, working tree, 2026-07-24) - custom migration 029, user-bound platform helper, database/Auth tracer, deployment/protected-definition/recovery contract extensions, feature parity, and generated-type surface added; local platform/security/financial/drift probes pass, while clean reset and official type parity await Docker access |
-| SA2 | Phase 2 - port Super Admin server journeys and UI onto the Phase 1 enforcement boundary without reviving legacy auth/provisioning paths | Queued after SA1 |
+| SA1 | Phase 1 - rebuild Assisted Onboarding as migration 029 plus corrected platform authorization/provisioning spine on the migration-028 baseline | Implemented in working tree (Codex, 2026-07-24) - custom migration 029, user-bound platform helper, database/Auth tracer, deployment/protected-definition/recovery contract extensions, feature parity, and generated Phase 1 type surface preserved; clean reset and official type parity still await Docker access |
+| SA2 | Phase 2 - port Super Admin server journeys and UI onto the Phase 1 enforcement boundary without reviving legacy auth/provisioning paths | In progress (Codex, working tree, 2026-07-24) - four-step wizard, operator gate, user-bound provisioning/resend/claim routes, bounded claim return, secure email-only raw-token boundary, migration 030 scoped invite metadata read, UI/unit/integration coverage, and desktop/mobile credential-gated E2E added |
 | SA3 | Phase 3 - independent completeness, tenant/authorization/financial regression audit, full local gates, and developer release handoff | Queued after SA2 |
 
 Integration rule: `polish-and-hardening` at `7363c6312ae80c6418bb5984e889f6a968973535` is protected baseline; only `3c6f047^..3c6f047` supplies feature behavior. Incoming migration 027 is rewritten as 029; pre-hardening RPC bodies, verification/membership bypass switches, raw claim-link disclosure, and mocked-only evidence are not accepted. Agents prepare semantic integration in working tree but never run merge/commit/push/rebase/cherry-pick operations. No hosted mutation is authorized.
+
+### Phase 2 integration record (working tree, 2026-07-24)
+
+- Ported the Assisted Onboarding journey onto the Phase 1 boundary: `/superadmin` platform-admin gate → four-step wizard → Auth account resolution → private Postgres provisioning → truthful invite delivery/resend → `/claim/{token}` → bounded sign-in return → explicit owner claim → `/admin`.
+- Platform RPCs use the authenticated user-bound client. The admin client is limited to Auth account lookup/creation and Storage logo upload. Provisioning is resumable through the existing fingerprinted Phase 1 state; operator requests do not require or mutate an active gym.
+- The port removes incoming auto-approval, membership-required check-in disablement, public-at-provision visibility, non-owner claimant choice, and Copy claim link/`claimLink` response/state. Owner claim remains explicit and owner-only; new gyms remain private until the owner publishes.
+- Raw claim tokens exist only while constructing the email payload. API responses, React state, audit/provisioning state, logs, and the operator UI expose only expiry and delivery status. Resend supersedes the prior invite before delivery, and failures return recoverable `207` state without claiming success.
+- `lib/database.types.ts` remains the generated Phase 1 output. `lib/features.ts` retains the Phase 1 parity keys (`staff_manual_checkin`, `occupancy_count`) and no unsafe incoming feature keys. `lib/email.ts` preserves existing functions and adds secure owner-claim delivery.
+
+Phase 2 verification so far: the complete unit/integration suite (`npm run test:unit`) is **561/561**, with focused journey/auth/token/UI tests included; `npx tsc --noEmit --pretty false`, `npm run lint`, and `npm run build` pass. `npm run db:test:platform`, `npm run db:test:security`, the first `npm run db:test:financial` run (all 11 suites), `npm run verify:deployment:local`, and `npm run verify:deployment:drift:local` pass against the existing isolated local database after migration 030 was applied locally. A financial-suite rerun is correctly refused by the dirty database's duplicate fixture key. The new Super Admin E2E spec covers both configured Playwright projects but is intentionally gated by `E2E_RUN_SUPERADMIN=1` plus seeded platform-admin credentials; no credentialed run was attempted here. Clean reset/type parity is blocked by Docker access denial, and `db:invariants` cannot verify seed counts against the already-used local database. No hosted system, email provider, or real gym was touched.
 
 ---
 

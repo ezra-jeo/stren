@@ -42,6 +42,24 @@ _Avoid_: personal mode, trial gym, real dashboard
 A member whose gym-user row is active but whose subscription has expired. Sees the renewal lock screen (saved stats named, never deleted), can't check in, off the leaderboard until renewal.
 _Avoid_: expired member (ambiguous with the subscription row), churned
 
+### Platform provisioning
+
+**Assisted Onboarding**:
+The internal Stren workflow where an approved operator configures a gym workspace — identity, owner and staff, membership plans, hours, operational defaults, optional member import — before the owner receives a claim invitation. Concierge setup, not a public registration form and not part of the gym-owner dashboard.
+_Avoid_: gym registration, signup wizard, self-serve setup
+
+**Stren operator**:
+A person with server-controlled platform-admin authority who runs Assisted Onboarding. Not a gym role; not stored in gym-level access.
+_Avoid_: superadmin role, staff (that is a gym role)
+
+**Claim invitation**:
+The secure, single-use, time-limited invitation sent to a designated owner after provisioning. Resending replaces the previous invitation.
+_Avoid_: magic link, signup link
+
+**Owner claim**:
+The explicit act where the invited person, signed in to their own account, confirms taking ownership of the provisioned gym. Until then the gym is pending owner claim and stays operator-managed.
+_Avoid_: activation, account handover
+
 ### Memberships & money
 
 **Membership**:

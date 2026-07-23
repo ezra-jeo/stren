@@ -37,6 +37,14 @@ export function isPlatformAdminUser(
   return user?.app_metadata?.platform_role === PLATFORM_ADMIN_ROLE;
 }
 
+/** Server-component guard used only as defense-in-depth behind middleware. */
+export async function getPlatformAdminUser(): Promise<User | null> {
+  const supabase = await createServerSupabaseClient();
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user || !isPlatformAdminUser(data.user)) return null;
+  return data.user;
+}
+
 /** Return the standard API response while keeping the client user-bound. */
 export async function requirePlatformAdminApi(): Promise<
   | { context: PlatformAdminApiContext; response: null }

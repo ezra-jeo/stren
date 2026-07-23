@@ -51,7 +51,7 @@ if (missing.length > 0) {
       process.exitCode = 1;
     } else {
       console.log(
-        "Deployment contract verified: Auth configuration and the complete schema through migration 029 are live.",
+        "Deployment contract verified: Auth configuration and the complete schema through migration 030 are live.",
       );
     }
   } catch {

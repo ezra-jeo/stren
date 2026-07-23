@@ -19,7 +19,7 @@
 
 ## Core documents (this folder)
 
-Active implementation plan: [ImplementationPlan-ProductionSecurityAndFinancialClosure.md](ImplementationPlan-ProductionSecurityAndFinancialClosure.md).
+Active implementation plan: [ImplementationPlan-ProductionSecurityAndFinancialClosure.md](ImplementationPlan-ProductionSecurityAndFinancialClosure.md). Super Admin integration sequencing and boundaries remain in [ImplementationPlan.md](ImplementationPlan.md); the incoming branch-only Assisted Onboarding plan is a pinned source reference, not a second canonical plan.
 
 | File | What it is | Who updates it | Update trigger |
 |---|---|---|---|

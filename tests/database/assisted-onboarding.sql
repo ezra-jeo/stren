@@ -262,6 +262,44 @@ SELECT pg_temp.assert_true(
   'resend supersedes the previous claim invite'
 );
 
+-- Resend metadata is a user-bound, operator-only read. It returns delivery
+-- state but never the token hash or any raw claim credential.
+SELECT pg_temp.assert_true(
+  (public.get_platform_claim_invite(
+    (SELECT id FROM public.gyms WHERE code = 'phase-one-gym')
+  ) ? 'deliveryStatus')
+  AND NOT (public.get_platform_claim_invite(
+    (SELECT id FROM public.gyms WHERE code = 'phase-one-gym')
+  ) ? 'token_hash')
+  AND NOT (public.get_platform_claim_invite(
+    (SELECT id FROM public.gyms WHERE code = 'phase-one-gym')
+  ) ? 'token'),
+  'platform claim invite metadata is scoped and token-free'
+);
+
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claims', '{"sub":"aaaaaaaa-0001-0001-0001-000000000001","email":"owner@ironworks.test","role":"authenticated"}', true);
+SELECT pg_temp.expect_error($$
+  SELECT public.get_platform_claim_invite(
+    (SELECT id FROM public.gyms WHERE code = 'phase-one-gym')
+  )
+$$, 'platform admin|permission denied');
+
+RESET ROLE;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claims', jsonb_build_object(
+  'sub', 'cccccccc-0003-0003-0003-000000000001',
+  'email', 'orphan@nogym.test', 'role', 'authenticated',
+  'app_metadata', jsonb_build_object('platform_role', 'platform_admin')
+)::TEXT, true);
+SELECT pg_temp.assert_true(
+  (public.get_platform_account_resolution('owner@ironworks.test') ->> 'exists')::BOOLEAN
+  AND (public.get_platform_account_resolution('owner@ironworks.test') ->> 'ownsOrManagesGymCount')::INTEGER >= 1
+  AND NOT (public.get_platform_account_resolution('owner@ironworks.test') ? 'token_hash'),
+  'account resolution is resumable and token-free'
+);
+
 RESET ROLE;
 SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claims', '{"sub":"bbbbbbbb-0002-0002-0002-000000000002","email":"member@pulsefit.test","role":"authenticated"}', true);

@@ -13,7 +13,7 @@ try {
     for (const issue of result.issues) console.error(`- ${issue}`);
     process.exitCode = 1;
   } else {
-    console.log("Local deployment schema contract through migration 029 passed.");
+    console.log("Local deployment schema contract through migration 030 passed.");
   }
 } catch (error) {
   console.error(error instanceof Error ? error.message : "Deployment schema validation failed.");

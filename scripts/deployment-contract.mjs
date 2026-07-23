@@ -2,7 +2,7 @@ export const EXPECTED_DEPLOYMENT_SCHEMA = Object.freeze({
   migrations: [
     "000", "001", "005", "006", "007", "008", "009", "010", "011",
     "012", "013", "014", "015", "016", "017", "018", "019", "020",
-    "021", "022", "023", "024", "025", "026", "027", "028", "029",
+    "021", "022", "023", "024", "025", "026", "027", "028", "029", "030",
   ],
   columns: [
     "public.gyms.id", "public.gyms.code", "public.gyms.name",
@@ -113,6 +113,8 @@ export const EXPECTED_DEPLOYMENT_SCHEMA = Object.freeze({
     "public.claim_gym_ownership(text)",
     "public.supersede_claim_invite(uuid, text, timestamp with time zone)",
     "public.mark_claim_invite_delivery(uuid, text, text)",
+    "public.get_platform_claim_invite(uuid)",
+    "public.get_platform_account_resolution(text)",
     "public.get_claim_invite_preview(text)",
     "public.manila_business_date(timestamp with time zone)",
     "public.record_membership_payment(uuid, uuid, public.payment_method, text, uuid, date)",
@@ -193,6 +195,8 @@ export const EXPECTED_DEPLOYMENT_SCHEMA = Object.freeze({
     "public.claim_gym_ownership:authenticated:EXECUTE",
     "public.supersede_claim_invite:authenticated:EXECUTE",
     "public.mark_claim_invite_delivery:authenticated:EXECUTE",
+    "public.get_platform_claim_invite:authenticated:EXECUTE",
+    "public.get_platform_account_resolution:authenticated:EXECUTE",
     "public.get_claim_invite_preview:anon:EXECUTE",
     "public.get_claim_invite_preview:authenticated:EXECUTE",
   ],
@@ -277,6 +281,8 @@ export const EXPECTED_DEPLOYMENT_SCHEMA = Object.freeze({
     "function:supersede_claim_invite": "63e6e9f1eddfde7f5376cc23eca40ace2c7c69ff81061d7b4aa5f0f62de2f1b7",
     "function:mark_claim_invite_delivery": "641b2f8e98e1f15877ed0bb6ba9afb67f895adfab8e1e4a9d9b3c17e51706537",
     "function:get_claim_invite_preview": "7898873381186d71ed50d90d84f798b844793fdd95d34dd3dac685ea61fa9601",
+    "function:get_platform_claim_invite": "13535dd78ff4ac8ca498f16f6c0b83904778b744c56d2f21860e812dec4bfa92",
+    "function:get_platform_account_resolution": "d2ac2247e1555c61779bb87bbe2da34ca19c2e1a0be543658a6e2ad5764e9e4f",
   }),
 });
 

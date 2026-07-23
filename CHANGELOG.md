@@ -8,6 +8,21 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Super Admin Integration — Phase 2 secure Assisted Onboarding port
+
+#### Added
+- Ported the four-step operator journey, `/superadmin` gate, private provisioning, owner-only `/claim/{token}` flow, bounded sign-in return, explicit `/admin` handoff, truthful delivery/resend state, and desktop/mobile credential-gated E2E coverage.
+- Added migration `030_assisted_onboarding_read_boundaries.sql` for a platform-admin-only, user-bound invite-metadata read used by resend; it returns no token material and keeps admin Postgres access out of application routes.
+- Added focused UI, route-boundary, error-status, token-secrecy, claim-return, and lifecycle tests.
+
+#### Changed
+- Reconciled incoming UI/routes with Phase 1 enforcement: owner is the only claimant, gyms are private until publication, only kiosk/staff-manual/occupancy operational switches remain, and claim links are email-only (no copy action, API response, React state, audit, or provisioning-state field).
+- Added the bounded `/claim/{token}` post-auth return to the existing unified auth surface and preserved the generated Phase 1 database types and current email functions.
+
+#### Verification
+- The complete unit/integration suite is **561/561**; `npx tsc --noEmit --pretty false`, `npm run lint`, and `npm run build` pass. Playwright coverage is present for Chromium and mobile Chromium but remains credential/flag-gated; no seeded credentialed E2E was run.
+- The first local financial closure run completed all 11 suites, while a repeat was refused by the already-used database's duplicate fixture key; `db:invariants` likewise stops at expected clean-seed counts. Clean reset/types remain blocked by Docker access denial. No hosted migration, real email, real gym, commit, push, merge, rebase, cherry-pick, or tag was performed.
+
 ### Super Admin Branch Integration Planning
 
 #### Added
