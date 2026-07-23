@@ -2,7 +2,21 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-23 (**Shot A is committed at `408fe3c`. Shot B is implemented and fully locally verified in the working tree through migration 028, including the evidence-v2 isolated database/Auth/Storage restore. It awaits developer review and commit. Stren remains suitable for synthetic internal testing only and is not approved for a real-gym pilot or real payments. No hosted migration or data mutation has occurred.**)
+Last updated: 2026-07-24 (**Shot A is committed at `408fe3c`; Shot B is committed at `7363c63`. The Assisted Onboarding integration source is pinned at `origin/super-admin` commit `3c6f047` with merge base `b6e8f2f`; implementation has not started. Stren remains suitable for synthetic internal testing only and is not approved for a real-gym pilot or real payments. No hosted migration or data mutation has occurred.**)
+
+---
+
+## Workstream (queued 2026-07-23): Super Admin Branch Integration
+
+Spec and three separate-chat prompts: [ImplementationPlan.md](ImplementationPlan.md), above the `SUPER_ADMIN_INTEGRATION_PLAN_END` marker.
+
+| Unit | Scope | Status |
+|---|---|---|
+| SA1 | Phase 1 - rebuild Assisted Onboarding as migration 029 plus corrected platform authorization/provisioning spine on the migration-028 baseline | Queued - source pinned at `3c6f047`; merge base `b6e8f2f`; actual 59-file/+5,621/-6 payload and five direct conflicts mapped; implementation not started |
+| SA2 | Phase 2 - port Super Admin server journeys and UI onto the Phase 1 enforcement boundary without reviving legacy auth/provisioning paths | Queued after SA1 |
+| SA3 | Phase 3 - independent completeness, tenant/authorization/financial regression audit, full local gates, and developer release handoff | Queued after SA2 |
+
+Integration rule: `polish-and-hardening` at `7363c6312ae80c6418bb5984e889f6a968973535` is protected baseline; only `3c6f047^..3c6f047` supplies feature behavior. Incoming migration 027 is rewritten as 029; pre-hardening RPC bodies, verification/membership bypass switches, raw claim-link disclosure, and mocked-only evidence are not accepted. Agents prepare semantic integration in working tree but never run merge/commit/push/rebase/cherry-pick operations. No hosted mutation is authorized.
 
 ---
 

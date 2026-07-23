@@ -8,6 +8,18 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Super Admin Branch Integration Planning
+
+#### Added
+- Added a three-phase execution contract for integrating `super-admin` into the protected `polish-and-hardening` baseline: platform authorization/database spine, application/UI integration, then independent hardening and release handoff.
+- Added three paste-ready GPT-5.6 Luna High prompts designed for separate chats that reconstruct their context from the repository and preserve prior-phase working-tree changes.
+- Added an actual branch/conflict map: incoming tip `3c6f047`, merge base `b6e8f2f`, 59 feature files (+5,621/-6), five direct both-modified files, and the non-textual migration-027 collision.
+
+#### Changed
+- The merge contract pins `polish-and-hardening` commit `7363c6312ae80c6418bb5984e889f6a968973535` as the protected migration-028 baseline and limits source behavior to feature commit `3c6f047`; merged-main ancestry is not replayed.
+- Incoming `027_assisted_onboarding.sql` must be rebuilt as migration 029 against the effective hardened schema. Unsafe verification/membership bypasses, public-without-tagline provisioning, admin claimant, service-role caller-context failure, weak idempotency, raw claim-link disclosure, hand-edited types, and mocked-only database evidence are explicit repair gates.
+- Integration prompts enforce the repository's agent boundary: agents may inspect and semantically port branch behavior but may not merge, commit, push, rebase, cherry-pick, tag, mutate hosted systems, or weaken existing tenant/financial/security contracts.
+
 ### Financial Reporting & Recovery Closure — Shot B
 
 #### Added
