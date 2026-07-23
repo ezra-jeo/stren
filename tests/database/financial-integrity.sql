@@ -44,19 +44,19 @@ SELECT pg_temp.assert_true(
 );
 
 SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', '11111111-0000-0000-0000-000000000001', true);
+SELECT set_config('request.jwt.claim.sub', 'f1111111-0000-0000-0000-000000000001', true);
 
 SELECT public.record_membership_payment(
-  '11111111-0000-0000-0000-000000000004',
-  '30000000-0000-0000-0000-000000000001',
+  'f1111111-0000-0000-0000-000000000004',
+  'f3000000-0000-0000-0000-000000000001',
   'cash', 'test-fixed-idempotency-0001',
-  '60000000-0000-0000-0000-000000000001', NULL
+  'f6000000-0000-0000-0000-000000000001', NULL
 );
 SELECT public.record_membership_payment(
-  '11111111-0000-0000-0000-000000000004',
-  '30000000-0000-0000-0000-000000000001',
+  'f1111111-0000-0000-0000-000000000004',
+  'f3000000-0000-0000-0000-000000000001',
   'cash', 'test-fixed-idempotency-0001',
-  '60000000-0000-0000-0000-000000000001', NULL
+  'f6000000-0000-0000-0000-000000000001', NULL
 );
 SELECT pg_temp.assert_true(
   (SELECT count(*) = 1 AND min(gross_amount) = 100.05
@@ -79,10 +79,10 @@ SELECT pg_temp.assert_true(
 );
 
 SELECT public.record_membership_payment(
-  '11111111-0000-0000-0000-000000000005',
-  '30000000-0000-0000-0000-000000000001',
+  'f1111111-0000-0000-0000-000000000005',
+  'f3000000-0000-0000-0000-000000000001',
   'gcash', 'test-percent-boundary-0001',
-  '60000000-0000-0000-0000-000000000002', current_date + 5
+  'f6000000-0000-0000-0000-000000000002', current_date + 5
 );
 SELECT pg_temp.assert_true(
   (SELECT discount_amount = 33.35 AND ledger_amount = 66.70
@@ -92,31 +92,31 @@ SELECT pg_temp.assert_true(
 );
 SELECT pg_temp.assert_true(
   NOT public.has_member_portal_entitlement(
-    '11111111-0000-0000-0000-000000000005',
-    '10000000-0000-0000-0000-000000000001'
+    'f1111111-0000-0000-0000-000000000005',
+    'f1000000-0000-0000-0000-000000000001'
   ),
   'future paid access remains inactive until its start date'
 );
 
 SELECT pg_temp.expect_error($sql$
   SELECT public.record_membership_payment(
-    '11111111-0000-0000-0000-000000000005',
-    '30000000-0000-0000-0000-000000000001',
+    'f1111111-0000-0000-0000-000000000005',
+    'f3000000-0000-0000-0000-000000000001',
     'cash', 'test-expired-promo-0001',
-    '60000000-0000-0000-0000-000000000003', NULL
+    'f6000000-0000-0000-0000-000000000003', NULL
   )
 $sql$, 'invalid|expired');
 SELECT pg_temp.expect_error($sql$
   SELECT public.record_membership_payment(
-    '22222222-0000-0000-0000-000000000002',
-    '30000000-0000-0000-0000-000000000001',
+    'f2222222-0000-0000-0000-000000000002',
+    'f3000000-0000-0000-0000-000000000001',
     'cash', 'test-cross-gym-member-0001', NULL, NULL
   )
 $sql$, 'current gym');
 SELECT pg_temp.expect_error($sql$
   SELECT public.record_membership_payment(
-    '11111111-0000-0000-0000-000000000005',
-    '40000000-0000-0000-0000-000000000001',
+    'f1111111-0000-0000-0000-000000000005',
+    'f4000000-0000-0000-0000-000000000001',
     'cash', 'test-cross-gym-plan-0001', NULL, NULL
   )
 $sql$, 'invalid|inactive');
@@ -128,8 +128,14 @@ SELECT pg_temp.assert_true(
 
 RESET ROLE;
 CREATE TEMP TABLE rollback_counts AS
-SELECT (SELECT count(*) FROM public.memberships) AS memberships,
-       (SELECT count(*) FROM public.financial_transactions) AS transactions;
+SELECT (
+         SELECT count(*) FROM public.memberships
+         WHERE gym_id = 'f1000000-0000-0000-0000-000000000001'
+       ) AS memberships,
+       (
+         SELECT count(*) FROM public.financial_transactions
+         WHERE gym_id = 'f1000000-0000-0000-0000-000000000001'
+       ) AS transactions;
 GRANT SELECT ON rollback_counts TO authenticated;
 CREATE OR REPLACE FUNCTION pg_temp.inject_financial_failure()
 RETURNS TRIGGER LANGUAGE plpgsql AS $$
@@ -145,17 +151,23 @@ CREATE TRIGGER zz_test_injected_financial_failure
   FOR EACH ROW EXECUTE FUNCTION pg_temp.inject_financial_failure();
 
 SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', '11111111-0000-0000-0000-000000000001', true);
+SELECT set_config('request.jwt.claim.sub', 'f1111111-0000-0000-0000-000000000001', true);
 SELECT pg_temp.expect_error($sql$
   SELECT public.record_membership_payment(
-    '11111111-0000-0000-0000-000000000006',
-    '30000000-0000-0000-0000-000000000001',
+    'f1111111-0000-0000-0000-000000000006',
+    'f3000000-0000-0000-0000-000000000001',
     'cash', 'test-injected-rollback-0001', NULL, NULL
   )
 $sql$, 'injected ledger failure');
 SELECT pg_temp.assert_true(
-  (SELECT memberships = (SELECT count(*) FROM public.memberships)
-          AND transactions = (SELECT count(*) FROM public.financial_transactions)
+  (SELECT memberships = (
+            SELECT count(*) FROM public.memberships
+            WHERE gym_id = 'f1000000-0000-0000-0000-000000000001'
+          )
+          AND transactions = (
+            SELECT count(*) FROM public.financial_transactions
+            WHERE gym_id = 'f1000000-0000-0000-0000-000000000001'
+          )
    FROM rollback_counts),
   'injected failure rolls membership and ledger back together'
 );
@@ -211,11 +223,11 @@ SELECT pg_temp.expect_error($sql$
 $sql$, 'immutable');
 UPDATE public.membership_plans
 SET name = 'Renamed Mutable Plan', benefits = '["Changed"]'::JSONB
-WHERE id = '30000000-0000-0000-0000-000000000001';
+WHERE id = 'f3000000-0000-0000-0000-000000000001';
 UPDATE public.profiles SET name = 'Renamed Mutable Actor'
-WHERE id = '11111111-0000-0000-0000-000000000001';
+WHERE id = 'f1111111-0000-0000-0000-000000000001';
 SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', '11111111-0000-0000-0000-000000000001', true);
+SELECT set_config('request.jwt.claim.sub', 'f1111111-0000-0000-0000-000000000001', true);
 SELECT pg_temp.assert_true(
   (SELECT plan_snapshot ->> 'name' = 'Precision Plan'
           AND actor_snapshot ->> 'name' = 'Owner One'
@@ -225,7 +237,7 @@ SELECT pg_temp.assert_true(
 );
 
 SELECT public.record_financial_adjustment(
-  '11111111-0000-0000-0000-000000000004', 1.25,
+  'f1111111-0000-0000-0000-000000000004', 1.25,
   'Manila midnight adjustment', 'test-midnight-adjustment-0001',
   (public.manila_business_date()::TIMESTAMP AT TIME ZONE 'Asia/Manila') + interval '30 minutes'
 );
@@ -237,17 +249,17 @@ INSERT INTO public.financial_transactions(
   reason, idempotency_key, occurred_at
 )
 SELECT
-  '10000000-0000-0000-0000-000000000001',
-  '11111111-0000-0000-0000-000000000004',
+  'f1000000-0000-0000-0000-000000000001',
+  'f1111111-0000-0000-0000-000000000004',
   'adjustment', 'adjustment_rpc', 0.01, 0, 0, 'PHP',
   '{"id":null,"name":"Pagination adjustment"}'::JSONB,
-  '11111111-0000-0000-0000-000000000001',
-  '{"id":"11111111-0000-0000-0000-000000000001","name":"Renamed Mutable Actor","role":"owner"}'::JSONB,
+  'f1111111-0000-0000-0000-000000000001',
+  '{"id":"f1111111-0000-0000-0000-000000000001","name":"Renamed Mutable Actor","role":"owner"}'::JSONB,
   'exact', 'Pagination coverage', 'test-pagination-' || lpad(n::TEXT, 5, '0'), now()
 FROM generate_series(1, 1005) n;
 
 SET LOCAL ROLE authenticated;
-SELECT set_config('request.jwt.claim.sub', '11111111-0000-0000-0000-000000000001', true);
+SELECT set_config('request.jwt.claim.sub', 'f1111111-0000-0000-0000-000000000001', true);
 SELECT pg_temp.assert_true(
   jsonb_array_length(public.financial_transaction_history(NULL, 200, 0, NULL, NULL, NULL, NULL) -> 'rows') = 200
   AND jsonb_array_length(public.financial_transaction_history(NULL, 200, 1000, NULL, NULL, NULL, NULL) -> 'rows') > 0,
@@ -255,20 +267,20 @@ SELECT pg_temp.assert_true(
 );
 SELECT pg_temp.assert_true(
   ((public.financial_transaction_history(NULL, 50, 0, NULL, NULL, NULL, NULL) ->> 'net_total')::NUMERIC
-    = (SELECT sum(ledger_amount) FROM public.financial_transactions WHERE gym_id = '10000000-0000-0000-0000-000000000001')),
+    = (SELECT sum(ledger_amount) FROM public.financial_transactions WHERE gym_id = 'f1000000-0000-0000-0000-000000000001')),
   'paginated payment-history total equals the complete ledger total'
 );
 SELECT pg_temp.assert_true(
   ((public.admin_dashboard_stats() ->> 'today_revenue')::NUMERIC
     = (SELECT sum(ledger_amount) FROM public.financial_transactions
-       WHERE gym_id = '10000000-0000-0000-0000-000000000001'
+       WHERE gym_id = 'f1000000-0000-0000-0000-000000000001'
          AND public.manila_business_date(occurred_at) = public.manila_business_date())),
   'dashboard revenue equals the signed ledger at Manila boundaries'
 );
 SELECT pg_temp.assert_true(
   ((public.admin_reports_data(14) ->> 'month_revenue')::NUMERIC
     = (SELECT sum(ledger_amount) FROM public.financial_transactions
-       WHERE gym_id = '10000000-0000-0000-0000-000000000001'
+       WHERE gym_id = 'f1000000-0000-0000-0000-000000000001'
          AND date_trunc('month', public.manila_business_date(occurred_at))
              = date_trunc('month', public.manila_business_date()))),
   'report revenue equals the signed ledger'
@@ -279,7 +291,7 @@ SELECT pg_temp.assert_true(
 );
 SELECT pg_temp.assert_true(
   (public.financial_reconciliation('2000-01-01', '2100-01-01') ->> 'net_total')::NUMERIC
-    = (SELECT sum(ledger_amount) FROM public.financial_transactions WHERE gym_id = '10000000-0000-0000-0000-000000000001')
+    = (SELECT sum(ledger_amount) FROM public.financial_transactions WHERE gym_id = 'f1000000-0000-0000-0000-000000000001')
   AND (public.financial_reconciliation('2000-01-01', '2100-01-01') ->> 'memberships_missing_transaction')::INTEGER = 0
   AND (public.financial_reconciliation('2000-01-01', '2100-01-01') ->> 'duplicate_idempotency_keys')::INTEGER = 0
   AND (public.financial_reconciliation('2000-01-01', '2100-01-01') ->> 'impossible_reversal_balances')::INTEGER = 0,
@@ -287,32 +299,32 @@ SELECT pg_temp.assert_true(
 );
 
 RESET ROLE;
-SELECT set_config('request.jwt.claim.sub', '22222222-0000-0000-0000-000000000001', true);
+SELECT set_config('request.jwt.claim.sub', 'f2222222-0000-0000-0000-000000000001', true);
 SET LOCAL ROLE authenticated;
 SELECT public.record_membership_payment(
-  '22222222-0000-0000-0000-000000000002',
-  '40000000-0000-0000-0000-000000000001',
+  'f2222222-0000-0000-0000-000000000002',
+  'f4000000-0000-0000-0000-000000000001',
   'cash', 'test-other-gym-payment-0001', NULL, NULL
 );
 
 RESET ROLE;
-SELECT set_config('request.jwt.claim.sub', '11111111-0000-0000-0000-000000000002', true);
+SELECT set_config('request.jwt.claim.sub', 'f1111111-0000-0000-0000-000000000002', true);
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.assert_true(
   (SELECT count(*) > 1000 AND count(*) FILTER (
-     WHERE gym_id = '20000000-0000-0000-0000-000000000001'
+     WHERE gym_id = 'f2000000-0000-0000-0000-000000000001'
    ) = 0 FROM public.financial_transactions),
   'admin RLS exposes finance only from the active gym'
 );
 SELECT pg_temp.expect_error($sql$
   SELECT public.record_financial_adjustment(
-    '11111111-0000-0000-0000-000000000004', 1,
+    'f1111111-0000-0000-0000-000000000004', 1,
     'Admin adjustment denied', 'test-admin-adjustment-0001', now()
   )
 $sql$, 'permission denied');
 
 RESET ROLE;
-SELECT set_config('request.jwt.claim.sub', '11111111-0000-0000-0000-000000000003', true);
+SELECT set_config('request.jwt.claim.sub', 'f1111111-0000-0000-0000-000000000003', true);
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.assert_true(
   (SELECT count(*) = 0 FROM public.financial_transactions),
@@ -320,10 +332,10 @@ SELECT pg_temp.assert_true(
 );
 
 RESET ROLE;
-SELECT set_config('request.jwt.claim.sub', '11111111-0000-0000-0000-000000000004', true);
+SELECT set_config('request.jwt.claim.sub', 'f1111111-0000-0000-0000-000000000004', true);
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.assert_true(
-  (SELECT count(*) > 0 AND bool_and(member_id = '11111111-0000-0000-0000-000000000004')
+  (SELECT count(*) > 0 AND bool_and(member_id = 'f1111111-0000-0000-0000-000000000004')
    FROM public.financial_transactions),
   'member sees only their own financial rows'
 );

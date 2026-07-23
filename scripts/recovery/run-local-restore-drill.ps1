@@ -256,7 +256,7 @@ try {
   if ($targetDatabaseUri.UserInfo -notmatch '^[^:]+:(.+)$') { throw "The isolated target database URL omitted its local password." }
   $targetDatabasePassword = [Uri]::UnescapeDataString($Matches[1])
   $targetPasswordEnvironment = "PGPASSWORD=$targetDatabasePassword"
-  Invoke-NativeToFile -FilePath $dockerExe -Arguments @('exec', $sourceDbContainer, 'pg_dump', '--username=postgres', '--dbname=postgres', '--format=custom', '--schema=public', '--schema=auth', '--schema=storage', '--schema=supabase_migrations', '--extension=pg_trgm', '--extension=uuid-ossp', '--extension=pgcrypto') -WorkingDirectory $root -OutputPath $dumpPath -Failure "Source database backup failed."
+  Invoke-NativeToFile -FilePath $dockerExe -Arguments @('exec', $sourceDbContainer, 'pg_dump', '--username=postgres', '--dbname=postgres', '--format=custom', '--schema=public', '--schema=auth', '--schema=storage', '--schema=supabase_migrations', '--extension=pg_trgm', '--extension=uuid-ossp', '--extension=pgcrypto', '--extension=btree_gist') -WorkingDirectory $root -OutputPath $dumpPath -Failure "Source database backup failed."
 
   Invoke-NativeFromFile -FilePath $dockerExe -Arguments @('exec', '--env', $targetPasswordEnvironment, '-i', $targetDbContainer, 'pg_restore', '--clean', '--if-exists', '--exit-on-error', '--username=supabase_admin', '--dbname=postgres') -WorkingDirectory $root -InputPath $dumpPath -Failure "Database restore into the isolated target failed."
 

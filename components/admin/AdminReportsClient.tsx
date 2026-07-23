@@ -64,6 +64,7 @@ export interface ReportsData {
   revenueByDayOfMonth?: RevenueByDom[]
   methodBreakdown?: MethodBreakdown
   reconciliation?: FinancialReconciliation
+  reconciliationUnavailable?: boolean
 }
 
 function StatCard({
@@ -106,6 +107,7 @@ export function AdminReportsClient({ data }: { data: ReportsData }) {
     revenueByDayOfMonth = [],
     methodBreakdown,
     reconciliation,
+    reconciliationUnavailable,
   } = data
 
   return (
@@ -175,6 +177,15 @@ export function AdminReportsClient({ data }: { data: ReportsData }) {
           </div>
           <p className="mt-3 text-xs" style={{ color: A.muted }}>
             Reconstructed legacy: {reconciliation.legacy_backfill_count} events · ₱{reconciliation.legacy_backfill_total.toLocaleString()}
+          </p>
+        </ACard>
+      )}
+
+      {reconciliationUnavailable && (
+        <ACard className="p-4" style={{ borderColor: '#F59E0B' }}>
+          <p className="font-semibold" style={{ color: A.text }}>Financial reconciliation unavailable</p>
+          <p className="mt-1 text-sm" style={{ color: A.text2 }}>
+            No reconciliation total is shown until the ledger check succeeds.
           </p>
         </ACard>
       )}

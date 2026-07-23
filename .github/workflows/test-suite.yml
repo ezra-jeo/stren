@@ -46,6 +46,9 @@ jobs:
       - name: Run database and deployment invariants
         run: npm run db:invariants
 
+      - name: Run all mandatory financial database suites
+        run: npm run db:test:financial
+
       - name: Stop isolated local Supabase
         if: always()
         run: npm run db:stop

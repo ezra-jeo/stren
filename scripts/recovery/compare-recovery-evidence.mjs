@@ -24,7 +24,7 @@ try {
   const sourceNewest = Date.parse(source.snapshot.newestFinancialTransactionAt ?? "");
   const targetNewest = Date.parse(target.snapshot.newestFinancialTransactionAt ?? "");
   const result = {
-    version: 1,
+    version: 2,
     passed: isDeepStrictEqual(source.snapshot, target.snapshot),
     actualRpoMinutes:
       Number.isFinite(sourceNewest) && Number.isFinite(targetNewest)

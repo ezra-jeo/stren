@@ -1,6 +1,6 @@
 # Production Security & Financial Closure
 
-**Status:** Shot A implemented and verified in the working tree on 2026-07-18; Shot B remains queued and must not begin until the developer reviews and commits Shot A.
+**Status:** Shot A committed at `408fe3c` on 2026-07-18. Shot B is implemented and fully locally verified in the working tree through migration 028, including the 2026-07-23 evidence-v2 isolated database/Auth/Storage restore at RPO 0.00 minutes and RTO 1.27 minutes; it awaits developer review and commit. Independent gate review remains queued.
 **Audit source:** Post-implementation audit of commits `27a1113` and `b6e8f2f`, completed 2026-07-16.
 **Launch boundary:** Synthetic internal testing only. Stren is not approved for a real-gym pilot or real payments.
 **Recommended execution:** Shot A — GPT Codex 5.6 Sol, `xhigh`; Shot B — GPT Codex 5.6 Sol, `xhigh`; independent gate review — GPT 5.6 Terra, `xhigh`.

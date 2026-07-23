@@ -1,22 +1,22 @@
 -- DEVELOPMENT-ONLY seed data for the isolated local Supabase stack.
--- This file is not production provisioning and deliberately aborts unless the
--- database advertises the local API URL configured in supabase/config.toml.
+-- This file is not production provisioning and deliberately aborts unless
+-- the guarded reset wrapper supplies the explicit Stren-local opt-in,
+-- allowlisted project identity, local API URL, and loopback database address.
 
 BEGIN;
 
 DO $$
 DECLARE
-  v_api_url TEXT := COALESCE(current_setting('app.settings.api_url', TRUE), '');
-  v_server_addr INET := inet_server_addr();
+  v_opt_in TEXT := NULLIF(current_setting('stren.development_seed_opt_in', TRUE), '');
+  v_project_id TEXT := NULLIF(current_setting('stren.local_project_id', TRUE), '');
+  v_api_url TEXT := NULLIF(current_setting('stren.local_api_url', TRUE), '');
 BEGIN
-  IF v_api_url !~ '^https?://(127\.0\.0\.1|localhost|kong)(:[0-9]+)?'
-     AND NOT COALESCE(v_server_addr << inet '172.16.0.0/12', FALSE) THEN
-    RAISE EXCEPTION
-      'DEVELOPMENT-ONLY seed refused: local markers absent (api_url=%, server_addr=%, server_port=%)',
-      CASE WHEN v_api_url = '' THEN '<unset>' ELSE v_api_url END,
-      COALESCE(v_server_addr::TEXT, '<unset>'),
-      inet_server_port();
-  END IF;
+  PERFORM public.assert_development_seed_allowed(
+    v_opt_in,
+    v_project_id,
+    v_api_url,
+    inet_server_addr()
+  );
 END;
 $$;
 

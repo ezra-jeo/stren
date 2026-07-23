@@ -8,6 +8,26 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Financial Reporting & Recovery Closure — Shot B
+
+#### Added
+- Migration `028_financial_reporting_recovery_closure.sql` closes every legacy `payments` mutation grant, adds finite/nonnegative monetary checks, persists canonical financial request fingerprints, enforces exact inclusive Manila paid dates, and adds a concurrency-safe exclusion constraint for active/frozen paid periods.
+- PostgreSQL now owns one effective membership status used by entitlement, dashboard/report buckets, and the authorized member-status export, including rejected, banned, disabled, frozen, cancelled, expired, scheduled, and historical-cancellation cases.
+- Added explicit dashboard/report/reconciliation unavailable states, a fail-closed local seed wrapper, protected function/policy/grant/trigger/constraint definition hashes, and a transactional deployment drift probe.
+- CI now runs 11 named financial PostgreSQL suites after the clean guarded seed. The omission sentinel covers ledger/RLS/rollback/date/monetary behavior plus true parallel payment, reversal-limit, and direct-overlap sessions using an isolated fixture namespace.
+- Recovery evidence format v2 compares hashed Auth identities, financial snapshots, idempotency requests, memberships, both audit streams, protected definitions, anomaly counts, and per-gym reconciliation; the logical archive now explicitly includes `btree_gist`.
+
+#### Changed
+- A 30-day purchase now grants exactly 30 inclusive Manila calendar dates (`start + duration - 1`). Existing settled periods are preserved without rewriting historical access meaning.
+- Same gym/key/same financial intent returns the original event; reuse with a different target, kind, amount, reason, revoke choice, plan, promo, method, or requested date fails clearly.
+- The development seed is disabled in ordinary CLI resets and runs only through `npm run db:reset:clean`, which requires the exact local opt-in, project ID, API URL, database port, and loopback/private-local database address. Package version is `2.6.0`.
+
+#### Verification
+- Two clean local resets applied migrations through 028 and the guarded two-gym seed. Generated database types match. `npm run db:invariants` and `npm run db:test:financial` pass; all 11 named financial suites execute, including one-success/one-rejection parallel reversal and overlap proofs. The protected-definition probe fails on an intentional same-name RLS policy change, rolls it back, and passes again.
+- Lint, typecheck, **448/448** unit/integration tests, and the production build pass. Production-mode Playwright exits cleanly against a separately managed local server with **14 passed / 8 credential-gated skipped / 0 failed**.
+- The 2026-07-23 evidence-v2 isolated local database/Auth/Storage restore passed. Source and target matched 7 Auth users, 7 profiles, 6 gym-user rows, 2 memberships, 2 attendance rows, 1 onboarding audit event, 6 privileged-audit events, 2 ledger events, and 2 financial idempotency records; Auth, financial, membership, audit, and protected-definition hashes were exact. Both gyms reconciled at PHP 800 and PHP 900 with zero anomalies; 1 Storage bucket / 1 object matched by SHA-256. Measured RPO was **0.00 minutes** and RTO **1.27 minutes**; the target was stopped and retained.
+- `npm run backup:check` fails closed because no approved off-site freshness evidence or retention-policy file exists. No hosted migration, data mutation, paid infrastructure change, hosted restore, commit, push, merge, rebase, or tag was performed. Hosted retention, PITR/equivalent, configuration recreation, monitoring, and an isolated hosted restore remain external launch blockers.
+
 ### Production Security & Tenant Closure — Shot A
 
 #### Added

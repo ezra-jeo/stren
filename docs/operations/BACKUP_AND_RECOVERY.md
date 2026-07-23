@@ -68,7 +68,7 @@ Before approval to apply:
 1. Confirm a fresh local `npm run db:reset:clean`, `npm run db:types:check`, and `npm run db:invariants` pass.
 2. Record non-sensitive source counts and financial reconciliation.
 3. Confirm a fresh database/Storage backup and acceptable latest recovery point.
-4. Confirm the application revision expects migration 027 and no seed option is present.
+4. Confirm the application revision expects migration 028 and no seed option is present.
 
 ### Apply and post-apply
 
@@ -96,9 +96,10 @@ Record incident/drill ID, approver, source project reference (in the private inc
 
 Capture read-only source evidence immediately before the backup/restore without retaining PII:
 
-- Auth user, profile, gym-user, membership, attendance, onboarding-audit, and ledger counts;
+- Auth user, profile, gym-user, membership, attendance, onboarding-audit, privileged-audit, ledger, and idempotency-request counts;
 - newest `financial_transactions.occurred_at`;
 - per-gym payment/refund/void/adjustment/net totals, reversal remaining balances, missing links, actor/plan snapshot completeness, and `financial_reconciliation` output;
+- non-sensitive SHA-256 digests of Auth identities, exact financial snapshots, idempotency intent records, membership periods, both audit streams, and protected database definitions;
 - Storage bucket/object counts, manifest digest, and sampled SHA-256 values.
 
 ### 2. Provision the target
@@ -109,7 +110,7 @@ Create a disposable Supabase project in the approved region and organization wit
 
 Prefer the provider's supported restore/duplicate-to-new-project path. For the encrypted logical export, decrypt only on the controlled runner, restore roles/schema/data in that order, and keep the plaintext only in its scoped temporary directory. Restore must include `auth.users`, `public.profiles`, `public.gym_users`, migrations, ledger, memberships, attendance, audit data, Storage bucket/object metadata, functions, policies, grants, and triggers.
 
-The exercised local logical-restore contract uses a unique, version-matched Supabase target, applies the repository migrations with seed disabled, then restores a custom-format archive containing the durable `public`, `auth`, `storage`, and `supabase_migrations` schemas plus Stren's `pg_trgm`, `uuid-ossp`, and `pgcrypto` extensions. Object ownership is preserved. Supabase Realtime messages and generated GraphQL APIs are intentionally not backup payloads: the target platform provisions them, and Realtime messages are transient. The archive is restored by the isolated target's matching PostgreSQL client rather than an arbitrary workstation client.
+The exercised local logical-restore contract uses a unique, version-matched Supabase target, applies the repository migrations with seed disabled, then restores a custom-format archive containing the durable `public`, `auth`, `storage`, and `supabase_migrations` schemas plus Stren's `pg_trgm`, `uuid-ossp`, `pgcrypto`, and `btree_gist` extensions. Object ownership is preserved. Supabase Realtime messages and generated GraphQL APIs are intentionally not backup payloads: the target platform provisions them, and Realtime messages are transient. The archive is restored by the isolated target's matching PostgreSQL client rather than an arbitrary workstation client.
 
 Do not assume custom role passwords, project secrets, or hosted Auth settings are present in a database dump. Physical daily backups may also be non-downloadable; the operator must follow the currently supported Supabase restore path.
 
@@ -167,7 +168,7 @@ npm run recovery:drill:local
 
 The command refuses non-loopback databases, creates a timestamp-unique target with source-matched PostgreSQL/Auth/Storage versions, disables seed and the network-dependent Edge Runtime only in that disposable target, copies and applies every repository migration, performs the durable database and every-bucket Storage restore, and stops without deleting the target. It checks generated types, the full deployment snapshot, two-gym RLS, source/target aggregate evidence, actual `financial_reconciliation`, Storage counts/hashes, and live Auth sign-in/routing for all seven development-only role fixtures. Edge Functions, hosted Auth redirects/SMTP/OAuth, secrets, cron, webhooks, DNS, and production integrations still require the manual hosted steps above.
 
-The successful 2026-07-16 local drill recorded:
+The successful 2026-07-16 evidence-v1 local drill recorded:
 
 - source and target counts matched: 7 Auth users, 7 profiles, 6 gym-user rows, 2 memberships, 2 attendance rows, 1 onboarding audit event, and 2 ledger events;
 - both gyms had zero missing links, impossible reversals, or incomplete actor/plan snapshots; reconciliation net totals were PHP 800 and PHP 900;
@@ -175,6 +176,15 @@ The successful 2026-07-16 local drill recorded:
 - one Storage bucket and one synthetic object matched by object count and SHA-256;
 - newest source and recovered financial transaction timestamps were identical (`2026-07-16T10:15:08.538856Z`), for measured RPO 0.00 minutes;
 - all validation passed in 1.95 minutes measured RTO, and the isolated target was stopped but retained for evidence.
+
+Shot B upgrades this to evidence format v2 and explicitly archives `btree_gist`. The 2026-07-23 v2 isolated local drill passed:
+
+- source and target counts matched: 7 Auth users, 7 profiles, 6 gym-user rows, 2 memberships, 2 attendance rows, 1 onboarding audit event, 6 privileged-audit events, 2 ledger events, and 2 financial idempotency records;
+- Auth identity, financial snapshot, idempotency, membership, audit, and protected-definition hashes matched exactly through migration 028;
+- both gyms reconciled at PHP 800 and PHP 900 with zero invalid links, reversals, snapshots, attendance, audit references, or overlapping paid periods;
+- one Storage bucket and one synthetic object matched by count and SHA-256;
+- newest source and recovered financial transaction timestamps were identical (`2026-07-23T15:34:17.468277Z`), for measured RPO 0.00 minutes;
+- all validation passed in 1.27 minutes measured RTO, and the isolated target was stopped but retained for evidence.
 
 ## Evidence template
 
@@ -190,9 +200,9 @@ Newest source transaction / newest recovered transaction:
 Actual RPO / actual RTO:
 Auth/profile/gym-user counts match:
 Two-gym role/RLS probes:
-Ledger counts/signed totals/reversal balances/snapshots:
+Ledger counts/signed totals/reversal balances/snapshot and idempotency digests:
 financial_reconciliation match:
-Membership/attendance/audit checks:
+Membership/attendance/onboarding-audit/privileged-audit checks and digests:
 Storage bucket/object counts and sampled hashes:
 Manual configuration recreated or still missing:
 External operations performed:
@@ -201,4 +211,4 @@ Result and remaining blockers:
 
 ## Current gate
 
-The repository can bootstrap from empty and has passed an isolated local database/Auth/Storage restore with RLS, live sign-in routing, object hashes, and financial reconciliation. Production backup retention, the off-site destination, PITR capability, hosted manual configuration, and a full isolated hosted restore remain unverified until credentials, budget, and explicit approval are supplied. The external launch/recovery gate is blocked; do not mark production recovery complete from local evidence alone.
+The repository can bootstrap from empty through migration 028, and its evidence-v2 isolated local database/Auth/Storage restore passes with RLS, live sign-in routing, exact source/target hashes, object hashes, and financial reconciliation. Production backup retention, the off-site destination, PITR capability, hosted manual configuration, and a full isolated hosted restore remain unverified until credentials, budget, and explicit approval are supplied. The production launch/recovery gate remains blocked; local evidence does not establish hosted recoverability.

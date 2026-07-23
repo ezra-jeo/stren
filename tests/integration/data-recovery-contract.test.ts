@@ -20,7 +20,8 @@ describe("Shot 2 data-recovery contract", () => {
     const seed = read("supabase/seed.sql");
 
     expect(seed).toMatch(/development-only/i);
-    expect(seed).toMatch(/app\.settings\.api_url/i);
+    expect(seed).toMatch(/assert_development_seed_allowed/i);
+    expect(seed).toMatch(/stren\.development_seed_opt_in/i);
     expect(seed).toMatch(/INSERT INTO public\.gym_users/i);
     expect(seed).toMatch(/active_gym_id/i);
     expect(seed).not.toMatch(/SET\s+gym_id\s*=/i);
@@ -74,7 +75,7 @@ describe("Shot 2 data-recovery contract", () => {
 
     expect(drill).toMatch(/RECOVERY_TARGET_CONFIRM.*ISOLATED_NON_PRODUCTION/i);
     expect(drill).toMatch(/--schema=public[\s\S]*--schema=auth[\s\S]*--schema=storage/i);
-    expect(drill).toMatch(/--extension=pg_trgm[\s\S]*--extension=uuid-ossp[\s\S]*--extension=pgcrypto/i);
+    expect(drill).toMatch(/--extension=pg_trgm[\s\S]*--extension=uuid-ossp[\s\S]*--extension=pgcrypto[\s\S]*--extension=btree_gist/i);
     expect(drill).toContain("verify-local-recovery-auth-routing.mjs");
     expect(authCheck).toMatch(/signInWithPassword/i);
     expect(authCheck).toMatch(/\/admin[\s\S]*\/member[\s\S]*\/gyms/i);

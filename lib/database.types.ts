@@ -1,4 +1,4 @@
-﻿export type Json =
+export type Json =
   | string
   | number
   | boolean
@@ -341,6 +341,48 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_idempotency_requests: {
+        Row: {
+          created_at: string
+          gym_id: string
+          idempotency_key: string
+          operation: string
+          request_fingerprint: string
+          transaction_id: string
+        }
+        Insert: {
+          created_at?: string
+          gym_id: string
+          idempotency_key: string
+          operation: string
+          request_fingerprint: string
+          transaction_id: string
+        }
+        Update: {
+          created_at?: string
+          gym_id?: string
+          idempotency_key?: string
+          operation?: string
+          request_fingerprint?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_idempotency_requests_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "financial_idempotency_requests_transaction_gym_fkey"
+            columns: ["transaction_id", "gym_id"]
+            isOneToOne: false
+            referencedRelation: "financial_transactions"
+            referencedColumns: ["id", "gym_id"]
           },
         ]
       }
@@ -1533,7 +1575,30 @@ export type Database = {
     }
     Functions: {
       admin_dashboard_stats: { Args: never; Returns: Json }
+      admin_dashboard_stats_legacy_025: { Args: never; Returns: Json }
+      admin_membership_status_export: {
+        Args: never
+        Returns: {
+          effective_status: string
+          email: string
+          member_id: string
+          name: string
+        }[]
+      }
       admin_reports_data: { Args: { p_days?: number }; Returns: Json }
+      admin_reports_data_legacy_025: {
+        Args: { p_days?: number }
+        Returns: Json
+      }
+      assert_development_seed_allowed: {
+        Args: {
+          p_api_url: string
+          p_opt_in: string
+          p_project_id: string
+          p_server_addr: unknown
+        }
+        Returns: undefined
+      }
       assign_gym_user_role: {
         Args: {
           p_reason: string
@@ -1635,10 +1700,24 @@ export type Database = {
         Returns: Json
       }
       deployment_contract_snapshot: { Args: never; Returns: Json }
+      deployment_contract_snapshot_legacy_026: { Args: never; Returns: Json }
+      deployment_protected_definition_hashes: { Args: never; Returns: Json }
+      effective_membership_status: {
+        Args: { p_gym_id: string; p_on_date?: string; p_user_id: string }
+        Returns: string
+      }
+      effective_membership_status_counts: {
+        Args: { p_gym_id: string; p_on_date?: string }
+        Returns: Json
+      }
       escape_ilike: { Args: { p_input: string }; Returns: string }
       financial_reconciliation: {
         Args: { p_from_date: string; p_to_date: string }
         Returns: Json
+      }
+      financial_request_fingerprint: {
+        Args: { p_operation: string; p_request: Json }
+        Returns: string
       }
       financial_transaction_history: {
         Args: {
@@ -1832,6 +1911,10 @@ export type Database = {
         Returns: boolean
       }
       my_weekly_streak: { Args: never; Returns: number }
+      paid_membership_end_date: {
+        Args: { p_duration_days: number; p_start_date: string }
+        Returns: string
+      }
       preflight_member_onboarding: {
         Args: {
           p_email: string
@@ -1987,6 +2070,7 @@ export type Database = {
         | "disabled"
         | "withdrawn"
         | "expired"
+        | "banned"
       promo_type: "student_pass" | "new_member" | "birthday" | "custom"
       user_role: "member" | "admin" | "staff" | "owner"
       verification_status:
@@ -2146,6 +2230,7 @@ export const Constants = {
         "disabled",
         "withdrawn",
         "expired",
+        "banned",
       ],
       promo_type: ["student_pass", "new_member", "birthday", "custom"],
       user_role: ["member", "admin", "staff", "owner"],

@@ -24,10 +24,10 @@ SELECT pg_temp.expect_error($sql$
     id, gym_id, name, type, discount_type, discount_value,
     plan_id, valid_from, valid_until, is_active
   ) VALUES (
-    '61000000-0000-0000-0000-000000000001',
-    '10000000-0000-0000-0000-000000000001',
+    'f6100000-0000-0000-0000-000000000001',
+    'f1000000-0000-0000-0000-000000000001',
     'Invalid percent', 'custom', 'percent', 100.01,
-    '30000000-0000-0000-0000-000000000001', current_date, current_date + 1, true
+    'f3000000-0000-0000-0000-000000000001', current_date, current_date + 1, true
   )
 $sql$, 'promos_discount_value_valid|check constraint');
 
@@ -36,10 +36,10 @@ SELECT pg_temp.expect_error($sql$
     id, gym_id, name, type, discount_type, discount_value,
     plan_id, valid_from, valid_until, is_active
   ) VALUES (
-    '61000000-0000-0000-0000-000000000002',
-    '10000000-0000-0000-0000-000000000001',
+    'f6100000-0000-0000-0000-000000000002',
+    'f1000000-0000-0000-0000-000000000001',
     'Invalid fixed', 'custom', 'fixed', -0.01,
-    '30000000-0000-0000-0000-000000000001', current_date, current_date + 1, true
+    'f3000000-0000-0000-0000-000000000001', current_date, current_date + 1, true
   )
 $sql$, 'promos_discount_value_valid|check constraint');
 
@@ -48,10 +48,10 @@ SELECT pg_temp.expect_error($sql$
     id, gym_id, name, type, discount_type, discount_value,
     plan_id, valid_from, valid_until, is_active
   ) VALUES (
-    '61000000-0000-0000-0000-000000000003',
-    '10000000-0000-0000-0000-000000000001',
+    'f6100000-0000-0000-0000-000000000003',
+    'f1000000-0000-0000-0000-000000000001',
     'Invalid dates', 'custom', 'fixed', 1,
-    '30000000-0000-0000-0000-000000000001', current_date + 1, current_date, true
+    'f3000000-0000-0000-0000-000000000001', current_date + 1, current_date, true
   )
 $sql$, 'promos_validity_ordered|check constraint');
 
@@ -61,8 +61,8 @@ SELECT pg_temp.expect_error($sql$
     discount_amount, currency, plan_snapshot, actor_snapshot,
     snapshot_quality, reason, idempotency_key
   ) VALUES (
-    '10000000-0000-0000-0000-000000000001',
-    '22222222-0000-0000-0000-000000000002',
+    'f1000000-0000-0000-0000-000000000001',
+    'f2222222-0000-0000-0000-000000000002',
     'adjustment', 'adjustment_rpc', 1, 0, 0, 'PHP',
     '{"id":null,"name":"Cross-gym test"}'::JSONB,
     '{"id":null,"name":"Reconstructed test actor"}'::JSONB,
@@ -73,22 +73,22 @@ $sql$, 'member must belong to the transaction gym');
 INSERT INTO public.gym_user_permission_overrides(
   gym_id, user_id, permission, granted, granted_by
 ) VALUES (
-  '10000000-0000-0000-0000-000000000001',
-  '11111111-0000-0000-0000-000000000002',
+  'f1000000-0000-0000-0000-000000000001',
+  'f1111111-0000-0000-0000-000000000002',
   'payments:discount', false,
-  '11111111-0000-0000-0000-000000000001'
+  'f1111111-0000-0000-0000-000000000001'
 )
 ON CONFLICT (gym_id, user_id, permission)
 DO UPDATE SET granted = EXCLUDED.granted;
 
-SELECT set_config('request.jwt.claim.sub', '11111111-0000-0000-0000-000000000002', true);
+SELECT set_config('request.jwt.claim.sub', 'f1111111-0000-0000-0000-000000000002', true);
 SET LOCAL ROLE authenticated;
 SELECT pg_temp.expect_error($sql$
   SELECT public.record_membership_payment(
-    '11111111-0000-0000-0000-000000000004',
-    '30000000-0000-0000-0000-000000000001',
+    'f1111111-0000-0000-0000-000000000004',
+    'f3000000-0000-0000-0000-000000000001',
     'cash', 'test-discount-permission-denied-0001',
-    '60000000-0000-0000-0000-000000000001', NULL
+    'f6000000-0000-0000-0000-000000000001', NULL
   )
 $sql$, 'permission denied.*discount|discount.*permission denied');
 

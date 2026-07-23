@@ -1,6 +1,7 @@
 # Financial Integrity, Reporting & Recovery
 
 **Status:** Initial shots committed (`27a1113`, `b6e8f2f`) on 2026-07-16. Superseded as the active workstream by [Production Security & Financial Closure](ImplementationPlan-ProductionSecurityAndFinancialClosure.md) after the post-implementation audit found unresolved production blockers. This document remains the ledger/recovery architecture and implementation record.
+**Closure update (working tree, 2026-07-23):** migration 028 adds canonical request fingerprints, exact inclusive paid dates, one effective membership status, exclusion-based overlap protection, protected-definition hashes, and recovery evidence v2. The v2 isolated local database/Auth/Storage restore passed with exact source/target hashes, RPO 0.00 minutes, and RTO 1.27 minutes; hosted recovery gates remain blocked.
 **Audit source:** Production-readiness audit completed 2026-07-15.
 **Recommended model / effort:** GPT Codex 5.6 Sol; Shot 1 `xhigh`, Shot 2 `high` (`xhigh` when an actual hosted restore drill is included).
 **Prompts:** [Shot 1](prompts/Codex-Financial-Integrity-Reports-OneShot.md) · [Shot 2](prompts/Codex-Data-Recovery-Migrations-OneShot.md)

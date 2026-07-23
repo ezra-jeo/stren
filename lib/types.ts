@@ -46,7 +46,14 @@ export interface CheckIn {
 // ============================================
 
 export type GymUserRole = "member" | "admin" | "staff" | "owner"
-export type GymUserStatus = "pending" | "active" | "rejected"
+export type GymUserStatus =
+  | "pending"
+  | "active"
+  | "rejected"
+  | "disabled"
+  | "withdrawn"
+  | "expired"
+  | "banned"
 export type UserRole = GymUserRole
 export type ProfileStatus = GymUserStatus
 
@@ -98,7 +105,10 @@ export interface MembershipVerification {
   name: string
   address: string | null
   logoUrl: string | null
-  status: Extract<GymUserStatus, "pending" | "rejected">
+  status: Extract<
+    GymUserStatus,
+    "pending" | "rejected" | "withdrawn" | "expired"
+  >
   submittedAt: string
   lastRemindedAt: string | null
   nextReminderAt: string | null

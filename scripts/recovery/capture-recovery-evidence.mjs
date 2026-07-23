@@ -32,7 +32,7 @@ if (!databaseUrl || !outputPath) {
     const line = result.stdout.split(/\r?\n/).find((value) => value.trim().startsWith("{"));
     if (!line) throw new Error("Recovery evidence query returned no aggregate snapshot.");
     const evidence = {
-      version: 1,
+      version: 2,
       capturedAt: new Date().toISOString(),
       snapshot: JSON.parse(line),
     };

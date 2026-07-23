@@ -1,6 +1,7 @@
 import { createServerSupabaseClient } from '@/lib/supabase-server'
 import { AdminReportsClient } from '@/components/admin/AdminReportsClient'
 import type { FinancialReconciliation, ReportsData } from '@/components/admin/AdminReportsClient'
+import { ReportingUnavailable } from '@/components/admin/ReportingUnavailable'
 import { requirePermission } from '@/lib/permissions-server'
 
 const MAX_DAYS = 14
@@ -10,27 +11,25 @@ const MAX_REVENUE_DAYS = 31
 export default async function ReportsPage() {
   await requirePermission('reports:attendance:view')
   const supabase = await createServerSupabaseClient()
-  const [{ data }, { data: reconciliation }] = await Promise.all([
+  const [reportsResult, reconciliationResult] = await Promise.all([
     supabase.rpc('admin_reports_data', { p_days: 14 }),
     supabase.rpc('financial_reconciliation', { p_from_date: '2000-01-01', p_to_date: '2100-01-01' }),
   ])
 
-  if (!data) {
-    const empty: ReportsData = {
-      activeCount: 0,
-      expiredCount: 0,
-      monthRevenue: 0,
-      avgDailyVisits: '0',
-      attendanceData: [],
-      revenueData: [],
-      peakHours: [],
-      revenueByDayOfMonth: [],
-      methodBreakdown: { cashTotal: 0, cashCount: 0, gcashTotal: 0, gcashCount: 0 },
-      reconciliation: reconciliation
-        ? reconciliation as unknown as FinancialReconciliation
-        : undefined,
-    }
-    return <AdminReportsClient data={empty} />
+  const { data, error } = reportsResult
+  const { data: reconciliation, error: reconciliationError } = reconciliationResult
+
+  if (error || !data) {
+    console.error('admin reports data unavailable', {
+      code: typeof error?.code === 'string' ? error.code : 'missing_data',
+    })
+    return <ReportingUnavailable section="Reports" />
+  }
+
+  if (reconciliationError) {
+    console.error('financial reconciliation unavailable', {
+      code: typeof reconciliationError.code === 'string' ? reconciliationError.code : 'unknown',
+    })
   }
 
   const attendanceRows = ((data as any).attendance_by_day ?? []).slice(0, MAX_DAYS) as { date: string; visits: number }[]
@@ -60,6 +59,7 @@ export default async function ReportsPage() {
     reconciliation: reconciliation
       ? reconciliation as unknown as FinancialReconciliation
       : undefined,
+    reconciliationUnavailable: Boolean(reconciliationError),
   }
 
   return <AdminReportsClient data={reportsData} />

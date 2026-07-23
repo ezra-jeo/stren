@@ -28,6 +28,52 @@ reversal_overruns AS (
       WHERE reversal.reverses_transaction_id = original.id
     ), 0) > original.ledger_amount
 ),
+auth_identity_digest AS (
+  SELECT encode(digest(COALESCE(string_agg(
+    concat_ws('|', id::TEXT, lower(email), aud, role), E'\n'
+    ORDER BY id
+  ), 'empty'), 'sha256'), 'hex') AS value
+  FROM auth.users
+),
+financial_snapshot_digest AS (
+  SELECT encode(digest(COALESCE(string_agg(
+    concat_ws('|',
+      id::TEXT, gym_id::TEXT, member_id::TEXT, membership_id::TEXT,
+      kind, ledger_amount::TEXT, plan_snapshot::TEXT,
+      discount_snapshot::TEXT, actor_snapshot::TEXT,
+      membership_start_date::TEXT, membership_end_date::TEXT, metadata::TEXT
+    ), E'\n' ORDER BY id
+  ), 'empty'), 'sha256'), 'hex') AS value
+  FROM public.financial_transactions
+),
+idempotency_digest AS (
+  SELECT encode(digest(COALESCE(string_agg(
+    concat_ws('|', gym_id::TEXT, idempotency_key, operation,
+      request_fingerprint, transaction_id::TEXT), E'\n'
+    ORDER BY gym_id, idempotency_key
+  ), 'empty'), 'sha256'), 'hex') AS value
+  FROM public.financial_idempotency_requests
+),
+membership_digest AS (
+  SELECT encode(digest(COALESCE(string_agg(
+    concat_ws('|', id::TEXT, gym_id::TEXT, member_id::TEXT, plan_id::TEXT,
+      start_date::TEXT, end_date::TEXT, status::TEXT, cancelled_at::TEXT,
+      financial_transaction_id::TEXT), E'\n'
+    ORDER BY id
+  ), 'empty'), 'sha256'), 'hex') AS value
+  FROM public.memberships
+),
+audit_rows AS (
+  SELECT 'onboarding|' || to_jsonb(event)::TEXT AS value
+  FROM public.member_onboarding_events event
+  UNION ALL
+  SELECT 'privileged|' || to_jsonb(event)::TEXT AS value
+  FROM public.privileged_audit_events event
+),
+audit_digest AS (
+  SELECT encode(digest(COALESCE(string_agg(value, E'\n' ORDER BY value), 'empty'), 'sha256'), 'hex') AS value
+  FROM audit_rows
+),
 counts AS (
   SELECT jsonb_build_object(
     'authUsers', (SELECT count(*) FROM auth.users),
@@ -36,12 +82,20 @@ counts AS (
     'memberships', (SELECT count(*) FROM public.memberships),
     'attendance', (SELECT count(*) FROM public.attendance),
     'auditEvents', (SELECT count(*) FROM public.member_onboarding_events),
-    'financialTransactions', (SELECT count(*) FROM public.financial_transactions)
+    'privilegedAuditEvents', (SELECT count(*) FROM public.privileged_audit_events),
+    'financialTransactions', (SELECT count(*) FROM public.financial_transactions),
+    'financialIdempotencyRequests', (SELECT count(*) FROM public.financial_idempotency_requests)
   ) AS value
 )
 SELECT jsonb_build_object(
   'migrationVersion', (SELECT max(version) FROM supabase_migrations.schema_migrations),
   'counts', (SELECT value FROM counts),
+  'authIdentityDigest', (SELECT value FROM auth_identity_digest),
+  'financialSnapshotDigest', (SELECT value FROM financial_snapshot_digest),
+  'idempotencyDigest', (SELECT value FROM idempotency_digest),
+  'membershipDigest', (SELECT value FROM membership_digest),
+  'auditDigest', (SELECT value FROM audit_digest),
+  'protectedDefinitionHashes', public.deployment_protected_definition_hashes(),
   'newestFinancialTransactionAt', (
     SELECT max(occurred_at) FROM public.financial_transactions
   ),
@@ -55,6 +109,20 @@ SELECT jsonb_build_object(
   'paymentLedgerMissingMembership', (
     SELECT count(*) FROM public.financial_transactions
     WHERE kind = 'payment' AND membership_id IS NULL
+  ),
+  'overlappingPaidMembershipCount', (
+    SELECT count(*)
+    FROM public.memberships first_period
+    JOIN public.memberships second_period
+      ON second_period.gym_id = first_period.gym_id
+     AND second_period.member_id = first_period.member_id
+     AND second_period.id > first_period.id
+     AND daterange(second_period.start_date, second_period.end_date, '[]')
+         && daterange(first_period.start_date, first_period.end_date, '[]')
+    WHERE first_period.cancelled_at IS NULL
+      AND second_period.cancelled_at IS NULL
+      AND first_period.status IN ('active', 'frozen')
+      AND second_period.status IN ('active', 'frozen')
   ),
   'invalidAttendanceCount', (
     SELECT count(*) FROM public.attendance

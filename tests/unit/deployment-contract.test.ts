@@ -14,6 +14,21 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe("deployment contract", () => {
+  it("fails when a protected database definition drifts without changing its name", () => {
+    const snapshot = expectedDeploymentSchemaSnapshot();
+    const protectedDefinitions = snapshot.definitionHashes as Record<string, string>;
+    const [firstDefinition] = Object.keys(protectedDefinitions);
+    expect(firstDefinition).toBeTruthy();
+
+    protectedDefinitions[firstDefinition] = "0".repeat(64);
+    const result = evaluateDeploymentSchemaSnapshot(snapshot);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain(
+      `Protected database definition drifted: ${firstDefinition}`,
+    );
+  });
+
   it.each([
     ["migration", { migrations: [] }],
     ["table or column", { columns: [] }],

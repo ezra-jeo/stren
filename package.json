@@ -1,6 +1,6 @@
 {
   "name": "my-project",
-  "version": "2.5.0",
+  "version": "2.6.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -17,6 +17,7 @@
     "test:e2e:install": "playwright install",
     "verify:deployment": "node scripts/verify-deployment-contract.mjs",
     "verify:deployment:local": "node scripts/check-local-deployment-contract.mjs",
+    "verify:deployment:drift:local": "node scripts/check-local-deployment-drift.mjs",
     "backup:check": "node scripts/backup/verify-backup-freshness.mjs",
     "backup:storage": "node scripts/backup/export-storage.mjs",
     "restore:storage": "node scripts/backup/restore-storage.mjs",
@@ -27,11 +28,12 @@
     "test:ci": "npm run lint && npm run typecheck && npm run test:unit && npm run build && npm run test:e2e",
     "db:start": "npx supabase start",
     "db:stop": "npx supabase stop",
-    "db:reset": "npx supabase db reset",
-    "db:reset:clean": "npx supabase db reset",
+    "db:reset": "npx supabase db reset --local --no-seed",
+    "db:reset:clean": "node scripts/reset-local-database.mjs",
     "db:types:check": "node scripts/check-database-types.mjs",
     "db:test:security": "node scripts/run-production-security-tests.mjs",
-    "db:invariants": "node scripts/run-production-security-tests.mjs && node scripts/run-local-database-invariants.mjs && node scripts/check-local-deployment-contract.mjs",
+    "db:test:financial": "node scripts/run-financial-closure-tests.mjs",
+    "db:invariants": "node scripts/run-production-security-tests.mjs && node scripts/run-local-database-invariants.mjs && node scripts/check-local-deployment-contract.mjs && node scripts/check-local-deployment-drift.mjs",
     "db:status": "npx supabase status"
   },
   "dependencies": {

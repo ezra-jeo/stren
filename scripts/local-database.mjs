@@ -19,9 +19,9 @@ export function runPsql({
   sql,
 }) {
   assertIsolatedDatabaseUrl(databaseUrl);
-  const args = [databaseUrl, "-X", "-v", "ON_ERROR_STOP=1"];
+  const args = [databaseUrl, "-X", "-At", "-v", "ON_ERROR_STOP=1"];
   if (file) args.push("-f", file);
-  if (sql) args.push("-At", "-c", sql);
+  if (sql) args.push("-c", sql);
   const result = spawnSync(process.env.PSQL_BIN ?? "psql", args, {
     encoding: "utf8",
     env: { ...process.env, PGPASSWORD: undefined },

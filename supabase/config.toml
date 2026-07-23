@@ -40,8 +40,9 @@ default_pool_size = 20
 max_client_conn = 100
 
 [db.seed]
-# If enabled, seeds the database after migrations during a db reset.
-enabled = true
+# Seeding is fail-closed here. npm run db:reset:clean resets without seed,
+# verifies the allowlisted local project, then supplies the guarded opt-in.
+enabled = false
 # Specifies an ordered list of seed files to load during db reset.
 # Supports glob patterns relative to supabase directory: './seeds/*.sql'
 sql_paths = ["./seed.sql"]

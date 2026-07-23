@@ -27,7 +27,7 @@ BEGIN
    AND b.id > a.id
    AND daterange(a.start_date, a.end_date, '[]')
        && daterange(b.start_date, b.end_date, '[]')
-  WHERE a.member_id = '11111111-0000-0000-0000-000000000006'
+  WHERE a.member_id = 'f1111111-0000-0000-0000-000000000006'
     AND a.cancelled_at IS NULL
     AND b.cancelled_at IS NULL;
 
