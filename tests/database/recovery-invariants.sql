@@ -15,9 +15,16 @@ $$;
 SELECT pg_temp.assert_true(
   (SELECT array_agg(version ORDER BY version) = ARRAY[
     '000','001','005','006','007','008','009','010','011','012','013','014',
-    '015','016','017','018','019','020','021','022','023','024','025','026','027','028'
+    '015','016','017','018','019','020','021','022','023','024','025','026','027','028','029'
   ] FROM supabase_migrations.schema_migrations),
-  'canonical migration history through 028'
+  'canonical migration history through 029'
+);
+
+SELECT pg_temp.assert_true(
+  to_regclass('public.gym_claim_invites') IS NOT NULL
+  AND to_regclass('public.provisioning_runs') IS NOT NULL
+  AND to_regprocedure('public.claim_gym_ownership(text)') IS NOT NULL,
+  'assisted onboarding recovery objects are present'
 );
 
 SELECT pg_temp.assert_true(

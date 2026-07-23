@@ -20,6 +20,23 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 - Incoming `027_assisted_onboarding.sql` must be rebuilt as migration 029 against the effective hardened schema. Unsafe verification/membership bypasses, public-without-tagline provisioning, admin claimant, service-role caller-context failure, weak idempotency, raw claim-link disclosure, hand-edited types, and mocked-only database evidence are explicit repair gates.
 - Integration prompts enforce the repository's agent boundary: agents may inspect and semantically port branch behavior but may not merge, commit, push, rebase, cherry-pick, tag, mutate hosted systems, or weaken existing tenant/financial/security contracts.
 
+### Super Admin Branch Integration - Phase 1 Foundation
+
+#### Added
+- Added migration `029_assisted_onboarding.sql` against the effective migration-028 schema: private gym provisioning, owner-only claim invites, resumable Auth-resolution state, request-fingerprint idempotency, approved imported-member verification, and immutable privileged-audit events without membership/payment creation.
+- Added the smallest user-bound platform-admin server boundary and deterministic request fingerprint helper; service-role usage remains limited to Auth/Storage resolution outside the platform-gated RPC path.
+- Added executable database/Auth coverage for unauthenticated, member, staff, admin, owner, platform-admin, and service-role contexts, forged/stale/cross-gym claims, invite resend/delivery/expiry/replay, owner claim, imported verification, idempotency mismatch, private defaults, and audit immutability.
+- Added `staff_manual_checkin` and `occupancy_count` only with matching TypeScript/SQL feature definitions and hardened kiosk composition. Legacy unsafe switches are rejected and not persisted.
+
+#### Changed
+- Extended deployment/protected-definition expectations through migration 029 and updated the backup/recovery runbook for provisioning-run and claim-invite recovery checks.
+- Updated the database type surface for the migration-029 tables, columns, and RPC signatures.
+
+#### Verification
+- `npm run db:test:platform`, `npm run db:test:security`, `npm run db:test:financial` (all 11 mandatory suites), `npm run verify:deployment:local`, `npm run verify:deployment:drift:local`, `npm run typecheck`, and focused unit/integration contracts pass locally.
+- `npm run db:reset:clean` and `npm run db:types:check` could not complete because the local Supabase CLI was denied access to Docker Desktop; no hosted mutation was attempted. The local migration was applied only to the already-running isolated database for executable tests, and the local migration ledger was marked 029 for contract checks.
+- Incoming migration 027 SQL bodies and incoming hand-edited `lib/database.types.ts` were discarded; no incoming UI/routes/email payload was ported in Phase 1. No commit, push, merge, rebase, cherry-pick, tag, or hosted action was performed.
+
 ### Financial Reporting & Recovery Closure — Shot B
 
 #### Added

@@ -2,7 +2,7 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-24 (**Shot A is committed at `408fe3c`; Shot B is committed at `7363c63`. The Assisted Onboarding integration source is pinned at `origin/super-admin` commit `3c6f047` with merge base `b6e8f2f`; implementation has not started. Stren remains suitable for synthetic internal testing only and is not approved for a real-gym pilot or real payments. No hosted migration or data mutation has occurred.**)
+Last updated: 2026-07-24 (**Shot A is committed at `408fe3c`; Shot B is committed at `7363c63`. Phase 1 Assisted Onboarding foundation is implemented in the working tree as migration 029 against the effective 028 schema; the clean-reset and official generated-type parity gates remain blocked by local Docker access. The source remains pinned at `origin/super-admin` commit `3c6f047` with merge base `b6e8f2f`. Stren remains suitable for synthetic internal testing only and is not approved for a real-gym pilot or real payments. No hosted migration or data mutation has occurred.**)
 
 ---
 
@@ -12,7 +12,7 @@ Spec and three separate-chat prompts: [ImplementationPlan.md](ImplementationPlan
 
 | Unit | Scope | Status |
 |---|---|---|
-| SA1 | Phase 1 - rebuild Assisted Onboarding as migration 029 plus corrected platform authorization/provisioning spine on the migration-028 baseline | Queued - source pinned at `3c6f047`; merge base `b6e8f2f`; actual 59-file/+5,621/-6 payload and five direct conflicts mapped; implementation not started |
+| SA1 | Phase 1 - rebuild Assisted Onboarding as migration 029 plus corrected platform authorization/provisioning spine on the migration-028 baseline | In progress (Codex, working tree, 2026-07-24) - custom migration 029, user-bound platform helper, database/Auth tracer, deployment/protected-definition/recovery contract extensions, feature parity, and generated-type surface added; local platform/security/financial/drift probes pass, while clean reset and official type parity await Docker access |
 | SA2 | Phase 2 - port Super Admin server journeys and UI onto the Phase 1 enforcement boundary without reviving legacy auth/provisioning paths | Queued after SA1 |
 | SA3 | Phase 3 - independent completeness, tenant/authorization/financial regression audit, full local gates, and developer release handoff | Queued after SA2 |
 

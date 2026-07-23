@@ -7,11 +7,11 @@ import {
 } from '@/lib/features';
 
 describe('FEATURE_CATALOG — §4 defaults', () => {
-  it('has 12 entries: 8 available on, 4 coming_soon off', () => {
-    expect(FEATURE_CATALOG).toHaveLength(12);
+  it('has 14 entries: 10 available on, 4 coming_soon off', () => {
+    expect(FEATURE_CATALOG).toHaveLength(14);
     const available = FEATURE_CATALOG.filter((f) => f.status === 'available');
     const coming = FEATURE_CATALOG.filter((f) => f.status === 'coming_soon');
-    expect(available).toHaveLength(8);
+    expect(available).toHaveLength(10);
     expect(coming).toHaveLength(4);
     expect(available.every((f) => f.defaultEnabled)).toBe(true);
     expect(coming.every((f) => !f.defaultEnabled)).toBe(true);

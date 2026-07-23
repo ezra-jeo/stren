@@ -33,6 +33,7 @@
     "db:types:check": "node scripts/check-database-types.mjs",
     "db:test:security": "node scripts/run-production-security-tests.mjs",
     "db:test:financial": "node scripts/run-financial-closure-tests.mjs",
+    "db:test:platform": "node scripts/run-platform-admin-tests.mjs",
     "db:invariants": "node scripts/run-production-security-tests.mjs && node scripts/run-local-database-invariants.mjs && node scripts/check-local-deployment-contract.mjs && node scripts/check-local-deployment-drift.mjs",
     "db:status": "npx supabase status"
   },

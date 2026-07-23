@@ -68,7 +68,7 @@ Before approval to apply:
 1. Confirm a fresh local `npm run db:reset:clean`, `npm run db:types:check`, and `npm run db:invariants` pass.
 2. Record non-sensitive source counts and financial reconciliation.
 3. Confirm a fresh database/Storage backup and acceptable latest recovery point.
-4. Confirm the application revision expects migration 028 and no seed option is present.
+4. Confirm the application revision expects migration 029 and no seed option is present.
 
 ### Apply and post-apply
 
@@ -144,7 +144,7 @@ Keep outbound email, webhooks, cron and production integrations disabled in the 
 
 ### 6. Mandatory validation
 
-1. Run the complete migration/object deployment contract and regenerate/check TypeScript database types.
+1. Run the complete migration/object deployment contract and regenerate/check TypeScript database types. For migration 029, also verify the platform provisioning fingerprint/resume rows, private-by-default gyms, owner-only claim invites, invite lifecycle states, and the absence of raw claim credentials from results, audit state, and recovery evidence.
 2. Compare Auth/profile/gym-user counts and sign in with representative owner/admin/staff/member recovery accounts; verify expected `/admin`, `/member`, and no-gym routing.
 3. Probe at least two gyms under actual user JWTs. Each role must see only permitted rows; cross-gym ledger, membership, attendance, profile and Storage access must fail closed.
 4. Compare ledger row counts and signed totals by kind/gym, remaining reversal balances, exact/reconstructed snapshot counts, missing membership links, actor/plan snapshot completeness, and every gym's Shot 1 `financial_reconciliation` output to source evidence.
@@ -211,4 +211,4 @@ Result and remaining blockers:
 
 ## Current gate
 
-The repository can bootstrap from empty through migration 028, and its evidence-v2 isolated local database/Auth/Storage restore passes with RLS, live sign-in routing, exact source/target hashes, object hashes, and financial reconciliation. Production backup retention, the off-site destination, PITR capability, hosted manual configuration, and a full isolated hosted restore remain unverified until credentials, budget, and explicit approval are supplied. The production launch/recovery gate remains blocked; local evidence does not establish hosted recoverability.
+The repository is intended to bootstrap from empty through migration 029. Existing evidence-v2 proves the isolated local database/Auth/Storage restore through migration 028 with RLS, live sign-in routing, exact source/target hashes, object hashes, and financial reconciliation; the migration-029 clean-reset/recovery probe remains pending while local Docker access is unavailable. Production backup retention, the off-site destination, PITR capability, hosted manual configuration, and a full isolated hosted restore remain unverified until credentials, budget, and explicit approval are supplied. The production launch/recovery gate remains blocked; local evidence does not establish hosted recoverability.
