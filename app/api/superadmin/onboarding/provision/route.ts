@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase-admin';
-import { provisioningRequestFingerprint, requirePlatformAdminApi } from '@/lib/platform-admin';
+import { provisioningRequestFingerprint, requirePlatformAdminApi, type PlatformProvisioningResult } from '@/lib/platform-admin';
 import {
   provisionRequestSchema, planDurationDays, serializeOperatingHours,
   accessSwitchesToFeatureFlags, type OperatingHours,
@@ -109,7 +109,16 @@ export async function POST(request: Request) {
   }
   const savedAuthState = authState as { status?: string; result?: unknown } | null;
   if (savedAuthState?.status === 'provisioned' && savedAuthState.result) {
-    return NextResponse.json(savedAuthState.result);
+    const storedResult = savedAuthState.result as PlatformProvisioningResult;
+    const { data: invite } = await supabase.rpc('get_platform_claim_invite', {
+      p_gym_id: storedResult.gymId,
+    });
+    const currentInvite = invite as { deliveryStatus?: PlatformProvisioningResult['deliveryStatus']; expiresAt?: string } | null;
+    return NextResponse.json({
+      ...storedResult,
+      deliveryStatus: currentInvite?.deliveryStatus ?? storedResult.deliveryStatus,
+      expiresAt: currentInvite?.expiresAt ?? storedResult.expiresAt,
+    });
   }
 
   const rawToken = generateClaimToken();

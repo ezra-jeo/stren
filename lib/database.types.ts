@@ -1,4 +1,4 @@
-export type Json =
+﻿export type Json =
   | string
   | number
   | boolean
@@ -498,8 +498,8 @@ export type Database = {
       }
       gym_claim_invites: {
         Row: {
-          consumed_at: string | null
           consent_method: string
+          consumed_at: string | null
           created_at: string
           created_by: string
           delivery_status: string
@@ -514,8 +514,8 @@ export type Database = {
           updated_at: string
         }
         Insert: {
-          consumed_at?: string | null
           consent_method: string
+          consumed_at?: string | null
           created_at?: string
           created_by: string
           delivery_status?: string
@@ -530,8 +530,8 @@ export type Database = {
           updated_at?: string
         }
         Update: {
-          consumed_at?: string | null
           consent_method?: string
+          consumed_at?: string | null
           created_at?: string
           created_by?: string
           delivery_status?: string
@@ -788,8 +788,8 @@ export type Database = {
         Row: {
           address: string | null
           amenities: string[] | null
-          brand_color: string | null
           branch_name: string | null
+          brand_color: string | null
           code: string
           cover_focal: Json
           cover_path: string | null
@@ -815,8 +815,8 @@ export type Database = {
         Insert: {
           address?: string | null
           amenities?: string[] | null
-          brand_color?: string | null
           branch_name?: string | null
+          brand_color?: string | null
           code: string
           cover_focal?: Json
           cover_path?: string | null
@@ -842,8 +842,8 @@ export type Database = {
         Update: {
           address?: string | null
           amenities?: string[] | null
-          brand_color?: string | null
           branch_name?: string | null
+          brand_color?: string | null
           code?: string
           cover_focal?: Json
           cover_path?: string | null
@@ -1487,53 +1487,6 @@ export type Database = {
           },
         ]
       }
-      provisioning_runs: {
-        Row: {
-          auth_resolution: Json
-          created_at: string
-          created_by: string
-          failure_code: string | null
-          gym_id: string | null
-          idempotency_key: string
-          request_fingerprint: string
-          result: Json | null
-          status: string
-          updated_at: string
-        }
-        Insert: {
-          auth_resolution?: Json
-          created_at?: string
-          created_by: string
-          failure_code?: string | null
-          gym_id?: string | null
-          idempotency_key: string
-          request_fingerprint: string
-          result?: Json | null
-          status?: string
-          updated_at?: string
-        }
-        Update: {
-          auth_resolution?: Json
-          created_at?: string
-          created_by?: string
-          failure_code?: string | null
-          gym_id?: string | null
-          idempotency_key?: string
-          request_fingerprint?: string
-          result?: Json | null
-          status?: string
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "provisioning_runs_gym_id_fkey"
-            columns: ["gym_id"]
-            isOneToOne: false
-            referencedRelation: "gyms"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       promos: {
         Row: {
           created_at: string | null
@@ -1590,6 +1543,53 @@ export type Database = {
             columns: ["plan_id"]
             isOneToOne: false
             referencedRelation: "membership_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      provisioning_runs: {
+        Row: {
+          auth_resolution: Json
+          created_at: string
+          created_by: string
+          failure_code: string | null
+          gym_id: string | null
+          idempotency_key: string
+          request_fingerprint: string
+          result: Json | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          auth_resolution?: Json
+          created_at?: string
+          created_by: string
+          failure_code?: string | null
+          gym_id?: string | null
+          idempotency_key: string
+          request_fingerprint: string
+          result?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          auth_resolution?: Json
+          created_at?: string
+          created_by?: string
+          failure_code?: string | null
+          gym_id?: string | null
+          idempotency_key?: string
+          request_fingerprint?: string
+          result?: Json | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "provisioning_runs_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
             referencedColumns: ["id"]
           },
         ]
@@ -1738,10 +1738,7 @@ export type Database = {
         }
         Returns: boolean
       }
-      claim_gym_ownership: {
-        Args: { p_token_hash: string }
-        Returns: Json
-      }
+      claim_gym_ownership: { Args: { p_token_hash: string }; Returns: Json }
       close_attendance_session: {
         Args: { p_attendance_id: string; p_reason: string }
         Returns: Json
@@ -1768,6 +1765,7 @@ export type Database = {
         Returns: {
           address: string | null
           amenities: string[] | null
+          branch_name: string | null
           brand_color: string | null
           code: string
           cover_focal: Json
@@ -1815,6 +1813,8 @@ export type Database = {
       deployment_contract_snapshot: { Args: never; Returns: Json }
       deployment_contract_snapshot_legacy_026: { Args: never; Returns: Json }
       deployment_protected_definition_hashes: { Args: never; Returns: Json }
+      deployment_protected_definition_hashes_028: { Args: never; Returns: Json }
+      deployment_protected_definition_hashes_029: { Args: never; Returns: Json }
       effective_membership_status: {
         Args: { p_gym_id: string; p_on_date?: string; p_user_id: string }
         Returns: string
@@ -1848,11 +1848,11 @@ export type Database = {
         Args: { p_length?: number }
         Returns: string
       }
-      get_gym_by_code: { Args: { p_code: string }; Returns: Json }
       get_claim_invite_preview: {
         Args: { p_token_hash: string }
         Returns: Json
       }
+      get_gym_by_code: { Args: { p_code: string }; Returns: Json }
       get_gym_directory: {
         Args: never
         Returns: {
@@ -1911,6 +1911,11 @@ export type Database = {
           saved_at: string
         }[]
       }
+      get_platform_account_resolution: {
+        Args: { p_email: string }
+        Returns: Json
+      }
+      get_platform_claim_invite: { Args: { p_gym_id: string }; Returns: Json }
       get_user_role: { Args: never; Returns: string }
       gym_feature_enabled: {
         Args: { p_feature: string; p_gym_id?: string }
@@ -2005,11 +2010,7 @@ export type Database = {
       }
       manila_business_date: { Args: { p_at?: string }; Returns: string }
       mark_claim_invite_delivery: {
-        Args: {
-          p_gym_id: string
-          p_status: string
-          p_token_hash: string
-        }
+        Args: { p_gym_id: string; p_status: string; p_token_hash: string }
         Returns: Json
       }
       mark_member_onboarding_failure: {
@@ -2053,20 +2054,20 @@ export type Database = {
       process_daily_notifications: { Args: never; Returns: Json }
       process_expiry_notifications: { Args: never; Returns: number }
       process_inactivity_notifications: { Args: never; Returns: number }
+      provision_gym_staff: {
+        Args: {
+          p_reason: string
+          p_role: Database["public"]["Enums"]["user_role"]
+          p_user_id: string
+        }
+        Returns: Json
+      }
       provision_gym_workspace: {
         Args: {
           p_idempotency_key: string
           p_payload: Json
           p_request_fingerprint: string
           p_token_hash: string
-        }
-        Returns: Json
-      }
-      provision_gym_staff: {
-        Args: {
-          p_reason: string
-          p_role: Database["public"]["Enums"]["user_role"]
-          p_user_id: string
         }
         Returns: Json
       }
@@ -2097,16 +2098,6 @@ export type Database = {
         }
         Returns: Json
       }
-      record_platform_provisioning_auth_state: {
-        Args: {
-          p_auth_resolution: Json
-          p_failure_code?: string
-          p_idempotency_key: string
-          p_request_fingerprint: string
-          p_status: string
-        }
-        Returns: Json
-      }
       record_membership_payment: {
         Args: {
           p_idempotency_key: string
@@ -2125,6 +2116,16 @@ export type Database = {
           p_notification_type: Database["public"]["Enums"]["notification_type"]
         }
         Returns: undefined
+      }
+      record_platform_provisioning_auth_state: {
+        Args: {
+          p_auth_resolution: Json
+          p_failure_code?: string
+          p_idempotency_key: string
+          p_request_fingerprint: string
+          p_status: string
+        }
+        Returns: Json
       }
       reverse_financial_transaction: {
         Args: {

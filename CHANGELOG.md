@@ -8,6 +8,17 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Super Admin Integration — Phase 3 independent hardening gate
+
+#### Changed
+- Completed the independent 59-file source audit against protected `7363c6312ae80c6418bb5984e889f6a968973535`, incoming `3c6f047eedfab7bc76c7ecd48b31405bfc9b4e93`, and base `b6e8f2fad1e20ccfd440b84b02cc6e4b91a1bc97`. Incoming migration 027 is intentionally omitted; migrations 029 and 030 are the hardened replacements. Protected migrations 000–028 remain byte-identical.
+- Fixed idempotent provisioning replay so a replay refreshes delivery metadata instead of returning stale `pending` state. Added a regression test and regenerated `lib/database.types.ts` from the clean local schema.
+
+#### Verification
+- The clean schema, guarded local seed, database types, platform/security/financial/invariant/deployment/drift suites, lint, typecheck, **562/562** unit tests, and build pass. The clean-reset wrapper did not complete its seed phase in this environment; the separately guarded local seed and invariant gate passed.
+- `npm run test:e2e` is **non-green**: two existing unified-auth URL/state assertions failed, credential-gated Super Admin coverage was skipped, and the local font-retry process did not emit a normal summary. The migration-030 recovery drill was not performed after escalation was rejected. This is a developer-review **no-go**; hosted gates remain open.
+- No hosted mutation, real email, paid service, external deletion, merge, commit, push, rebase, cherry-pick, or tag was performed. Package version remains `2.6.0` because this is not a release-ready result.
+
 ### Super Admin Integration — Phase 2 secure Assisted Onboarding port
 
 #### Added

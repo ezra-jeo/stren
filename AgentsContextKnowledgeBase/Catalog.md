@@ -19,7 +19,7 @@
 
 ## Core documents (this folder)
 
-Active implementation plan: [ImplementationPlan-ProductionSecurityAndFinancialClosure.md](ImplementationPlan-ProductionSecurityAndFinancialClosure.md). Super Admin integration sequencing and boundaries remain in [ImplementationPlan.md](ImplementationPlan.md); the incoming branch-only Assisted Onboarding plan is a pinned source reference, not a second canonical plan.
+Active implementation plan: [ImplementationPlan-ProductionSecurityAndFinancialClosure.md](ImplementationPlan-ProductionSecurityAndFinancialClosure.md). Super Admin integration sequencing and boundaries remain in [ImplementationPlan.md](ImplementationPlan.md); the incoming Assisted Onboarding plan is retained as an integrated Phase 3 record, not an independent active plan.
 
 | File | What it is | Who updates it | Update trigger |
 |---|---|---|---|
@@ -33,6 +33,7 @@ Active implementation plan: [ImplementationPlan-ProductionSecurityAndFinancialCl
 | `ImplementationPlan-CohesiveAuthOwnerOnboarding.md` | **Latest completed plan**: cohesive `/auth`, membership-aware join routing, assisted owner onboarding, platform-only gym provisioning | Implementing agent | Scope/decision changes |
 | `ImplementationPlan-UnifiedAccounts.md` | Completed plan: Unified Accounts & Auth Rebuild (shipped to `main` 2026-07-13 via `f04fb2f`) | — | Historical; do not extend |
 | `ImplementationPlan.md` | Three-phase `polish-and-hardening` + `super-admin` integration contract with paste-ready GPT-5.6 Luna High prompts; the completed Gym Page Studio plan is retained below as a historical appendix | Integrating/reviewing agent | Incoming ref, phase boundary, protected invariant, verification gate, or prompt changes |
+| `ImplementationPlan-AssistedOnboarding.md` | Integrated record of the 59-file `super-admin` source plan, hardened migration replacements, Phase 3 audit evidence, and remaining release blockers | Integrating/reviewing agent | Assisted Onboarding integration or independent-gate evidence changes |
 | `ImplementationState.md` | Live status of every phase and work unit | **The agent that ships the work, in the same PR** | Every merged PR |
 | `prompts/` | Packaged, paste-ready prompts for implementation and independent review agents | Planning agent | When an active plan's implementation/review prompts change |
 | `prompts/Codex-Production-Security-Tenant-Closure-OneShot.md` | Paste-ready Shot A prompt: profile privacy, role hierarchy, tenant-safe attendance, verification, onboarding credentials, and privileged audit | Planning/implementing agent | Shot A scope or verification changes |

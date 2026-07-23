@@ -5,13 +5,31 @@ const state = vi.hoisted(() => ({
   adminCalls: [] as string[],
   delivery: null as { claimLink: string } | null,
   deliveryOk: true,
+  replay: false,
 }));
 
 const userClient = {
   auth: { getUser: vi.fn(async () => ({ data: { user: { id: 'operator-1', app_metadata: { platform_role: 'platform_admin' } } }, error: null })) },
   rpc: vi.fn(async (name: string, args: Record<string, unknown>) => {
     state.rpcCalls.push({ name, args });
-    if (name === 'record_platform_provisioning_auth_state') return { data: { status: 'auth_ready' }, error: null };
+    if (name === 'record_platform_provisioning_auth_state') {
+      if (state.replay) {
+        return {
+          data: {
+            status: 'provisioned',
+            result: {
+              gymId: 'gym-1', gymName: 'Iron Fitness', gymCode: 'iron-fitness',
+              ownerEmail: 'jane@example.com', expiresAt: '2026-07-25T00:00:00.000Z', deliveryStatus: 'pending',
+            },
+          },
+          error: null,
+        };
+      }
+      return { data: { status: 'auth_ready' }, error: null };
+    }
+    if (name === 'get_platform_claim_invite') {
+      return { data: { deliveryStatus: 'sent', expiresAt: '2026-07-25T00:00:00.000Z' }, error: null };
+    }
     if (name === 'provision_gym_workspace') return {
       data: {
         gymId: 'gym-1', gymName: 'Iron Fitness', gymCode: 'iron-fitness',
@@ -87,6 +105,7 @@ beforeEach(() => {
   state.adminCalls.length = 0;
   state.delivery = null;
   state.deliveryOk = true;
+  state.replay = false;
 });
 
 describe('provision route boundary', () => {
@@ -124,5 +143,16 @@ describe('provision route boundary', () => {
     expect(body.gymId).toBe('gym-1');
     expect(body.deliveryStatus).toBe('failed');
     expect(state.rpcCalls.at(-1)?.args.p_status).toBe('failed');
+  });
+
+  it('does not regress a delivered invitation to pending on an idempotent replay', async () => {
+    const first = await POST(request(validBody));
+    expect(first.status).toBe(200);
+    expect((await first.json()).deliveryStatus).toBe('sent');
+
+    state.replay = true;
+    const replay = await POST(request(validBody));
+    expect(replay.status).toBe(200);
+    expect((await replay.json()).deliveryStatus).toBe('sent');
   });
 });
