@@ -3,6 +3,7 @@
 import { resolve } from "node:path";
 import { evaluateDeploymentSchemaSnapshot } from "./deployment-contract.mjs";
 import { runPsql } from "./local-database.mjs";
+import { formatCaughtError } from "./process-utils.mjs";
 
 function snapshotFromSql(sql) {
   return JSON.parse(runPsql({ sql }));
@@ -48,8 +49,6 @@ try {
     "Protected-definition drift was detected, rolled back, and the deployment contract passed again.",
   );
 } catch (error) {
-  console.error(
-    error instanceof Error ? error.message : "Deployment drift probe failed.",
-  );
+  console.error(formatCaughtError(error, "check-local-deployment-drift.mjs"));
   process.exitCode = 1;
 }

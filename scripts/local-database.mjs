@@ -1,4 +1,5 @@
 import { spawnSync } from "node:child_process";
+import { formatChildProcessFailure } from "./process-utils.mjs";
 
 export const DEFAULT_LOCAL_DATABASE_URL =
   "postgresql://postgres:postgres@127.0.0.1:54322/postgres";
@@ -28,7 +29,7 @@ export function runPsql({
     windowsHide: true,
   });
   if (result.status !== 0) {
-    throw new Error(result.stderr.trim() || "Local database validation failed.");
+    throw new Error(formatChildProcessFailure(result, "Local database command"));
   }
-  return result.stdout.trim();
+  return typeof result.stdout === "string" ? result.stdout.trim() : "";
 }

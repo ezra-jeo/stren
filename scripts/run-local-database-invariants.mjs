@@ -2,6 +2,7 @@
 
 import { resolve } from "node:path";
 import { runPsql } from "./local-database.mjs";
+import { formatCaughtError } from "./process-utils.mjs";
 
 try {
   const output = runPsql({
@@ -9,6 +10,6 @@ try {
   });
   console.log(output || "Local database recovery invariants passed.");
 } catch (error) {
-  console.error(error instanceof Error ? error.message : "Database invariants failed.");
+  console.error(formatCaughtError(error, "run-local-database-invariants.mjs"));
   process.exitCode = 1;
 }

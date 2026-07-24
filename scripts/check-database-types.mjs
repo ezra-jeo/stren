@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+import { formatChildProcessFailure } from "./process-utils.mjs";
 
 const executable = resolve(
   process.cwd(),
@@ -32,11 +33,7 @@ const generated = spawnSync(
 );
 
 if (generated.status !== 0) {
-  console.error(
-    generated.error?.message ||
-      generated.stderr.trim() ||
-      "Database types could not be generated from the clean local schema.",
-  );
+  console.error(formatChildProcessFailure(generated, "Database type generation"));
   process.exitCode = 1;
 } else {
   const normalize = (value) =>

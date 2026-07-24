@@ -11,6 +11,11 @@ import {
   DEFAULT_LOCAL_DATABASE_URL,
   runPsql,
 } from "./local-database.mjs";
+import {
+  formatCaughtError,
+  formatChildProcessFailure,
+  powershellExecutable,
+} from "./process-utils.mjs";
 
 const root = process.cwd();
 const databaseUrl =
@@ -29,7 +34,7 @@ function runSql(name, relativePath) {
 
 function runConcurrency(name, relativePath) {
   const result = spawnSync(
-    "powershell",
+    powershellExecutable(),
     [
       "-NoProfile",
       "-ExecutionPolicy",
@@ -49,11 +54,11 @@ function runConcurrency(name, relativePath) {
     ],
     { cwd: root, encoding: "utf8", windowsHide: true },
   );
-  if (result.stdout.trim()) console.log(result.stdout.trim());
+  if (typeof result.stdout === "string" && result.stdout.trim()) {
+    console.log(result.stdout.trim());
+  }
   if (result.status !== 0) {
-    throw new Error(
-      result.stderr.trim() || `${name} concurrency suite failed.`,
-    );
+    throw new Error(formatChildProcessFailure(result, `${name} concurrency suite`));
   }
   executed.push(name);
 }
@@ -108,8 +113,6 @@ try {
     `All ${REQUIRED_FINANCIAL_SUITES.length} mandatory financial database suites passed.`,
   );
 } catch (error) {
-  console.error(
-    error instanceof Error ? error.message : "Financial database suites failed.",
-  );
+  console.error(formatCaughtError(error, "run-financial-closure-tests.mjs"));
   process.exitCode = 1;
 }

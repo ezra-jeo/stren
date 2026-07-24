@@ -3,6 +3,11 @@
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { runPsql } from "./local-database.mjs";
+import {
+  formatCaughtError,
+  formatChildProcessFailure,
+  powershellExecutable,
+} from "./process-utils.mjs";
 
 try {
   const sqlOutput = runPsql({
@@ -11,7 +16,7 @@ try {
   console.log(sqlOutput || "Production security database assertions passed.");
 
   const concurrency = spawnSync(
-    "powershell",
+    powershellExecutable(),
     [
       "-NoProfile",
       "-ExecutionPolicy",
@@ -22,14 +27,12 @@ try {
     { encoding: "utf8", windowsHide: true },
   );
   if (concurrency.status !== 0) {
-    throw new Error(
-      concurrency.stderr.trim()
-        || concurrency.stdout.trim()
-        || "Attendance concurrency assertions failed.",
-    );
+    throw new Error(formatChildProcessFailure(concurrency, "Attendance concurrency assertions"));
   }
-  console.log(concurrency.stdout.trim());
+  if (typeof concurrency.stdout === "string" && concurrency.stdout.trim()) {
+    console.log(concurrency.stdout.trim());
+  }
 } catch (error) {
-  console.error(error instanceof Error ? error.message : "Production security tests failed.");
+  console.error(formatCaughtError(error, "run-production-security-tests.mjs"));
   process.exitCode = 1;
 }

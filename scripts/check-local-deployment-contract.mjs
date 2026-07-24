@@ -2,6 +2,7 @@
 
 import { evaluateDeploymentSchemaSnapshot } from "./deployment-contract.mjs";
 import { runPsql } from "./local-database.mjs";
+import { formatCaughtError } from "./process-utils.mjs";
 
 try {
   const snapshot = JSON.parse(
@@ -16,6 +17,6 @@ try {
     console.log("Local deployment schema contract through migration 030 passed.");
   }
 } catch (error) {
-  console.error(error instanceof Error ? error.message : "Deployment schema validation failed.");
+  console.error(formatCaughtError(error, "check-local-deployment-contract.mjs"));
   process.exitCode = 1;
 }
