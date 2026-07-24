@@ -42,6 +42,42 @@ _Avoid_: personal mode, trial gym, real dashboard
 A member whose gym-user row is active but whose subscription has expired. Sees the renewal lock screen (saved stats named, never deleted), can't check in, off the leaderboard until renewal.
 _Avoid_: expired member (ambiguous with the subscription row), churned
 
+### Platform provisioning
+
+**Assisted Onboarding**:
+The internal Stren workflow where an approved operator configures a gym workspace — identity, owner and staff, membership plans, hours, operational defaults, optional member import — before the owner receives a claim invitation. Concierge setup, not a public registration form and not part of the gym-owner dashboard.
+_Avoid_: gym registration, signup wizard, self-serve setup
+
+**Stren operator**:
+A person with server-controlled platform-admin authority who runs Assisted Onboarding. Not a gym role; not stored in gym-level access.
+_Avoid_: superadmin role, staff (that is a gym role)
+
+**Claim invitation**:
+The secure, single-use, time-limited invitation sent to a designated owner after provisioning. Resending replaces the previous invitation.
+_Avoid_: magic link, signup link
+
+**Owner claim**:
+The explicit act where the invited person, signed in to their own account, confirms taking ownership of the provisioned gym. Until then the gym is pending owner claim and stays operator-managed.
+_Avoid_: activation, account handover
+
+### Memberships & money
+
+**Membership**:
+One paid access period at one gym, with explicit start/end dates and access status. It may reference the transaction that created it, but it is never the financial source of truth.
+_Avoid_: payment, receipt, transaction
+
+**Financial transaction**:
+One immutable event in the gym's financial ledger: a payment, refund, void, or reasoned adjustment. Corrections append a linked event; they never rewrite or delete the original.
+_Avoid_: membership payment row, editable payment, correction overwrite
+
+**Financial ledger**:
+The append-only collection of financial transactions. It is the only source for revenue, payment history, reconciliation, and financial exports after cutover.
+_Avoid_: payments list (ambiguous), membership revenue
+
+**Effective membership**:
+The membership that grants access on the gym's Manila business date: its status permits access and its start/end dates contain that date.
+_Avoid_: latest membership (creation order is not access truth)
+
 ### Access control
 
 **Permission**:

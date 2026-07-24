@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 const { fromMock, rpcMock } = vi.hoisted(() => ({
   fromMock: vi.fn(),
-  rpcMock: vi.fn().mockResolvedValue({ data: { gym_id: 'gym-1' }, error: null }),
+  rpcMock: vi.fn(),
 }));
 vi.mock('@/lib/supabase', () => ({ createClient: () => ({ from: fromMock, rpc: rpcMock }) }));
 vi.mock('@/lib/streaks', () => ({
@@ -20,21 +20,26 @@ function builder(rows: unknown[], onInsert?: (value: unknown) => unknown) {
 }
 
 describe('check-in engagement feature behavior', () => {
-  beforeEach(() => { fromMock.mockReset(); rpcMock.mockClear(); });
+  beforeEach(() => {
+    fromMock.mockReset();
+    rpcMock.mockReset();
+    rpcMock.mockImplementation(async (name: string) => {
+      if (name === 'get_my_access') return { data: { gym_id: 'gym-1' }, error: null };
+      if (name === 'kiosk_checkin_by_member') {
+        return { data: { action: 'checked_in', attendance_id: 'attendance-1' }, error: null };
+      }
+      if (name === 'get_gym_directory') {
+        return { data: [{ user_id: 'member-1', name: 'Member' }], error: null };
+      }
+      throw new Error(`unexpected RPC ${name}`);
+    });
+  });
 
   it('skips feed items when member_feed is disabled', async () => {
-    const attendanceInserts: unknown[] = [];
-    const profiles = builder([{ gym_id: 'gym-1' }]);
-    const attendance = builder(
-      [null, { id: 'attendance-1' }],
-      (value) => { attendanceInserts.push(value); return attendance; },
-    );
     const settings = builder([{ flags: { member_feed: false } }]);
     const feedInsert = vi.fn();
 
     fromMock.mockImplementation((table: string) => {
-      if (table === 'profiles') return profiles;
-      if (table === 'attendance') return attendance;
       if (table === 'gym_feature_settings') return settings;
       if (table === 'feed_items') return { insert: feedInsert };
       if (table === undefined) return builder([]);
@@ -44,20 +49,19 @@ describe('check-in engagement feature behavior', () => {
     const { handleScan } = await import('@/lib/engagement-hooks');
     const result = await handleScan('member-1');
     expect(result.status).toBe('checked_in');
-    expect(attendanceInserts).toHaveLength(1);
+    expect(rpcMock).toHaveBeenCalledWith('kiosk_checkin_by_member', {
+      p_member_id: 'member-1',
+      p_gym_id: 'gym-1',
+    });
     expect(feedInsert).not.toHaveBeenCalled();
   });
 
   it('keeps the check-in successful when a flag-flip race rejects the feed insert', async () => {
-    const profiles = builder([{ gym_id: 'gym-1' }, { name: 'Member' }]);
-    const attendance = builder([null, { id: 'attendance-2' }]);
     const settings = builder([{ flags: { member_feed: true } }]);
     const streaks = builder([{ current_streak: 1 }]);
     const feedInsert = vi.fn().mockResolvedValue({ error: { message: 'RLS denied' } });
 
     fromMock.mockImplementation((table: string) => {
-      if (table === 'profiles') return profiles;
-      if (table === 'attendance') return attendance;
       if (table === 'gym_feature_settings') return settings;
       if (table === 'streaks') return streaks;
       if (table === 'feed_items') return { insert: feedInsert };

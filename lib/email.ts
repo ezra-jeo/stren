@@ -25,7 +25,14 @@ export interface OnboardingEmailPayload {
   memberName: string
   gymName: string
   qrPayload: string   // the raw stren://checkin/... string encoded into the QR
-  magicLink: string   // one-time login URL from Supabase
+  setupLink: string   // delivered only by the server; never returned to staff
+}
+
+export interface StaffInvitationEmailPayload {
+  to: string
+  teammateName: string
+  gymName: string
+  setupLink: string
 }
 
 export interface PasswordResetEmailPayload {
@@ -98,9 +105,9 @@ function buildEmailHtml(params: {
   gymName: string
   accountEmail: string
   qrCid: string
-  magicLink: string
+  setupLink: string
 }): string {
-  const { memberName, gymName, accountEmail, qrCid, magicLink } = params
+  const { memberName, gymName, accountEmail, qrCid, setupLink } = params
 
   return /* html */ `<!DOCTYPE html>
 <html lang="en">
@@ -175,7 +182,7 @@ function buildEmailHtml(params: {
                 <tr>
                   <td style="border-radius:8px;background:#18181b;">
                     <a
-                      href="${magicLink}"
+                      href="${setupLink}"
                       style="display:inline-block;padding:12px 24px;font-size:14px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;"
                     >
                       Log in to Stren →
@@ -215,9 +222,9 @@ function buildEmailText(params: {
   gymName: string
   accountEmail: string
   qrPayload: string
-  magicLink: string
+  setupLink: string
 }): string {
-  const { memberName, gymName, accountEmail, qrPayload, magicLink } = params
+  const { memberName, gymName, accountEmail, qrPayload, setupLink } = params
   return [
     `Welcome to ${gymName}, ${memberName}!`,
     ``,
@@ -226,7 +233,7 @@ function buildEmailText(params: {
     ``,
     `Your Stren account email is ${accountEmail}.`,
     `No temporary password is sent by email. Use this secure one-time link to sign in, then choose a password or skip that step for now:`,
-    magicLink,
+    setupLink,
     ``,
     `If you did not request this, you can ignore this email.`,
   ].join("\n")
@@ -239,14 +246,14 @@ function buildEmailText(params: {
 export async function sendOnboardingEmail(
   payload: OnboardingEmailPayload,
 ): Promise<SendResult> {
-  const { to, memberName, gymName, qrPayload, magicLink } = payload
+  const { to, memberName, gymName, qrPayload, setupLink } = payload
 
   // Use CID attachment since many email clients block data URI images.
   const qrCid = "member-qr@stren.app"
   const qrPngBase64 = await generateQrBase64Png(qrPayload)
 
-  const html = buildEmailHtml({ memberName, gymName, accountEmail: to, qrCid, magicLink })
-  const text = buildEmailText({ memberName, gymName, accountEmail: to, qrPayload, magicLink })
+  const html = buildEmailHtml({ memberName, gymName, accountEmail: to, qrCid, setupLink })
+  const text = buildEmailText({ memberName, gymName, accountEmail: to, qrPayload, setupLink })
 
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), 12000)
@@ -301,6 +308,50 @@ export async function sendOnboardingEmail(
   return { ok: true, messageId: data.id ?? "unknown" }
 }
 
+export async function sendStaffInvitationEmail(
+  payload: StaffInvitationEmailPayload,
+): Promise<SendResult> {
+  const safeName = escapeHtml(payload.teammateName)
+  const safeGym = escapeHtml(payload.gymName)
+  const safeLink = escapeHtml(payload.setupLink)
+  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;color:#18181b;background:#f4f4f5;padding:24px"><div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px"><h1 style="font-size:24px;margin:0 0 12px">You’ve been added to ${safeGym}</h1><p style="line-height:1.6;color:#52525b">Hi ${safeName}, use the secure one-time button below to open Stren and finish setting up your account.</p><p style="margin:24px 0"><a href="${safeLink}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Open Stren</a></p><p style="font-size:12px;color:#71717a">If you were not expecting this invitation, do not use the link and contact the gym owner.</p></div></body></html>`
+  const text = [
+    `You’ve been added to ${payload.gymName}`,
+    '',
+    `Hi ${payload.teammateName}, use this secure one-time link to finish setting up your Stren account:`,
+    payload.setupLink,
+    '',
+    'If you were not expecting this invitation, do not use the link and contact the gym owner.',
+  ].join('\n')
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 12000)
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getResendKey()}` },
+      body: JSON.stringify({
+        from: getFromAddress(),
+        to: [payload.to],
+        subject: `Your ${payload.gymName} team access is ready`,
+        html,
+        text,
+      }),
+      signal: controller.signal,
+    })
+    if (!response.ok) return { ok: false, error: `Resend error ${response.status}` }
+    const data = await response.json() as { id?: string }
+    return { ok: true, messageId: data.id || 'unknown' }
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') {
+      return { ok: false, error: 'Resend request timed out.' }
+    }
+    return { ok: false, error: error instanceof Error ? error.message : 'Email send failed.' }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 export async function sendPasswordResetEmail(payload: PasswordResetEmailPayload): Promise<SendResult> {
   const safeLink = escapeHtml(payload.resetLink)
   const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;color:#18181b;background:#f4f4f5;padding:24px"><div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px"><h1 style="font-size:24px;margin:0 0 12px">Reset your Stren password</h1><p style="line-height:1.6;color:#52525b">Open the secure confirmation page below, then choose a new password. The link works once.</p><p style="margin:24px 0"><a href="${safeLink}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Continue password reset</a></p><p style="font-size:12px;color:#71717a">If you did not request this, you can safely ignore this email.</p></div></body></html>`
@@ -341,6 +392,62 @@ export async function sendPasswordResetEmail(payload: PasswordResetEmailPayload)
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") return { ok: false, error: "Resend request timed out." }
     return { ok: false, error: error instanceof Error ? error.message : "Email send failed." }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+export interface OwnerClaimEmailPayload {
+  to: string
+  ownerName: string
+  gymName: string
+  claimLink: string
+  expiresAt: string
+}
+
+/** Secure claim delivery. The raw link is accepted only at this email boundary. */
+export async function sendOwnerClaimEmail(payload: OwnerClaimEmailPayload): Promise<SendResult> {
+  const safeLink = escapeHtml(payload.claimLink)
+  const safeGymName = escapeHtml(payload.gymName)
+  const safeOwnerName = escapeHtml(payload.ownerName || 'there')
+  const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;color:#18181b;background:#f4f4f5;padding:24px"><div style="max-width:520px;margin:auto;background:#fff;border:1px solid #e4e4e7;border-radius:12px;padding:28px"><h1 style="font-size:22px;margin:0 0 12px">You're invited to claim ${safeGymName}</h1><p style="line-height:1.6;color:#52525b">Hi ${safeOwnerName}, Stren has set up <strong>${safeGymName}</strong> for you. Sign in or create your account, then confirm ownership to start managing it.</p><p style="margin:24px 0"><a href="${safeLink}" style="display:inline-block;background:#18181b;color:#fff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:600">Claim ${safeGymName} →</a></p><p style="font-size:12px;color:#71717a">This link expires 24 hours after it was sent and can only be used once. If you did not expect this invitation, you can ignore this email.</p></div></body></html>`
+  const text = [
+    `You're invited to claim ${payload.gymName}`,
+    '',
+    `Hi ${payload.ownerName || 'there'}, Stren has set up ${payload.gymName} for you. Sign in or create your account, then confirm ownership to start managing it.`,
+    payload.claimLink,
+    '',
+    'This link expires 24 hours after it was sent and can only be used once.',
+  ].join('\n')
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 12000)
+  try {
+    const response = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${getResendKey()}` },
+      body: JSON.stringify({
+        from: getFromAddress(),
+        to: [payload.to],
+        subject: `You're invited to claim ${payload.gymName} on Stren`,
+        html,
+        text,
+      }),
+      signal: controller.signal,
+    })
+    if (!response.ok) {
+      let message = `Resend error ${response.status}`
+      try {
+        const body = await response.json() as { message?: string }
+        if (body.message) message = body.message
+      } catch {}
+      return { ok: false, error: message }
+    }
+    const data = await response.json() as { id?: string }
+    return { ok: true, messageId: data.id || 'unknown' }
+  } catch (error) {
+    if (error instanceof Error && error.name === 'AbortError') return { ok: false, error: 'Resend request timed out.' }
+    return { ok: false, error: error instanceof Error ? error.message : 'Email send failed.' }
   } finally {
     clearTimeout(timeout)
   }

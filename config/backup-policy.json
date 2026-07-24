@@ -1,0 +1,7 @@
+{
+  "maxBackupAgeHours": 26,
+  "minRetentionDays": 7,
+  "maxPitrAgeMinutes": 15,
+  "requirePitr": true,
+  "requiredStorageBuckets": ["gym-assets"]
+}

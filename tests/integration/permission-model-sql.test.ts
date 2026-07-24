@@ -4,10 +4,13 @@ import defaults from '../fixtures/role-permission-defaults.json';
 import { describe, expect, it } from 'vitest';
 
 const migrationPath = resolve(process.cwd(), 'supabase/migrations/015_permission_model.sql');
+const financialMigrationPath = resolve(process.cwd(), 'supabase/migrations/025_financial_integrity_and_reporting.sql');
 
 describe('SQL permission model', () => {
   it('seeds the frozen role matrix and resolves owner, unknown, override, and edit/view rules', () => {
-    const sql = readFileSync(migrationPath, 'utf8');
+    const sql = [migrationPath, financialMigrationPath]
+      .map((path) => readFileSync(path, 'utf8'))
+      .join('\n');
 
     for (const [role, permissions] of Object.entries(defaults)) {
       for (const permission of permissions) {

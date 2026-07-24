@@ -51,6 +51,7 @@ export const planSchema = z.object({
   price: z.coerce.number().min(0, 'Price must be 0 or more'),
   duration_days: z.coerce.number().int().min(1, 'Duration must be at least 1 day'),
   description: z.string().max(500).optional(),
+  benefits: z.string().max(1000).optional(),
 })
 
 // Matches actual promos table columns per database.types.ts

@@ -17,13 +17,18 @@ interface Plan {
   price: number
   duration_days: number
   description: string | null
+  benefits: unknown
   is_active: boolean | null
   sort_order: number | null
 }
 
 type PlanFormData = z.infer<typeof planSchema>
 
-const EMPTY_FORM: PlanFormData = { name: '', price: 0, duration_days: 30, description: '' }
+const EMPTY_FORM: PlanFormData = { name: '', price: 0, duration_days: 30, description: '', benefits: '' }
+
+function planBenefits(value: unknown): string[] {
+  return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : []
+}
 
 export default function PlansPage() {
   const { profile } = useAuth()
@@ -72,6 +77,7 @@ export default function PlansPage() {
       price: p.price,
       duration_days: p.duration_days,
       description: p.description ?? '',
+      benefits: planBenefits(p.benefits).join('\n'),
     })
     setShowForm(true)
   }
@@ -91,6 +97,7 @@ export default function PlansPage() {
       price: data.price,
       duration_days: data.duration_days,
       description: data.description?.trim() || null,
+      benefits: (data.benefits ?? '').split('\n').map((benefit) => benefit.trim()).filter(Boolean),
       gym_id: profile.gymId,
     }
 
@@ -200,6 +207,17 @@ export default function PlansPage() {
                 />
                 {errors.description && <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>{errors.description.message}</p>}
               </div>
+              <div className="sm:col-span-2">
+                <label className="text-sm" style={{ color: A.text2 }}>Included benefits (one per line)</label>
+                <textarea
+                  {...register('benefits')}
+                  rows={3}
+                  placeholder={'Unlimited visits\nLocker access'}
+                  className="mt-1 w-full rounded-lg px-3 py-2 text-sm outline-none"
+                  style={{ backgroundColor: A.surface2, border: `1px solid ${A.border}`, color: A.text }}
+                />
+                {errors.benefits && <p className="text-xs mt-1" style={{ color: 'var(--color-danger)' }}>{errors.benefits.message}</p>}
+              </div>
             </div>
             <div className="flex gap-2">
               <PrimaryBtn type="submit" disabled={saving}>
@@ -246,6 +264,11 @@ export default function PlansPage() {
                     P{plan.price.toLocaleString()} - {plan.duration_days} days
                     {plan.description && ` - ${plan.description}`}
                   </p>
+                  {planBenefits(plan.benefits).length > 0 && (
+                    <p className="text-xs" style={{ color: A.muted }}>
+                      {planBenefits(plan.benefits).join(' · ')}
+                    </p>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 shrink-0 ml-4">
                   <button

@@ -1,0 +1,92 @@
+name: Backup and Recovery Readiness
+
+on:
+  schedule:
+    # 01:15 Asia/Manila every day.
+    - cron: "15 17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+      SUPABASE_PROJECT_ID: ${{ secrets.SUPABASE_PROJECT_ID }}
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      BACKUP_ENCRYPTION_PASSPHRASE: ${{ secrets.BACKUP_ENCRYPTION_PASSPHRASE }}
+      OFFSITE_S3_BUCKET: ${{ secrets.OFFSITE_S3_BUCKET }}
+      OFFSITE_S3_PREFIX: ${{ secrets.OFFSITE_S3_PREFIX }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.OFFSITE_AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.OFFSITE_AWS_SECRET_ACCESS_KEY }}
+      AWS_DEFAULT_REGION: ${{ secrets.OFFSITE_AWS_REGION }}
+      AWS_ENDPOINT_URL: ${{ secrets.OFFSITE_S3_ENDPOINT }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Require explicit backup destination and credentials
+        run: node scripts/backup/require-backup-environment.mjs
+
+      - name: Export database schema, Auth/data, and roles
+        shell: bash
+        run: |
+          mkdir -p "$RUNNER_TEMP/database-backup"
+          npx supabase db dump --db-url "$SUPABASE_DB_URL" --file "$RUNNER_TEMP/database-backup/schema.sql"
+          npx supabase db dump --db-url "$SUPABASE_DB_URL" --role-only --file "$RUNNER_TEMP/database-backup/roles.sql"
+          npx supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy --schema public --schema auth --schema storage --schema supabase_migrations --file "$RUNNER_TEMP/database-backup/data.sql"
+
+      - name: Export every Storage bucket with object hashes
+        run: npm run backup:storage
+        env:
+          BACKUP_OUTPUT_DIR: ${{ runner.temp }}/storage-backup
+
+      - name: Encrypt database and Storage archives
+        shell: bash
+        run: |
+          tar -czf "$RUNNER_TEMP/database.backup.tar.gz" -C "$RUNNER_TEMP/database-backup" .
+          tar -czf "$RUNNER_TEMP/storage.backup.tar.gz" -C "$RUNNER_TEMP/storage-backup" .
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in "$RUNNER_TEMP/database.backup.tar.gz" -out "$RUNNER_TEMP/database.backup.enc" -pass env:BACKUP_ENCRYPTION_PASSPHRASE
+          openssl enc -aes-256-cbc -pbkdf2 -salt -in "$RUNNER_TEMP/storage.backup.tar.gz" -out "$RUNNER_TEMP/storage.backup.enc" -pass env:BACKUP_ENCRYPTION_PASSPHRASE
+          rm -rf "$RUNNER_TEMP/database-backup" "$RUNNER_TEMP/database.backup.tar.gz" "$RUNNER_TEMP/storage.backup.tar.gz"
+
+      - name: Upload encrypted off-site copies
+        shell: bash
+        run: |
+          STAMP="$(date -u +'%Y-%m-%dT%H-%M-%SZ')"
+          DEST="s3://$OFFSITE_S3_BUCKET/${OFFSITE_S3_PREFIX%/}/$STAMP"
+          aws s3 cp "$RUNNER_TEMP/database.backup.enc" "$DEST/database.backup.enc" --only-show-errors
+          aws s3 cp "$RUNNER_TEMP/storage.backup.enc" "$DEST/storage.backup.enc" --only-show-errors
+
+      - name: Collect off-site retention inventory
+        shell: bash
+        run: |
+          aws s3api list-objects-v2 --bucket "$OFFSITE_S3_BUCKET" --prefix "${OFFSITE_S3_PREFIX%/}/" > "$RUNNER_TEMP/offsite-inventory.json"
+
+      - name: Build and publish non-sensitive status
+        shell: bash
+        run: |
+          node scripts/backup/collect-backup-status.mjs
+          aws s3 cp "$RUNNER_TEMP/backup-status.json" "s3://$OFFSITE_S3_BUCKET/${OFFSITE_S3_PREFIX%/}/status/latest.json" --only-show-errors
+        env:
+          OFFSITE_INVENTORY_PATH: ${{ runner.temp }}/offsite-inventory.json
+          STORAGE_EXPORT_STATUS_PATH: ${{ runner.temp }}/storage-backup/status.json
+          BACKUP_STATUS_OUTPUT: ${{ runner.temp }}/backup-status.json
+
+      - name: Enforce backup age, retention, bucket coverage, and PITR
+        run: node scripts/backup/verify-backup-freshness.mjs "$RUNNER_TEMP/backup-status.json"

@@ -66,10 +66,10 @@ export function AdminDashboardClient({ initialData }: { initialData: DashboardSt
   const revenueData = initialData?.revenue_7d ?? []
 
   async function handleCheckOut(attendanceId: string) {
-    const { error } = await supabase
-      .from('attendance')
-      .update({ check_out: new Date().toISOString() })
-      .eq('id', attendanceId)
+    const { error } = await supabase.rpc('close_attendance_session', {
+      p_attendance_id: attendanceId,
+      p_reason: 'Manual dashboard checkout',
+    })
     if (error) {
       toast.error('Failed to check out')
       return

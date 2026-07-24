@@ -6,6 +6,7 @@ import { Eye, EyeOff } from 'lucide-react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth-context';
+import { sanitizePostAuthReturn } from '@/lib/auth-return';
 import { resolvePostAuthDestination, signUpAccount } from '@/lib/auth-actions';
 import { readableAuthError } from '@/lib/auth-error-copy';
 import { withTimeout } from '@/lib/async-guard';
@@ -131,6 +132,7 @@ export function UnifiedAuthSurface() {
   const { signIn, resolveSignedInDestination } = useAuth();
   const queryMode = modeFrom(searchParams.get('mode'));
   const gymCode = searchParams.get('gym')?.trim() || undefined;
+  const postAuthReturn = sanitizePostAuthReturn(searchParams.get('next'));
   const [initialDraft] = useState<AuthDraft | null>(() => typeof window === 'undefined' ? null : readAuthDraft());
   const [mode, setMode] = useState<AuthMode>(queryMode);
   const [hydrated, setHydrated] = useState(false);
@@ -194,7 +196,7 @@ export function UnifiedAuthSurface() {
     setSettingUp(true);
     try {
       const destination = await withTimeout(
-        source === 'browser' ? resolveSignedInDestination(gymCode) : resolvePostAuthDestination(gymCode),
+        Promise.resolve(postAuthReturn ?? (source === 'browser' ? resolveSignedInDestination(gymCode) : resolvePostAuthDestination(gymCode))),
         10_000,
         'Loading your account timed out.',
       );
@@ -252,7 +254,7 @@ export function UnifiedAuthSurface() {
       return;
     }
     setSubmitting('signup');
-    const result = await signUpAccount({ name: fullName, email: signUpEmail, password: signUpPassword });
+    const result = await signUpAccount({ name: fullName, email: signUpEmail, password: signUpPassword, next: postAuthReturn ?? undefined });
     if (result.error) {
       setSignUpError(result.error);
       setSubmitting(null);
@@ -284,6 +286,7 @@ export function UnifiedAuthSurface() {
       const callback = new URL('/auth/callback', window.location.origin);
       callback.searchParams.set('flow', 'google');
       if (gymCode) callback.searchParams.set('gym', gymCode);
+      if (postAuthReturn) callback.searchParams.set('next', postAuthReturn);
       const { data, error } = await createClient().auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: callback.toString() },

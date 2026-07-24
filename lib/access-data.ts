@@ -159,7 +159,7 @@ export type TeamRole = 'admin' | 'staff';
 export type TeamInviteResult = {
   person: AccessPerson;
   createdAccount: boolean;
-  magicLink: string | null;
+  deliveryStatus: 'sent' | 'failed';
 };
 
 /** Owner-only API: attaches an existing account or creates a new staff-side account. */
@@ -178,7 +178,7 @@ export async function addTeamPerson(input: {
   return {
     person: body.person,
     createdAccount: Boolean(body.createdAccount),
-    magicLink: typeof body.magicLink === 'string' ? body.magicLink : null,
+    deliveryStatus: body.deliveryStatus === 'sent' ? 'sent' : 'failed',
   };
 }
 

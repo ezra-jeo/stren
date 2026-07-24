@@ -4,6 +4,12 @@ import { permissionForPath, type PermissionKey } from '@/lib/permissions';
 import { choosePostAuthDestination } from '@/lib/post-auth-destination';
 import type { MyGym } from '@/lib/types';
 
+// Keep the Edge guard independent from server-only Supabase helpers. This
+// reads only the server-controlled Auth app_metadata claim.
+export function isPlatformAdminUser(user: { app_metadata?: Record<string, unknown> } | null): boolean {
+  return user?.app_metadata?.platform_role === 'platform_admin';
+}
+
 function authPath(url: URL, mode: 'signin' | 'signup', gymCode?: string): string {
   const params = new URLSearchParams(url.search);
   params.set('mode', mode);
@@ -76,7 +82,7 @@ export async function middleware(request: NextRequest) {
   const finish = (next: NextResponse) => securityHeaders(next, pathname);
   if (pathname.startsWith('/api')) return finish(response);
 
-  const isPublic = pathname === '/' || pathname.startsWith('/landing') || pathname === '/auth/callback' || pathname === '/auth/confirm' || pathname === '/reset-password' || pathname === '/for-gym-owners' || (/^\/gym\/[^/]+(?:\/.*)?$/.test(pathname));
+  const isPublic = pathname === '/' || pathname.startsWith('/landing') || pathname === '/auth/callback' || pathname === '/auth/confirm' || pathname === '/reset-password' || pathname === '/for-gym-owners' || pathname === '/claim' || pathname.startsWith('/claim/') || (/^\/gym\/[^/]+(?:\/.*)?$/.test(pathname));
   if (isPublic) return finish(response);
 
   const supabase = createServerClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!, {
@@ -102,6 +108,16 @@ export async function middleware(request: NextRequest) {
 
   const isAuthRoute = pathname === '/auth';
   if (!user) return isAuthRoute ? finish(response) : finish(NextResponse.redirect(new URL('/auth?mode=signin', request.url)));
+
+  // Platform operators may not have an active gym, so this branch must run
+  // before the ordinary gym-access lookup. The claim lives in server-controlled
+  // app_metadata; user-editable metadata is intentionally ignored.
+  if (pathname === '/superadmin' || pathname.startsWith('/superadmin/')) {
+    if (!isPlatformAdminUser(user)) {
+      return finish(NextResponse.redirect(new URL('/gyms', request.url)));
+    }
+    return finish(response);
+  }
 
   if (isAuthRoute) {
     const [{ data: rows, error: gymsError }, { data: profile, error: profileError }] = await Promise.all([

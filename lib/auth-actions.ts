@@ -11,6 +11,7 @@ export async function signUpAccount(input: {
   name: string;
   email: string;
   password: string;
+  next?: string;
 }): Promise<
   | { error: string; status?: never }
   | { error: null; status: 'already_exists' | 'authenticated' | 'verification_required' }
@@ -20,12 +21,14 @@ export async function signUpAccount(input: {
   const supabase = await createServerSupabaseClient();
   const requestHeaders = await headers();
   const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL?.trim() || process.env.NEXT_PUBLIC_APP_URL?.trim() || requestHeaders.get('origin') || '').replace(/\/$/, '');
+  const callbackUrl = siteUrl ? new URL('/auth/callback', siteUrl) : null;
+  if (callbackUrl && input.next) callbackUrl.searchParams.set('next', input.next);
   const { data, error } = await supabase.auth.signUp({
     email: input.email.trim().toLowerCase(),
     password: input.password,
     options: {
       data: { name: input.name.trim() },
-      ...(siteUrl ? { emailRedirectTo: `${siteUrl}/auth/callback` } : {}),
+      ...(callbackUrl ? { emailRedirectTo: callbackUrl.toString() } : {}),
     },
   });
   if (error) return { error: error.message };

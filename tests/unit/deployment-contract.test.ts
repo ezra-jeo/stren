@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { verifyDeploymentContract } from "../../scripts/deployment-contract.mjs";
+import {
+  evaluateDeploymentSchemaSnapshot,
+  expectedDeploymentSchemaSnapshot,
+  verifyDeploymentContract,
+} from "../../scripts/deployment-contract.mjs";
 
 function jsonResponse(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -10,6 +14,43 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 describe("deployment contract", () => {
+  it("fails when a protected database definition drifts without changing its name", () => {
+    const snapshot = expectedDeploymentSchemaSnapshot();
+    const protectedDefinitions = snapshot.definitionHashes as Record<string, string>;
+    const [firstDefinition] = Object.keys(protectedDefinitions);
+    expect(firstDefinition).toBeTruthy();
+
+    protectedDefinitions[firstDefinition] = "0".repeat(64);
+    const result = evaluateDeploymentSchemaSnapshot(snapshot);
+
+    expect(result.ok).toBe(false);
+    expect(result.issues).toContain(
+      `Protected database definition drifted: ${firstDefinition}`,
+    );
+  });
+
+  it.each([
+    ["migration", { migrations: [] }],
+    ["table or column", { columns: [] }],
+    ["function signature", { functions: [] }],
+    ["RLS or policy", { policies: [], rlsTables: [] }],
+    ["grant", { grants: [] }],
+  ])("fails when a required %s is absent", (_category, missing) => {
+    const result = evaluateDeploymentSchemaSnapshot({
+      migrations: ["000", "001"],
+      columns: ["public.profiles.active_gym_id"],
+      functions: ["public.get_my_gyms()"],
+      policies: ["public.gym_users.gym_users_select"],
+      rlsTables: ["public.gym_users"],
+      grants: ["public.financial_transactions:authenticated:SELECT"],
+      buckets: ["gym-assets"],
+      ...missing,
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.issues.length).toBeGreaterThan(0);
+  });
+
   it("rejects an auth provider that automatically confirms new email accounts", async () => {
     const fetch = vi.fn(async () =>
       jsonResponse({ mailer_autoconfirm: true }),
@@ -185,6 +226,9 @@ describe("deployment contract", () => {
       if (url.endsWith("/rest/v1/rpc/get_my_membership_verifications")) {
         return jsonResponse([]);
       }
+      if (url.endsWith("/rest/v1/rpc/deployment_contract_snapshot")) {
+        return jsonResponse(expectedDeploymentSchemaSnapshot());
+      }
       throw new Error(`Unexpected request: ${url}`);
     });
 
@@ -219,6 +263,9 @@ describe("deployment contract", () => {
       }
       if (url.endsWith("/rest/v1/rpc/get_my_membership_verifications")) {
         return jsonResponse([]);
+      }
+      if (url.endsWith("/rest/v1/rpc/deployment_contract_snapshot")) {
+        return jsonResponse(expectedDeploymentSchemaSnapshot());
       }
       throw new Error(`Unexpected request: ${url}`);
     });

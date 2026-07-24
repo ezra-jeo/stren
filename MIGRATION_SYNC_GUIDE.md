@@ -13,16 +13,22 @@ All schema changes go through `supabase/migrations/`; never edit schema in the d
    npx supabase migration list --linked
    ```
 
-3. Preview the exact pending files:
+3. Preview the exact pending files. `--include-all` is required while the new
+   idempotent migration `000_bootstrap_prerequisites.sql` is not yet recorded
+   remotely, because it sorts before the already-applied baseline:
 
    ```bash
-   npx supabase db push --linked --dry-run
+   npx supabase db push --linked --dry-run --include-all
    ```
 
-4. Apply only after the preview is expected:
+4. Confirm `npm run db:reset:clean`, `npm run db:types:check`, and
+   `npm run db:invariants` pass from empty. Capture non-sensitive pre-apply
+   counts and financial reconciliation, and verify the latest database and
+   Storage backups. Apply only after the preview is expected and the user has
+   explicitly approved the hosted mutation. Never add `--include-seed`:
 
    ```bash
-   npx supabase db push --linked
+   npx supabase db push --linked --include-all
    ```
 
 5. Re-run the history check and the external runtime contract:
@@ -32,7 +38,26 @@ All schema changes go through `supabase/migrations/`; never edit schema in the d
    npm run verify:deployment
    ```
 
-`verify:deployment` requires the project URL/ID, a publishable or anon key, and either a server secret/service-role key or a dedicated deployment-check account. It never prints credentials or provider response bodies. Netlify and the production deploy job run this check before building.
+`verify:deployment` requires the project URL/ID, a publishable or anon key, and a server secret/service-role key so it can inspect the complete service-only schema snapshot. It never prints credentials or provider response bodies. Netlify and the production deploy job run this check before building.
+
+The current complete contract requires a server secret and verifies Auth plus
+all required migrations and application objects through migration 026,
+including kiosk migrations 022-024 and the Shot 1 ledger/reconciliation
+contract. A dedicated end-user account alone cannot inspect schema metadata.
+
+## Failure and forward-repair procedure
+
+- If a migration fails before commit, stop and preserve the exact error and
+  migration history. Check for non-transactional statements, fix with a new
+  idempotent migration, and replay on an isolated production-shaped copy. Do
+  not mark the failed version applied to continue.
+- If the migration committed but the application deployment failed, keep the
+  committed schema. Retain/redeploy the prior application only if compatibility
+  is proven, otherwise use maintenance mode while shipping a forward repair.
+- Never promise a down migration or SQL rollback unless that exact path has
+  been executed and reconciled. For suspected corruption, restore a verified
+  backup into an isolated project and follow
+  `docs/operations/BACKUP_AND_RECOVERY.md` before a production decision.
 
 ## History mismatch
 

@@ -6,6 +6,7 @@ import {
   createPasswordRecoveryProof,
   passwordRecoveryCookieOptions,
 } from "@/lib/password-recovery"
+import { sanitizePostAuthReturn } from "@/lib/auth-return"
 
 export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
@@ -69,6 +70,10 @@ export async function GET(request: Request) {
   let destination: string
   try {
     if (!authenticatedUserId) throw new Error('The verified account is missing.');
+    const boundedReturn = sanitizePostAuthReturn(next);
+    if (boundedReturn) {
+      return NextResponse.redirect(new URL(boundedReturn, requestUrl.origin));
+    }
     destination = await resolvePostAuthDestinationForSession(supabase, authenticatedUserId, gymCode ?? undefined)
   } catch {
     return NextResponse.redirect(new URL('/gyms?account_error=access', requestUrl.origin))

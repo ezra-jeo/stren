@@ -2,7 +2,68 @@
 
 _Live status of everything. **Update this file in the same PR that ships the work** (Catalog rule 3). One row per unit; keep rows one line. Statuses: `Queued` · `In progress (who)` · `Shipped (date, PR/commit)` · `Blocked (why)` · `Cut (why)`._
 
-Last updated: 2026-07-15 (**Password Recovery & Gym Page Theme Reliability; Demo Experience, Staff Modal & Kiosk Identity Verification; Admin Team Visibility & Notification Overlay Reliability; Account Creation, Recovery & Member Setup Safety; Member Experience Visual Reliability; Account & Team Access Recovery; Perceived Performance & Navigation Continuity; and Kiosk Redesign & Scanner Safety are complete and verified in the unshipped working tree; Auth Session & Account Access Recovery remains verified against the linked hosted project.**)
+Last updated: 2026-07-24 (**Shot A is committed at `408fe3c`; Shot B is committed at `7363c63`. Phase 3 independently audited the 59-file source integration at `3c6f047`, rebuilt Assisted Onboarding as migrations 029/030, regenerated and matched database types, and passed the local database/security/financial/invariant/deployment gates plus lint, typecheck, unit tests, and build. The clean-reset wrapper did not complete its seed phase without a separately guarded local seed; the full E2E run was non-green with two auth-surface failures and credential-gated Super Admin coverage skipped; the migration-030 recovery drill was not performed after escalation was rejected. Stren remains synthetic-internal-test only and is not approved for a real-gym pilot or real payments. No hosted migration, email, or data mutation occurred.**)
+
+---
+
+## Workstream (queued 2026-07-23): Super Admin Branch Integration
+
+Spec and three separate-chat prompts: [ImplementationPlan.md](ImplementationPlan.md), above the `SUPER_ADMIN_INTEGRATION_PLAN_END` marker.
+
+| Unit | Scope | Status |
+|---|---|---|
+| SA1 | Phase 1 - rebuild Assisted Onboarding as migration 029 plus corrected platform authorization/provisioning spine on the migration-028 baseline | Audited (working tree, 2026-07-24) - migration 029, user-bound platform helper, database/Auth tracer, deployment/protected-definition/recovery contract extensions, feature parity, and generated types match the clean local schema |
+| SA2 | Phase 2 - port Super Admin server journeys and UI onto the Phase 1 enforcement boundary without reviving legacy auth/provisioning paths | Audited (working tree, 2026-07-24) - four-step wizard, operator gate, user-bound provisioning/resend/claim routes, bounded claim return, secure email-only raw-token boundary, migration 030 scoped invite metadata read, UI/unit/integration coverage, and credential-gated E2E added |
+| SA3 | Phase 3 - independent completeness, tenant/authorization/financial regression audit, full local gates, and developer release handoff | Blocked (2026-07-24) - local DB gates pass, but clean-reset wrapper/seed evidence is imperfect, E2E is non-green, recovery drill was not performed, and hosted gates remain open |
+
+Integration rule: `polish-and-hardening` at `7363c6312ae80c6418bb5984e889f6a968973535` is protected baseline; only `3c6f047^..3c6f047` supplies feature behavior. Incoming migration 027 is rewritten as 029; pre-hardening RPC bodies, verification/membership bypass switches, raw claim-link disclosure, and mocked-only evidence are not accepted. Agents prepare semantic integration in working tree but never run merge/commit/push/rebase/cherry-pick operations. No hosted mutation is authorized.
+
+### Phase 2 integration record (working tree, 2026-07-24)
+
+- Ported the Assisted Onboarding journey onto the Phase 1 boundary: `/superadmin` platform-admin gate → four-step wizard → Auth account resolution → private Postgres provisioning → truthful invite delivery/resend → `/claim/{token}` → bounded sign-in return → explicit owner claim → `/admin`.
+- Platform RPCs use the authenticated user-bound client. The admin client is limited to Auth account lookup/creation and Storage logo upload. Provisioning is resumable through the existing fingerprinted Phase 1 state; operator requests do not require or mutate an active gym.
+- The port removes incoming auto-approval, membership-required check-in disablement, public-at-provision visibility, non-owner claimant choice, and Copy claim link/`claimLink` response/state. Owner claim remains explicit and owner-only; new gyms remain private until the owner publishes.
+- Raw claim tokens exist only while constructing the email payload. API responses, React state, audit/provisioning state, logs, and the operator UI expose only expiry and delivery status. Resend supersedes the prior invite before delivery, and failures return recoverable `207` state without claiming success.
+- `lib/database.types.ts` remains the generated Phase 1 output. `lib/features.ts` retains the Phase 1 parity keys (`staff_manual_checkin`, `occupancy_count`) and no unsafe incoming feature keys. `lib/email.ts` preserves existing functions and adds secure owner-claim delivery.
+
+Phase 2/3 verification: the clean local schema was reset through migration 030, guarded seed was then run with the required loopback opt-in, and `db:invariants` passed. `npm run db:types:check`, `npm run db:test:platform`, `npm run db:test:security`, `npm run db:test:financial` (all 11 suites), `npm run verify:deployment:local`, and `npm run verify:deployment:drift:local` pass. The complete unit suite is **562/562**; lint, typecheck, and build pass. The E2E command is **not green**: two unified-auth URL/state assertions fail, Super Admin credentialed coverage remains skipped, and the local font-retry process did not emit a normal summary before controlled cleanup. `npm run recovery:drill:local` was not performed after the required escalation was rejected. No hosted system, email provider, or real gym was touched.
+
+---
+
+## Workstream (queued 2026-07-16): Production Security & Financial Closure
+
+Spec: [ImplementationPlan-ProductionSecurityAndFinancialClosure.md](ImplementationPlan-ProductionSecurityAndFinancialClosure.md) · prompts: [Shot A](prompts/Codex-Production-Security-Tenant-Closure-OneShot.md), [Shot B](prompts/Codex-Financial-Reporting-Recovery-Closure-OneShot.md), [independent gate review](prompts/Codex-Production-Readiness-Oversight.md).
+
+| Unit | Scope | Status |
+|---|---|---|
+| PS1 | Shot A — close broad profile reads, role escalation, cross-gym attendance, invalid verification reactivation, one-time credential disclosure, partial onboarding, and missing privileged audit boundaries | Committed (`408fe3c`, 2026-07-18) — migration 027, secured application contracts, clean reset/seed, two-gym owner/admin/staff/member PostgreSQL behavior tests, injected onboarding rollback/resumption, and real parallel attendance execution pass; no hosted apply |
+| PS2 | Shot B — close legacy payment writes, idempotency mismatch, duration/report-status errors, hidden report failures, CI fixture gaps, database constraints, deployment drift, and recovery evidence | Audited in working tree (2026-07-24) — migration 028, guarded local seed, types, security/deployment checks, 11 mandatory financial PostgreSQL suites, prior evidence-v2 restore, and quality gates pass; hosted recovery remains open; awaiting developer review/commit; no hosted apply |
+| PS3 | Independent gate review — inspect both committed diffs, rerun adversarial database probes and isolated recovery, then issue the launch recommendation | Blocked (2026-07-24) — local database and application gates mostly pass, but E2E is non-green, the migration-030 recovery drill was not performed, and hosted recovery/retention/configuration gates remain unproven |
+
+Audit baseline: same-gym private-profile disclosure, member-to-admin promotion, and cross-gym attendance injection/disclosure were reproducible against the effective local database. A rejected gym user could self-reactivate through historical membership evidence; onboarding exposed a generated one-time sign-in URL; authenticated legacy payment insert/update/delete remained possible; reversal idempotency accepted same-key/different-intent reuse; 30-day periods were inclusive for 31 dates; and dashboard/report membership buckets disagreed with access state. The current full finding set, smallest-fix boundaries, and evidence gates are canonical in the active plan.
+
+PS1 verification: a completely clean local database applies `027_production_security_tenant_closure.sql` and the updated seed. `npm run db:test:security` passes executable RLS/grant/constraint/RPC/rollback/audit assertions and two simultaneous PostgreSQL attendance sessions; the deployment contract through 027 and generated database types match. The complete unit/integration suite passes (**440/440**), as do lint, typecheck, and the production build. Three targeted Chromium landing checks reached passing assertions, but Playwright's local Next development server did not exit before the shell ceiling while repeatedly retrying unavailable Google Font downloads; the full run also exposed the pre-existing auth-mode URL assertion and remains non-gating for PS1's database-owned security proof.
+
+PS2 verification: two clean local databases apply migration 028 and the guarded two-gym seed; generated types match. The security/RLS suite, recovery invariants, exact protected-definition contract plus intentional drift/rollback probe, and all 11 named financial behavior/rollback/date/monetary/concurrency suites pass. Lint, typecheck, 448/448 unit/integration tests, and the production build pass. Production-mode Playwright exits cleanly with **14 passed / 8 credential-gated skipped / 0 failed**. The 2026-07-23 evidence-v2 isolated restore matched **7 Auth users / 7 profiles / 6 gym-user rows / 2 memberships / 2 attendance rows / 1 onboarding audit event / 6 privileged-audit events / 2 ledger events / 2 financial idempotency records**, exact Auth/financial/membership/audit/definition digests, PHP **800 / 900** reconciliation totals with zero anomalies, and **1 Storage bucket / 1 object** by SHA-256. Actual RPO was **0.00 minutes** and RTO **1.27 minutes**; the target was stopped and retained.
+
+Launch gate: do not onboard a real gym or accept real payments until PS3 independent review completes. Hosted retention, PITR/equivalent, monitoring/configuration recreation, and an isolated hosted restore remain external Critical evidence gates requiring separate approval.
+
+---
+
+## Workstream (initial shots committed 2026-07-16): Financial Integrity, Reporting & Recovery
+
+Spec: [ImplementationPlan-FinancialIntegrityAndRecovery.md](ImplementationPlan-FinancialIntegrityAndRecovery.md) · decision: [ADR 0007](../docs/adr/0007-financial-ledger-separates-money-from-access.md) · prompts: [Shot 1](prompts/Codex-Financial-Integrity-Reports-OneShot.md), [Shot 2](prompts/Codex-Data-Recovery-Migrations-OneShot.md).
+
+| Unit | Scope | Status |
+|---|---|---|
+| FI1 | Shot 1 — append-only financial ledger, atomic/idempotent payment-membership RPCs, server-enforced discounts, labeled legacy backfill, ledger-derived dashboard/reports, and reconciliation | Committed (`27a1113`, 2026-07-16) — architecture is retained, but closure defects in legacy grants, idempotency, date semantics, reporting status, onboarding and CI are queued under PS1/PS2 |
+| FI2 | Shot 2 — clean database bootstrap/seed, complete deployment parity, database and Storage backup coverage, recovery runbook, and isolated restore with FI1 reconciliation | Committed (`b6e8f2f`, 2026-07-16), production gate blocked — local restore evidence exists; hosted deployment parity, approved off-site retention, PITR/equivalent, monitoring/configuration and isolated hosted restore remain unproven |
+
+FI1 verification: synthetic pre-backfill inventory was **1 membership / PHP 80.00** and legacy `payments` **0 / PHP 0.00**; post-backfill was **1 reconstructed event / PHP 80.00**, with a zero-row rerun. Final synthetic reconciliation across 1,013 exercised events was payments **PHP 446.80**, refunds **PHP -40.00**, voids **PHP -60.00**, adjustments **PHP 11.30**, net **PHP 358.10**, and zero missing links, duplicate keys, or impossible reversals. Focused contracts (**115/115**), complete unit/integration suite (**419/419**), database behavior/concurrency/fail-closed suites, lint, typecheck, and production build pass.
+
+FI2 local recovery verification: a fresh database applies `000`, `001`, and `005` through `026` and the development-only seed, matches generated types, and passes database/deployment invariants. The final isolated restore matched **7 Auth users / 7 profiles / 6 gym-user rows / 2 memberships / 2 attendance rows / 1 audit event / 2 ledger events**, live sign-in routing for all seven development fixtures, two-gym RLS, PHP **800 / 900** reconciliation totals with zero anomalies, and **1 Storage bucket / 1 object** by SHA-256. Actual RPO was **0.00 minutes** and RTO **1.95 minutes**; the target was stopped and retained. Full quality-gate results are recorded in the changelog.
+
+Launch gate: Stren remains suitable for synthetic internal testing only until the scheduled encrypted off-site database/Storage backups demonstrate seven-day retention, PITR or an approved equivalent meets the fifteen-minute payment RPO, required hosted configuration is recreated, and a separately approved isolated hosted restore passes. The migration-001 clean-bootstrap defect is repaired locally without editing migration 001. Migrations 000/025/026 were not applied to the linked hosted project; no hosted data mutation, paid infrastructure change, production restore, commit, or push occurred.
 
 ---
 

@@ -8,6 +8,146 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### Super Admin Integration — Phase 3 independent hardening gate
+
+#### Changed
+- Completed the independent 59-file source audit against protected `7363c6312ae80c6418bb5984e889f6a968973535`, incoming `3c6f047eedfab7bc76c7ecd48b31405bfc9b4e93`, and base `b6e8f2fad1e20ccfd440b84b02cc6e4b91a1bc97`. Incoming migration 027 is intentionally omitted; migrations 029 and 030 are the hardened replacements. Protected migrations 000–028 remain byte-identical.
+- Fixed idempotent provisioning replay so a replay refreshes delivery metadata instead of returning stale `pending` state. Added a regression test and regenerated `lib/database.types.ts` from the clean local schema.
+
+#### Verification
+- The clean schema, guarded local seed, database types, platform/security/financial/invariant/deployment/drift suites, lint, typecheck, **562/562** unit tests, and build pass. The clean-reset wrapper did not complete its seed phase in this environment; the separately guarded local seed and invariant gate passed.
+- `npm run test:e2e` is **non-green**: two existing unified-auth URL/state assertions failed, credential-gated Super Admin coverage was skipped, and the local font-retry process did not emit a normal summary. The migration-030 recovery drill was not performed after escalation was rejected. This is a developer-review **no-go**; hosted gates remain open.
+- No hosted mutation, real email, paid service, external deletion, merge, commit, push, rebase, cherry-pick, or tag was performed. Package version remains `2.6.0` because this is not a release-ready result.
+
+### Super Admin Integration — Phase 2 secure Assisted Onboarding port
+
+#### Added
+- Ported the four-step operator journey, `/superadmin` gate, private provisioning, owner-only `/claim/{token}` flow, bounded sign-in return, explicit `/admin` handoff, truthful delivery/resend state, and desktop/mobile credential-gated E2E coverage.
+- Added migration `030_assisted_onboarding_read_boundaries.sql` for a platform-admin-only, user-bound invite-metadata read used by resend; it returns no token material and keeps admin Postgres access out of application routes.
+- Added focused UI, route-boundary, error-status, token-secrecy, claim-return, and lifecycle tests.
+
+#### Changed
+- Reconciled incoming UI/routes with Phase 1 enforcement: owner is the only claimant, gyms are private until publication, only kiosk/staff-manual/occupancy operational switches remain, and claim links are email-only (no copy action, API response, React state, audit, or provisioning-state field).
+- Added the bounded `/claim/{token}` post-auth return to the existing unified auth surface and preserved the generated Phase 1 database types and current email functions.
+
+#### Verification
+- The complete unit/integration suite is **561/561**; `npx tsc --noEmit --pretty false`, `npm run lint`, and `npm run build` pass. Playwright coverage is present for Chromium and mobile Chromium but remains credential/flag-gated; no seeded credentialed E2E was run.
+- The first local financial closure run completed all 11 suites, while a repeat was refused by the already-used database's duplicate fixture key; `db:invariants` likewise stops at expected clean-seed counts. Clean reset/types remain blocked by Docker access denial. No hosted migration, real email, real gym, commit, push, merge, rebase, cherry-pick, or tag was performed.
+
+### Super Admin Branch Integration Planning
+
+#### Added
+- Added a three-phase execution contract for integrating `super-admin` into the protected `polish-and-hardening` baseline: platform authorization/database spine, application/UI integration, then independent hardening and release handoff.
+- Added three paste-ready GPT-5.6 Luna High prompts designed for separate chats that reconstruct their context from the repository and preserve prior-phase working-tree changes.
+- Added an actual branch/conflict map: incoming tip `3c6f047`, merge base `b6e8f2f`, 59 feature files (+5,621/-6), five direct both-modified files, and the non-textual migration-027 collision.
+
+#### Changed
+- The merge contract pins `polish-and-hardening` commit `7363c6312ae80c6418bb5984e889f6a968973535` as the protected migration-028 baseline and limits source behavior to feature commit `3c6f047`; merged-main ancestry is not replayed.
+- Incoming `027_assisted_onboarding.sql` must be rebuilt as migration 029 against the effective hardened schema. Unsafe verification/membership bypasses, public-without-tagline provisioning, admin claimant, service-role caller-context failure, weak idempotency, raw claim-link disclosure, hand-edited types, and mocked-only database evidence are explicit repair gates.
+- Integration prompts enforce the repository's agent boundary: agents may inspect and semantically port branch behavior but may not merge, commit, push, rebase, cherry-pick, tag, mutate hosted systems, or weaken existing tenant/financial/security contracts.
+
+### Super Admin Branch Integration - Phase 1 Foundation
+
+#### Added
+- Added migration `029_assisted_onboarding.sql` against the effective migration-028 schema: private gym provisioning, owner-only claim invites, resumable Auth-resolution state, request-fingerprint idempotency, approved imported-member verification, and immutable privileged-audit events without membership/payment creation.
+- Added the smallest user-bound platform-admin server boundary and deterministic request fingerprint helper; service-role usage remains limited to Auth/Storage resolution outside the platform-gated RPC path.
+- Added executable database/Auth coverage for unauthenticated, member, staff, admin, owner, platform-admin, and service-role contexts, forged/stale/cross-gym claims, invite resend/delivery/expiry/replay, owner claim, imported verification, idempotency mismatch, private defaults, and audit immutability.
+- Added `staff_manual_checkin` and `occupancy_count` only with matching TypeScript/SQL feature definitions and hardened kiosk composition. Legacy unsafe switches are rejected and not persisted.
+
+#### Changed
+- Extended deployment/protected-definition expectations through migration 029 and updated the backup/recovery runbook for provisioning-run and claim-invite recovery checks.
+- Updated the database type surface for the migration-029 tables, columns, and RPC signatures.
+
+#### Verification
+- `npm run db:test:platform`, `npm run db:test:security`, `npm run db:test:financial` (all 11 mandatory suites), `npm run verify:deployment:local`, `npm run verify:deployment:drift:local`, `npm run typecheck`, and focused unit/integration contracts pass locally.
+- `npm run db:reset:clean` and `npm run db:types:check` could not complete because the local Supabase CLI was denied access to Docker Desktop; no hosted mutation was attempted. The local migration was applied only to the already-running isolated database for executable tests, and the local migration ledger was marked 029 for contract checks.
+- Incoming migration 027 SQL bodies and incoming hand-edited `lib/database.types.ts` were discarded; no incoming UI/routes/email payload was ported in Phase 1. No commit, push, merge, rebase, cherry-pick, tag, or hosted action was performed.
+
+### Financial Reporting & Recovery Closure — Shot B
+
+#### Added
+- Migration `028_financial_reporting_recovery_closure.sql` closes every legacy `payments` mutation grant, adds finite/nonnegative monetary checks, persists canonical financial request fingerprints, enforces exact inclusive Manila paid dates, and adds a concurrency-safe exclusion constraint for active/frozen paid periods.
+- PostgreSQL now owns one effective membership status used by entitlement, dashboard/report buckets, and the authorized member-status export, including rejected, banned, disabled, frozen, cancelled, expired, scheduled, and historical-cancellation cases.
+- Added explicit dashboard/report/reconciliation unavailable states, a fail-closed local seed wrapper, protected function/policy/grant/trigger/constraint definition hashes, and a transactional deployment drift probe.
+- CI now runs 11 named financial PostgreSQL suites after the clean guarded seed. The omission sentinel covers ledger/RLS/rollback/date/monetary behavior plus true parallel payment, reversal-limit, and direct-overlap sessions using an isolated fixture namespace.
+- Recovery evidence format v2 compares hashed Auth identities, financial snapshots, idempotency requests, memberships, both audit streams, protected definitions, anomaly counts, and per-gym reconciliation; the logical archive now explicitly includes `btree_gist`.
+
+#### Changed
+- A 30-day purchase now grants exactly 30 inclusive Manila calendar dates (`start + duration - 1`). Existing settled periods are preserved without rewriting historical access meaning.
+- Same gym/key/same financial intent returns the original event; reuse with a different target, kind, amount, reason, revoke choice, plan, promo, method, or requested date fails clearly.
+- The development seed is disabled in ordinary CLI resets and runs only through `npm run db:reset:clean`, which requires the exact local opt-in, project ID, API URL, database port, and loopback/private-local database address. Package version is `2.6.0`.
+
+#### Verification
+- Two clean local resets applied migrations through 028 and the guarded two-gym seed. Generated database types match. `npm run db:invariants` and `npm run db:test:financial` pass; all 11 named financial suites execute, including one-success/one-rejection parallel reversal and overlap proofs. The protected-definition probe fails on an intentional same-name RLS policy change, rolls it back, and passes again.
+- Lint, typecheck, **448/448** unit/integration tests, and the production build pass. Production-mode Playwright exits cleanly against a separately managed local server with **14 passed / 8 credential-gated skipped / 0 failed**.
+- The 2026-07-23 evidence-v2 isolated local database/Auth/Storage restore passed. Source and target matched 7 Auth users, 7 profiles, 6 gym-user rows, 2 memberships, 2 attendance rows, 1 onboarding audit event, 6 privileged-audit events, 2 ledger events, and 2 financial idempotency records; Auth, financial, membership, audit, and protected-definition hashes were exact. Both gyms reconciled at PHP 800 and PHP 900 with zero anomalies; 1 Storage bucket / 1 object matched by SHA-256. Measured RPO was **0.00 minutes** and RTO **1.27 minutes**; the target was stopped and retained.
+- `npm run backup:check` fails closed because no approved off-site freshness evidence or retention-policy file exists. No hosted migration, data mutation, paid infrastructure change, hosted restore, commit, push, merge, rebase, or tag was performed. Hosted retention, PITR/equivalent, configuration recreation, monitoring, and an isolated hosted restore remain external launch blockers.
+
+### Production Security & Tenant Closure — Shot A
+
+#### Added
+- Migration `027_production_security_tenant_closure.sql` replaces broad profile sharing with self-only base rows plus narrow active-gym directory RPCs, separates member status from owner-only role assignment, and enforces non-delegable authority with immediate stale-session invalidation.
+- Attendance now has a composite gym/member foreign key, ordered timestamps, attributable sources/corrections, one-open-session uniqueness, trusted active-gym-pinned RPCs, and quarantine preservation for historical rows that cannot satisfy the new invariants.
+- Membership verification now uses explicit pending/approved/rejected/withdrawn/expired state, authorized terminal-state decisions, deferred consistency checks, and immutable decision evidence.
+- Added resumable onboarding workflows with permission/business preflight, idempotent account attachment and payment completion, safe stage/delivery failures, terminal-affiliation refusal, and an append-only tenant-isolated privileged audit contract for role/status, verification, attendance, onboarding, plan, and membership changes.
+- Added executable two-gym PostgreSQL behavior coverage and real parallel-session attendance coverage, wired through `npm run db:test:security` and the local database invariant gate.
+
+#### Changed
+- Member and staff onboarding deliver setup links server-side and return only non-secret delivery state; manager responses, database events, UI, and shared profile reads no longer expose magic URLs, token hashes, QR secrets, or reusable credentials.
+- Admin member/payment/feed/dashboard and engagement call sites now consume secured directory, status, attendance, and onboarding RPCs instead of broad profile joins or direct privileged table writes.
+- Deployment parity now requires migration 027's functions, policies, least-privilege grants, constraints, triggers, and audit/onboarding tables; generated database types match the clean local schema. Package version is `2.5.0`.
+
+#### Verification
+- `npm run db:reset:clean`, `npm run db:test:security`, `node scripts/check-local-deployment-contract.mjs`, and `npm run db:types:check` pass against local Supabase/PostgreSQL. The security suite proves role surfaces, active-gym switching, private payment/attendance isolation, direct-write denial, cross-gym physical-key rejection, verification terminal states, immutable tenant audit, and rollback/resumption across every onboarding stage.
+- Complete unit/integration coverage passes (**440/440 tests**), with `npm run lint`, `npm run typecheck`, and `npm run build` green. Three targeted Chromium landing checks passed their assertions; Playwright's local development server remained alive until the shell timeout because external Google Font downloads were unavailable, and the full suite also retained the pre-existing auth-mode URL assertion failure.
+- No hosted migration, production mutation, real email, paid infrastructure change, restore, commit, push, merge, rebase, or tag was performed. Shot B and all hosted recovery/production gates remain explicitly open.
+
+### Production Security & Financial Closure Planning
+
+#### Added
+- Added the active two-shot closure plan for the unresolved post-ledger audit findings: tenant/profile isolation, non-delegable roles, attendance tenant consistency, verification/onboarding credential safety, privileged audit, legacy-payment lockdown, complete idempotency, membership date/report parity, database/CI enforcement, deployment drift detection, and recovery evidence.
+- Added paste-ready sequential implementation prompts for the security/tenant shot and the financial/reporting/recovery shot, plus an independent production-gate review prompt and temporary cross-task handoff.
+
+#### Changed
+- The initial Financial Integrity and Recovery plan is retained as the architecture/implementation record for commits `27a1113` and `b6e8f2f`; the new closure plan now owns the active launch gate.
+- Live status now records that Stren remains limited to synthetic internal testing until the Critical/High findings are fixed, independently reproduced as closed, and the external hosted recovery evidence is approved and completed.
+
+### Data Recovery, Backup & Deployment Parity
+
+#### Added
+- Migration `000_bootstrap_prerequisites.sql` makes the immutable migration chain bootstrappable from an empty Supabase database without editing migration 001; migration `026_deployment_and_recovery_contract.sql` adds the required `gym-assets` bucket and a service-only snapshot of migrations, columns, exact function signatures, RLS, policies, grants, constraints, triggers, and buckets.
+- The development-only seed now uses unified accounts, two gyms, all representative roles plus a no-gym account, linked Shot 1 ledger/membership payments, attendance and onboarding-audit fixtures, and a fail-closed local-environment guard.
+- CI now starts local Supabase, resets and seeds from empty, checks generated database types, executes database/RLS/financial invariants, verifies the complete deployment contract through migration 026, and always tears the stack down.
+- Added a scheduled fail-closed backup workflow, encrypted off-site database and every-bucket Storage exports, SHA-256 object manifests, provider/PITR and retention status collection, backup-age policy checks, and the cataloged `docs/operations/BACKUP_AND_RECOVERY.md` runbook.
+- Added read-only recovery evidence capture and an isolated local restore drill covering durable database schemas and extensions, Auth, Storage bytes, generated types, two-gym RLS, live role/no-gym sign-in routing, attendance/audit constraints, and Shot 1 reconciliation.
+
+#### Changed
+- Hosted deployment verification now requires a server secret and detects any missing application migration/object, forbidden legacy profile column, or unsafe financial grant instead of checking only the older unified-account surface.
+- Safe migration comparison, dry-run, post-apply, failed-migration, committed-schema/app-failure, forward-repair, and isolated-restore procedures are now canonical. Package version is `2.4.0`.
+
+#### Verification
+- A completely empty local database applies migrations `000`, `001`, and `005` through `026`, seeds successfully, matches generated TypeScript types, and passes the deployment and database invariant suites.
+- The final isolated local restore matched 7 Auth users, 7 profiles, 6 gym-user rows, 2 memberships, 2 attendance rows, 1 onboarding audit event, and 2 exact-snapshot ledger events. Both gym reconciliations matched (PHP 800 and PHP 900 net), all anomaly counts were zero, seven representative sign-ins resolved correctly, and 1 Storage bucket / 1 synthetic object matched by SHA-256. Measured RPO was **0.00 minutes** and RTO **1.95 minutes**.
+- Focused recovery/deployment contracts (**30/30**), the complete unit/integration coverage suite (**440/440**), lint, typecheck, and production build pass. Playwright reached terminal results for all 22 cases in production-server mode (**14 passed, 8 credential-gated skipped, 0 assertion failures**) but its local server-cleanup process did not exit before the five-minute shell ceiling.
+- No hosted migration, production restore, paid add-on, off-site infrastructure change, commit, push, merge, rebase, or tag was performed. Production retention, PITR/equivalent, off-site generations, hosted manual configuration, and an isolated hosted restore remain an explicitly blocked launch gate pending credentials, budget, and approval.
+
+### Financial Integrity & Ledger-Derived Reporting
+
+#### Added
+- Migration `025_financial_integrity_and_reporting.sql` introduces the append-only, tenant-pinned `financial_transactions` ledger; exact/reconstructed snapshots; immutable payment/refund/void/adjustment events; server-owned discounts; atomic and idempotent payment, reversal, and adjustment RPCs; Manila business dates; paid-period overlap protection; and a rerunnable labeled membership-history backfill.
+- Owners can record partial/full refunds, voids with an explicit access-cancellation choice, reasoned signed adjustments, and inspect all-time reconciliation totals and anomaly counts. Payment history is server-filtered and paginated beyond 1,000 events.
+- A read-only legacy inventory and executable PostgreSQL suites cover backfill, rollback, cent rounding, future entitlement, concurrency, immutability, pagination, signed reporting, two-gym RLS, and the fail-closed nonempty-`payments` gate.
+
+#### Changed
+- Payments, renewals, and member onboarding use the same trusted payment RPC; browsers no longer supply authoritative amounts or write membership money fields directly.
+- Dashboard and report revenue now derive from signed ledger events, while membership totals derive from active `member` gym users and start-date-aware effective access. Membership plans support structured benefits captured in financial snapshots.
+- Added owner-only, non-delegable `payments:reverse` and owner/admin `payments:discount` permission defaults; regenerated database types and bumped the package to `2.3.0`.
+
+#### Verification
+- Migration 025 applies transactionally to a fresh production-shaped disposable PostgreSQL database. Synthetic pre-backfill inventory was **1 membership / PHP 80.00**, legacy `payments` **0 / PHP 0.00**; post-backfill was **1 reconstructed ledger event / PHP 80.00**, and a rerun inserted zero rows.
+- Executed database behavior and parallel-session suites pass, including rollback, RLS, two-gym isolation, 1,005-row pagination, and fail-closed legacy-payment handling. Final synthetic reconciliation: **1,013 events**, payments **PHP 446.80**, refunds **PHP -40.00**, voids **PHP -60.00**, adjustments **PHP 11.30**, net **PHP 358.10**, with all four anomaly counts at zero.
+- Focused contracts (**115/115 tests**), complete unit/integration suite (**419/419 tests**), lint, typecheck, and production build pass. No hosted migration or data mutation was performed.
+
 ### Password Recovery & Gym Page Theme Reliability
 
 #### Fixed

@@ -10,9 +10,12 @@ describe('owner team-management endpoint', () => {
     expect(route).toMatch(/access\.role !== 'owner'/);
     expect(route).toMatch(/role:\s*z\.enum\(\['admin', 'staff'\]\)/);
     expect(route).toMatch(/from\('profiles'\)[\s\S]*\.eq\('email', email\)[\s\S]*maybeSingle/);
-    expect(route).toMatch(/from\('gym_users'\)[\s\S]*upsert/);
+    expect(route).toMatch(/resolvedProfile[\s\S]*\.eq\('id', userId\)[\s\S]*maybeSingle/);
+    expect(route).not.toMatch(/\.upsert\s*\(/);
+    expect(route).toMatch(/rpc\('provision_gym_staff'/);
     expect(route).toMatch(/\['admin', 'staff'\]\.includes\(target\.role\)/);
-    expect(route).toMatch(/from\('gym_user_permission_overrides'\)[\s\S]*delete/);
-    expect(route).toMatch(/from\('gym_users'\)[\s\S]*delete/);
+    expect(route).not.toMatch(/from\('gym_user_permission_overrides'\)[\s\S]*delete/);
+    expect(route).toMatch(/rpc\('set_gym_user_status'/);
+    expect(route).not.toMatch(/magicLink\s*[,}]/);
   });
 });

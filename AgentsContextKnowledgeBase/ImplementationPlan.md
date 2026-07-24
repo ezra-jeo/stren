@@ -1,4 +1,356 @@
-# Gym Page Studio + Permissions & Feature Toggles — Implementation Guide
+# `polish-and-hardening` + `super-admin` Integration Plan
+
+**Planned 2026-07-23; branch analysis refreshed 2026-07-24.** This is the three-phase execution contract for GPT-5.6 Luna High to integrate the `super-admin` branch into the current `polish-and-hardening` baseline without weakening Stren's tenant, authorization, financial, migration, or recovery guarantees.
+
+Only the material above `SUPER_ADMIN_INTEGRATION_PLAN_END` belongs to this integration. The completed Gym Page Studio plan is retained below that marker as a historical appendix and is not required reading for these three chats.
+
+## 1. Pinned baseline and integration direction
+
+| Item | Contract |
+|---|---|
+| Protected baseline | `polish-and-hardening` at `7363c6312ae80c6418bb5984e889f6a968973535` (`feat: shot B`) |
+| Incoming work | `origin/super-admin` at `3c6f047eedfab7bc76c7ecd48b31405bfc9b4e93` (`feat: superadmin prompt implemented`) |
+| Merge base | `b6e8f2fad1e20ccfd440b84b02cc6e4b91a1bc97` (`feat: 2nd shot`) |
+| Divergence | `polish-and-hardening` has 2 unique commits (Shots A/B); `origin/super-admin` has 23 unique commits because it merged later `main`, but only tip commit `3c6f047` is the Assisted Onboarding feature payload |
+| Integration direction | Start from the protected baseline and port `super-admin` forward. Do not make the older/incoming branch the base and then try to replay hardening afterward. |
+| Integration branch | A clean developer/agent-created branch based exactly on the protected baseline, recommended name `chore/super-admin-integration` |
+| Current schema floor | Existing migrations through `028_financial_reporting_recovery_closure.sql`; any incoming schema change is adapted into a new forward migration numbered `029` or later |
+| Current application version | `2.6.0`; change it only in Phase 3 when the final release scope is known |
+| Incoming footprint | Tip commit `3c6f047` changes 59 files: 5,621 insertions and 6 deletions |
+
+Why this direction is mandatory: `super-admin` branched at migration 026 before Shots A/B. `polish-and-hardening` now contains production tenant closure and financial/reporting/recovery closure through migration 028. Replaying incoming merged-`main` history or accepting its migration wholesale would silently reopen security and financial defects.
+
+### 1.1 Actual conflict map
+
+Read-only `git merge-tree` analysis against the pinned merge base found five direct both-modified files:
+
+| Direct conflict | Required resolution |
+|---|---|
+| `AgentsContextKnowledgeBase/Catalog.md` | Keep current active security/financial records; add Assisted Onboarding plan row and final integrated status without replacing current rows |
+| `AgentsContextKnowledgeBase/ImplementationState.md` | Preserve Shot A/B evidence and this three-phase workstream; fold incoming onboarding state into SA1-SA3 only after verification |
+| `CHANGELOG.md` | Preserve current Unreleased Shot A/B entries; add integrated Assisted Onboarding entry after final evidence |
+| `lib/database.types.ts` | Never hand-merge incoming types; regenerate from a clean database after migration 029 |
+| `lib/email.ts` | Keep current secure onboarding/recovery functions; semantically add owner-claim delivery without exposing tokens or breaking existing call sites |
+
+Fifty-four incoming files are one-sided additions/changes. `middleware.ts`, `app/globals.css`, and `CONTEXT.md` merge textually, but still need semantic review. Incoming `supabase/migrations/027_assisted_onboarding.sql` does not produce a path conflict because current migration 027 has a different filename; it creates a **migration-number and behavior conflict** and must not be copied as-is.
+
+### 1.2 Mandatory adaptations discovered from actual code
+
+1. **Port feature commit only.** Use `3c6f047^..3c6f047` or the pinned merge-base diff as source. Do not replay the 22 merged-`main` ancestry commits.
+2. **Rewrite incoming migration as `029_assisted_onboarding.sql`.** Build it against the effective migration-028 schema. Never add `027_assisted_onboarding.sql`.
+3. **Preserve Shot A's latest RPC bodies.** Incoming SQL replaces `join_gym`, `kiosk_checkin`, and `kiosk_checkin_by_member` with pre-hardening versions. `join_gym` must remain an alias for `verify_gym_membership`; kiosk functions must retain member-role checks, avatar output, active-gym/tenant validation, entitlement enforcement, row locking, attribution, and audit behavior.
+4. **Remove unsafe access switches from v1.** Do not port `auto_approve_joins` because it bypasses explicit membership verification. Do not port a switch that disables `checkin_requires_membership` because effective membership remains mandatory for access. `staff_manual_checkin` and `occupancy_count` may be added only by composing them into current hardened RPC bodies with TypeScript/SQL catalog parity and executed tests.
+5. **Provision private gyms only.** Incoming public visibility can violate `gyms_publish_requires_tagline` because the wizard collects no tagline. Remove/disable the visibility switch; provision `is_published = false`. Owner publishes later through Studio after satisfying the existing publish contract.
+6. **Designated claimant must become `owner`.** Do not allow the designated owner to claim as `admin`, which can leave a gym without an active owner. Additional people may be `admin` or `staff`.
+7. **Fix RPC caller context.** Incoming provision/resend routes call platform-admin-gated RPCs through the service-role client. That loses the operator's `auth.uid()`/`app_metadata` and will fail live despite mocked tests. Use the user-bound server client for authorization-sensitive RPCs; restrict admin client use to Auth account resolution and server-only Storage work.
+8. **Strengthen idempotency.** Add a canonical request fingerprint to provisioning runs. Same key + same intent returns original result; same key + different intent fails. Track partial Auth-user resolution so retries resume truthfully instead of pretending the Auth and Postgres work is one transaction.
+9. **Use current audit/recovery contracts.** Prefer existing immutable `privileged_audit_events` for platform provisioning/claim events. If a dedicated platform table remains necessary, give it equivalent immutability, explicit grants/revokes, protected-definition hashes, recovery evidence, and executable cross-gym tests.
+10. **Do not disclose claim credentials.** Email the raw owner-claim token only to the intended owner. API responses, UI, logs, audit rows, and persisted workflow state receive delivery state/expiry only—no `claimLink`, raw token, or reusable credential.
+11. **Make claim continuation work.** Replace incoming "sign in, then reopen the link" gap with a bounded first-party post-auth return path that accepts only the current `/claim/{token}` route and cannot become an open redirect.
+12. **Replace simulated evidence.** Incoming migration was never applied live, types were hand-extended, deployment contract was deferred, and no E2E ran. Integration requires clean migration 029 execution, generated-type parity, executable DB behavior/concurrency tests, deployment drift coverage, and credentialed or locally seeded Super Admin E2E.
+13. **Add omitted planned wiring.** Incoming commit did not modify `lib/features.ts` and did not add the planned Super Admin E2E spec. Add only approved feature keys and their parity tests; add the missing E2E coverage.
+14. **Reconcile imported accounts with current verification consistency.** Imported members may not bypass the migration-027 verification state machine. Use a trusted, audited platform provisioning path that creates consistent gym-user/verification state; imported rows still create no memberships or financial transactions.
+
+## 2. Non-negotiable merge rules
+
+1. **Agents do not run `git merge`, `git commit`, `git push`, `git rebase`, `git cherry-pick`, tags, or history-rewriting commands.** In this plan, "merge" means inspecting the incoming diff and semantically porting the required behavior into the integration branch's working tree. The developer performs all commits and the eventual Git merge/PR.
+2. **Never resolve a conflict by blindly choosing "ours" or "theirs."** Determine the behavior each side intended, preserve the hardening contract, and adapt the incoming feature to the current architecture.
+3. **The current identity model wins.** Gym roles remain `owner`, `admin`, `staff`, and `member` on `gym_users`; active-gym routing remains `profiles.active_gym_id`; platform-wide authority remains server-controlled Auth `app_metadata`, currently `platform_role = 'platform_admin'`. A branch or UI label named "super admin" must not become a fifth gym role.
+4. **Phase 1 must decide terminology before implementation.** Prefer keeping the stored claim `platform_admin` and treating "Super Admin" as display copy unless the incoming branch proves a separate platform role is required. Any change to the stored claim needs an explicit compatibility/migration plan and tests for old and new tokens.
+5. **Database enforcement remains the truth.** UI hiding is not authorization. Platform operations need a dedicated server/RPC boundary, explicit grants, tenant-aware output, and audit evidence. Never put a service-role credential in browser code.
+6. **Existing migrations are immutable integration inputs.** Do not edit migrations 000-028 to make the branch fit. Reconcile incoming SQL with a new idempotent forward migration numbered 029 or later, then extend the deployment contract and regenerate `lib/database.types.ts`.
+7. **Financial and tenant closures are protected invariants.** Do not restore direct browser writes to legacy `payments`, mutable financial transactions, caller-selected authoritative gym/actor/amount values, broad profile reads, cross-gym attendance, delegable owner/platform authority, or disclosed one-time credentials.
+8. **No hosted mutation.** These phases may use local Supabase and local recovery tooling only. Do not apply hosted migrations, change Auth configuration, send real email, enable paid services, or restore/delete external environments without separate user approval.
+9. **Preserve unrelated working-tree changes.** Each chat starts by inspecting status and the prior phase's work. Never discard or overwrite changes merely to reduce conflicts.
+10. **Test behavior, not only source text.** New authorization behavior is test-first. SQL source-contract tests may supplement but cannot replace executed allow/deny, cross-gym, rollback, and clean-migration tests.
+
+## 3. Three-phase map
+
+| Phase | One-chat objective | In scope | Explicitly deferred | Completion gate |
+|---|---|---|---|---|
+| **1. Migration 029 + authorization spine** | Verify pinned refs, then rebuild incoming database/auth foundation on top of Shots A/B | Migration 029, approved switches, platform claim boundary, request fingerprint, immutable audit, generated types, executable DB/auth tests | Full Super Admin screens, email/UI, release docs/version | Migration 029 applies cleanly; current tenant/kiosk/verification contracts remain intact; focused DB/security gates pass |
+| **2. Application + UI integration** | Port incoming Assisted Onboarding journeys and components onto Phase 1's corrected boundary | 54 one-sided files, middleware/globals/context, server routes, claim continuation, email delivery, wizard/UI, five doc/type/email conflicts, integration/E2E tests | Hosted rollout, release sign-off, unrelated redesigns | Provision→invite→claim works end to end; ordinary roles remain denied; no token disclosure; lint/typecheck/unit/build/focused E2E pass |
+| **3. Independent hardening + release handoff** | Audit all 59 incoming files/behaviors against both parent tips, fix regressions, run complete gates, prepare developer handoff | Completeness matrix, adversarial auth/tenant/finance checks, clean reset, deployment drift, full CI/recovery, docs/status/changelog/version | Commit, push, PR, hosted deployment | Every adaptation/omission is explained; complete local gates pass or precise no-go blocker is recorded |
+
+## 4. Phase 1 - Migration 029 and platform authorization spine
+
+### Step-by-step
+
+1. Read required project context, incoming Assisted Onboarding plan from `origin/super-admin`, and only this integration section—not the archived appendix.
+2. Inspect worktree. Planning-doc changes may carry forward; unrelated product changes are a stop condition. Verify all three pinned commits exactly: protected tip `7363c63`, incoming tip `3c6f047`, merge base `b6e8f2f`.
+3. Create/use integration branch from protected tip. Use incoming feature commit as reference only; do not replay merged-main ancestry.
+4. Reproduce the five direct conflicts and migration-number collision from §1.1. Stop on ref drift or unexplained new overlap.
+5. Trace incoming authorization/provisioning end to end: Auth claim, server clients, SQL functions/tables/policies, account resolution, idempotency, audit, claim token, middleware, routes, tests.
+6. Freeze canonical model before editing:
+   - gym roles remain gym-scoped and unchanged;
+   - platform authority is server-controlled and non-delegable;
+   - platform operations use dedicated boundaries rather than bypassing every gym policy;
+   - platform-wide reads expose only fields required by the Super Admin workflow;
+   - privileged mutations are attributable and auditable.
+7. Write failing executed tests for: authorization matrix; service-role-vs-user-bound RPC context; same-key/different-intent rejection; private-by-default provisioning; owner-only claim; immutable audit; cross-gym isolation; imported-member verification consistency; claim expiry/use/supersession/wrong-email.
+8. Create `029_assisted_onboarding.sql` from current effective definitions plus approved incoming behavior. Implement every §1.2 adaptation. Do not copy incoming migration 027.
+9. Add/adapt `lib/platform-admin.ts` and smallest Phase 2 server interfaces. Authorization-sensitive RPCs must receive the signed-in operator's JWT; admin client remains isolated to server-only Auth/Storage tasks.
+10. Extend deployment contract/protected-definition/recovery evidence. Apply migration on clean local DB, regenerate types, run DB types, security, financial, invariant, deployment-contract/drift, and focused platform-auth tests.
+11. Leave uncommitted. Report pinned refs, files/objects added, discarded incoming SQL bodies, exact test evidence, partial-Auth recovery design, and Phase 2 verdict.
+
+### Phase 1 stop conditions
+
+- Stop without editing if any pinned SHA or merge base changed.
+- Stop and ask the user if the incoming branch intentionally grants platform admins unrestricted access to member PII or gym financial data without a narrower product requirement.
+- Stop and ask the user if the incoming stored role is incompatible with `platform_role = 'platform_admin'` and compatibility cannot be preserved safely.
+- Stop if migration 029 cannot prove current verification, attendance, financial, and audit suites stay green.
+- Do not proceed to UI work in this phase.
+
+## 5. Phase 2 - Application and UI integration
+
+### Step-by-step
+
+1. Re-read contract, inspect working tree, preserve Phase 1 changes. Recheck exact protected/incoming/base SHAs.
+2. Reconstruct Phase 1 SQL/server interface from code and executed tests. Do not revert to incoming mocked assumptions.
+3. Inventory incoming journey: `/superadmin` gate → four-step wizard → account resolution → atomic Postgres provisioning → invite delivery/resend → `/claim/{token}` → bounded sign-in return → explicit owner claim → `/admin`.
+4. Write failing tests for every accepted journey and every §1.2 adaptation. Include 401/403, cross-gym targets, user-bound RPC context, idempotency mismatch, no raw claim token in response/state/logs, delivery failure, resend supersession, bounded claim return, and safe error/loading states.
+5. Port server code first:
+   - server-only claim verification;
+   - dedicated route/action/RPC calls;
+   - input validation and correct 401/403/404/409 responses;
+   - user-bound client for platform-authorized RPCs and admin client only for server-only Auth/Storage;
+   - resumable account resolution around non-transactional Auth creation;
+   - active-gym behavior that does not accidentally change the operator's gym;
+   - cache invalidation scoped to the affected gym;
+   - no service-role or privileged secrets in browser bundles.
+6. Port incoming Assisted Onboarding components/pages/lib/tests from tip commit, adapting rather than copying where §1.2 differs. Remove auto-approval, membership-bypass, public-at-provision, claimant-role, and copy-claim-link controls/copy/state. Add missing approved feature-catalog wiring and E2E spec.
+7. Resolve shared-file conflicts semantically, with extra scrutiny on:
+   - `middleware.ts` and post-auth routing;
+   - `/claim` public routing and allowlisted post-auth continuation;
+   - gym provisioning and `create_gym`;
+   - profile/gym-user access;
+   - `lib/database.types.ts` (generated only);
+   - `lib/email.ts` (preserve all current functions, add token-safe claim delivery);
+   - deployment scripts and CI;
+   - the five direct conflict files from §1.1.
+8. Confirm ordinary owners/admins/staff/members cannot discover or invoke platform-only operations through navigation, direct URLs, API calls, RPC calls, or forged request fields.
+9. Run focused Assisted Onboarding tests plus seeded/credentialed desktop/mobile E2E, then lint, typecheck, all unit/integration tests, production build, and existing auth/tenant/onboarding/kiosk/financial regressions.
+10. Leave uncommitted. Report which of 59 incoming files were ported, renamed, rewritten, or intentionally omitted; exact tests; remaining defects; Phase 3 verdict.
+
+### Phase 2 stop conditions
+
+- Do not add a second client-side auth state system or a second global role source of truth.
+- Do not reintroduce `/login`, `/signup`, or public `/gyms/new` behavior removed by unified accounts and platform-managed provisioning.
+- Do not treat platform authority as permission to bypass the ledger, tenant consistency, one-time credential, or audit contracts.
+- Do not return claim links/raw tokens or offer Copy claim link.
+- Do not restore removed unsafe switches under different labels.
+- Do not broaden the task into a redesign of ordinary admin/member/kiosk/public surfaces.
+
+## 6. Phase 3 - Independent hardening and release handoff
+
+### Step-by-step
+
+1. Approach as independent reviewer. Read protected baseline contracts, exact `3c6f047^..3c6f047` payload, Phase 1/2 diff, and tests before changing code.
+2. Build a 59-file completeness matrix:
+   - present as intended;
+   - adapted to a named current contract;
+   - intentionally omitted because it is superseded or unsafe;
+   - missing and must be fixed.
+3. Build an adversarial authorization matrix across unauthenticated, member, staff, admin, owner, platform admin, forged/stale token, wrong active gym, and cross-gym target cases. Exercise UI, direct route, API/action, RPC, and database layers where applicable.
+4. Re-audit protected invariants:
+   - private profiles and tenant-safe directory output;
+   - non-delegable role/platform authority;
+   - membership verification and onboarding credential secrecy;
+   - attendance tenant consistency and concurrency;
+   - append-only ledger, idempotency, exact paid dates, report reconciliation, and legacy-payment lockdown;
+   - audit immutability and tenant isolation;
+   - migration/deployment drift and recovery evidence.
+5. Inspect final migration chain. Verify 000-028 byte-identical to protected baseline, `027_assisted_onboarding.sql` absent, integrated schema lives in 029+, all objects/grants/triggers/constraints have deployment hashes, seed remains local-only, generated types match clean schema.
+6. Explicitly reproduce original incoming false-positive gaps: service-role platform RPC denial, same-key/different-payload reuse, public-without-tagline failure, admin claimant leaving no owner, raw claim-link disclosure, auto-approval verification bypass, membership-gate bypass, and hand-edited type drift. Final tree must close each.
+7. Fix only integration defects found by audit, with regression tests first. No unrelated feature/UI work.
+8. Run final local gate in this order:
+   1. clean local reset/seed;
+   2. generated database types check;
+   3. database security, financial, invariant, deployment-contract, and drift suites;
+   4. `npm run lint`;
+   5. `npm run typecheck`;
+   6. `npm run test:unit`;
+   7. `npm run build`;
+   8. `npm run test:e2e`;
+   9. local recovery drill if the integration changes protected database/Auth/Storage definitions.
+9. Update incoming `ImplementationPlan-AssistedOnboarding.md` claims so they reflect integrated migration 029/evidence rather than old branch assumptions. Update Catalog, ImplementationState, CHANGELOG, version/lockfile when warranted, affected operational/ADR docs. Local evidence never closes hosted gates.
+10. Produce go/no-go report: all pinned SHAs; 59-file matrix; final migration/object inventory; original-gap regression results; all commands; external actions not performed; blockers; developer commit/push/PR steps. Leave uncommitted/unpushed.
+
+### Definition of done
+
+- The final tree retains every `polish-and-hardening` security, financial, tenant, deployment, and recovery guarantee.
+- Every accepted `super-admin` behavior is present at the correct enforcement layers, and every omission is explicit and justified.
+- Platform authority is server-controlled, non-delegable, separate from gym roles, least-privilege, and auditable.
+- Provisioning is private-by-default, same-intent idempotent, owner-safe, claim-token confidential, and resumable across Auth/Postgres boundaries.
+- Fresh migration, generated types, deployment drift, security, financial, unit/integration, build, and E2E gates pass.
+- No hosted mutation, commit, merge, push, rebase, cherry-pick, or tag was performed by an agent.
+- The developer can review and commit the working tree without reconstructing hidden decisions from chat history.
+
+## 7. Paste-ready prompts for three separate GPT-5.6 Luna High chats
+
+Run these in order against the same workspace. Each prompt deliberately re-establishes its own context from the repository so prior chat history is unnecessary.
+
+### Prompt 1 - Migration 029 and authorization spine
+
+```text
+You are GPT-5.6 Luna High executing Phase 1 of Stren's super-admin integration.
+
+Objective: rebuild incoming Assisted Onboarding database/Auth foundation as migration 029 on top of Shots A/B. Do not build full UI.
+
+Read in this order:
+1. AGENTS.md
+2. AgentsContextKnowledgeBase/Catalog.md
+3. CLAUDE.md
+4. CONTEXT.md
+5. AgentsContextKnowledgeBase/ImplementationState.md
+6. AgentsContextKnowledgeBase/ImplementationPlan-ProductionSecurityAndFinancialClosure.md
+7. AgentsContextKnowledgeBase/ImplementationPlan.md from the first line through the marker SUPER_ADMIN_INTEGRATION_PLAN_END only. Do not read the archived appendix below it.
+8. Incoming plan via `git show origin/super-admin:AgentsContextKnowledgeBase/ImplementationPlan-AssistedOnboarding.md`.
+
+Pinned refs:
+- protected tip: polish-and-hardening = 7363c6312ae80c6418bb5984e889f6a968973535
+- incoming tip: origin/super-admin = 3c6f047eedfab7bc76c7ecd48b31405bfc9b4e93
+- merge base: b6e8f2fad1e20ccfd440b84b02cc6e4b91a1bc97
+- incoming feature payload: 3c6f047^..3c6f047, 59 files, +5,621/-6
+- direct both-modified files: Catalog.md, ImplementationState.md, CHANGELOG.md, lib/database.types.ts, lib/email.ts
+
+Follow ImplementationPlan.md Phase 1 and §1.2 exactly. Inspect status; preserve user work. Planning-doc edits may carry forward; unrelated product edits -> stop. Verify all pinned SHAs/merge base before editing. If needed, create chore/super-admin-integration from protected tip. Never run git merge, commit, push, rebase, cherry-pick, tag, reset, or checkout-based replacement. Do not replay incoming merged-main ancestry.
+
+Incoming migration 027 was never live-applied, hand-edited DB types, deferred deployment contract, replaced hardened RPCs, and was tested mostly with SQL text/mocks. Never copy it. Create 029_assisted_onboarding.sql against effective migration-028 schema. Migrations 000-028 remain byte-identical.
+
+Required decisions:
+- platform claim remains server-controlled app_metadata.platform_role=platform_admin; not fifth gym role
+- join_gym remains verify_gym_membership alias
+- retain latest hardened kiosk bodies and mandatory effective-membership gate
+- remove auto_approve_joins and checkin_requires_membership-off switches
+- optionally add staff_manual_checkin + occupancy_count only with TS/SQL parity and hardened composition
+- provision is_published=false; designated claimant role=owner
+- user-bound server Supabase client calls platform-gated RPCs; service-role client only resolves Auth users/server Storage
+- provisioning idempotency stores request fingerprint and rejects same key/different intent
+- Auth-user creation is non-transactional: persist/resume truthful partial state
+- reuse immutable privileged_audit_events, or prove equivalent immutable dedicated audit
+- imported members satisfy current verification consistency; create no membership/payment
+- raw claim token exists only for email delivery; never response/UI/log/audit/persisted workflow
+
+Write failing executed DB/auth tests first: unauthenticated/member/staff/admin/owner/platform-admin; forged/stale claim; cross-gym; service-role RPC denial vs user-bound success; same-key mismatch; private default; owner claim; audit immutability; import verification; invite lifecycle. Add smallest lib/platform-admin.ts/server interfaces. Extend deployment/protected-definition/recovery contracts. Regenerate lib/database.types.ts from clean DB—never hand-merge it.
+
+Use apply_patch. Run clean local reset, db types check, db security/financial/invariants, deployment contract/drift, focused platform tests. No hosted mutation.
+
+Final: pinned refs, changed files/objects, discarded incoming SQL bodies, idempotency/recovery design, exact commands/results, external actions not performed, Phase 2 ready/not-ready. Leave uncommitted/unpushed.
+```
+
+### Prompt 2 - Application and UI integration
+
+```text
+You are GPT-5.6 Luna High executing Phase 2 of Stren's super-admin integration in the same workspace after Phase 1.
+
+Objective: preserve Phase 1 migration-029/auth work. Port incoming Assisted Onboarding server journeys + UI onto corrected boundary. Do not restore rejected incoming security behavior.
+
+Read in this order:
+1. AGENTS.md
+2. AgentsContextKnowledgeBase/Catalog.md
+3. CLAUDE.md
+4. CONTEXT.md
+5. AgentsContextKnowledgeBase/ImplementationState.md
+6. AgentsContextKnowledgeBase/ImplementationPlan-ProductionSecurityAndFinancialClosure.md
+7. AgentsContextKnowledgeBase/ImplementationPlan.md from the first line through the marker SUPER_ADMIN_INTEGRATION_PLAN_END only. Do not read the archived appendix below it.
+8. Incoming plan via `git show origin/super-admin:AgentsContextKnowledgeBase/ImplementationPlan-AssistedOnboarding.md`.
+
+Pinned refs: protected 7363c6312ae80c6418bb5984e889f6a968973535; incoming 3c6f047eedfab7bc76c7ecd48b31405bfc9b4e93; base b6e8f2fad1e20ccfd440b84b02cc6e4b91a1bc97. Verify them. Preserve all Phase 1/user edits. Never merge/commit/push/rebase/cherry-pick/tag/reset/checkout-replace.
+
+Follow ImplementationPlan.md Phase 2 + §1.2. Reference only 3c6f047^..3c6f047. Journey:
+/superadmin gate -> 4-step wizard -> account resolution -> Postgres provision -> invite delivery/resend -> /claim/{token} -> bounded sign-in return -> explicit owner claim -> /admin.
+
+Write failing tests per slice. Port server routes first:
+- platform authorization RPCs use user-bound client; admin client only Auth/Storage
+- input validation + 401/403/404/409
+- resumable account resolution
+- scoped cache changes
+- claim email receives raw token, but API/UI/log/audit/state never do
+- delivery failure truthful; resend supersedes
+- allowlisted /claim/{token} post-auth return, no open redirect
+- no accidental active-gym mutation for operator
+
+Port new components/lib/pages/tests with current design/auth shell. Explicitly remove:
+- auto-approve QR joins
+- ability to disable membership-required check-in
+- public-at-provision visibility choice
+- designated claimant role choice (owner only)
+- Copy claim link and claimLink response/state
+
+Keep existing kiosk switch; approved staff-manual/occupancy flags only if Phase 1 implemented them. Add missing lib/features.ts parity and desktop/mobile Super Admin E2E. Do not resurrect /login, /signup, public /gyms/new, second auth context, or fifth gym role.
+
+Resolve five direct conflicts semantically:
+- Catalog/ImplementationState/CHANGELOG preserve current Shot A/B + integration records
+- lib/database.types.ts remains generated Phase 1 output
+- lib/email.ts preserves every current function; add secure claim delivery
+Review textual auto-merges middleware.ts, app/globals.css, CONTEXT.md.
+
+Use apply_patch. Run focused journey/auth/token tests, seeded/credentialed desktop+mobile E2E, current auth/tenant/onboarding/kiosk/financial regressions, lint, typecheck, full unit/integration, build. No hosted systems.
+
+Final: pinned refs; 59-file port/rename/rewrite/omit accounting; journeys; conflicts; exact commands/results; defects; external actions not performed; Phase 3 verdict. Leave uncommitted/unpushed.
+```
+
+### Prompt 3 - Independent hardening and release handoff
+
+```text
+You are GPT-5.6 Luna High executing Phase 3, the independent hardening and release gate for Stren's combined polish-and-hardening + super-admin working tree.
+
+Objective: independently audit 59-file incoming feature integration, close merge regressions, run complete local gates, update canonical records, deliver developer-owned go/no-go. Distrust earlier focused passes.
+
+Read in this order:
+1. AGENTS.md
+2. AgentsContextKnowledgeBase/Catalog.md
+3. CLAUDE.md
+4. CONTEXT.md
+5. AgentsContextKnowledgeBase/ImplementationState.md
+6. AgentsContextKnowledgeBase/ImplementationPlan-ProductionSecurityAndFinancialClosure.md
+7. AgentsContextKnowledgeBase/ImplementationPlan-FinancialIntegrityAndRecovery.md
+8. docs/operations/BACKUP_AND_RECOVERY.md
+9. AgentsContextKnowledgeBase/ImplementationPlan.md from the first line through the marker SUPER_ADMIN_INTEGRATION_PLAN_END only. Do not read the archived appendix below it.
+10. Incoming plan via `git show origin/super-admin:AgentsContextKnowledgeBase/ImplementationPlan-AssistedOnboarding.md`.
+
+Pinned refs: protected 7363c6312ae80c6418bb5984e889f6a968973535; incoming 3c6f047eedfab7bc76c7ecd48b31405bfc9b4e93; base b6e8f2fad1e20ccfd440b84b02cc6e4b91a1bc97. Verify. Preserve worktree. Never merge/commit/push/rebase/cherry-pick/tag/reset/discard.
+
+Follow Phase 3. Build matrix for all 59 files from 3c6f047^..3c6f047: ported, renamed, rewritten, intentionally omitted, missing. `027_assisted_onboarding.sql` must be omitted/replaced by migration 029. Verify migrations 000-028 byte-identical to protected tip.
+
+Execute adversarial matrix: unauthenticated/member/staff/admin/owner/platform-admin; forged/stale token; wrong active gym; cross-gym target; UI/direct route/API/RPC/DB. Re-audit profiles, role non-delegation, verification, token secrecy, attendance consistency/concurrency, ledger/idempotency/dates/reconciliation/legacy lock, audit immutability, deployment drift, recovery.
+
+Must reproduce then prove fixed:
+- service-role calls platform-gated RPC -> denied; user-bound operator -> succeeds
+- same idempotency key/different payload -> rejected
+- public gym without tagline -> impossible; provision stays private
+- claimant always owner; gym cannot finish ownerless
+- no raw claimLink/token in response/UI/log/audit/persisted state
+- QR join cannot auto-bypass verification
+- check-in cannot bypass effective membership
+- imported members satisfy verification consistency
+- clean-generated types differ from neither schema nor checked-in file
+- claim sign-in return cannot open-redirect
+
+Write regression first for any defect. Smallest fix via apply_patch. No unrelated features/UI redesign.
+
+Run the final local gates in order:
+1. clean local reset/seed
+2. database types check
+3. database security, financial, invariant, deployment-contract, and drift suites
+4. npm run lint
+5. npm run typecheck
+6. npm run test:unit
+7. npm run build
+8. npm run test:e2e
+9. the local recovery drill if protected database/Auth/Storage definitions changed
+
+Update imported ImplementationPlan-AssistedOnboarding.md so old claims (migration 027, hand types, no live DB/E2E, staged/uncommitted) become accurate integration record. Update Catalog, ImplementationState, CHANGELOG, package version/lockfile if warranted, affected ADR/ops docs. Local proof never closes hosted gates. No hosted mutation, real email, paid service, external deletion.
+
+Final: go/no-go; pinned refs; 59-file matrix; migration/object inventory; original-gap results; every command/result; failures/no waivers hidden; external actions not performed; blockers; developer review/commit/push/PR steps. Leave uncommitted/unpushed.
+```
+
+<!-- SUPER_ADMIN_INTEGRATION_PLAN_END -->
+
+---
+
+# Archived Appendix: Gym Page Studio + Permissions & Feature Toggles Implementation Guide
 
 **✅ Completed 2026-07-11** — shipped to `main` via qa merge `3e52c95` (open pre-prod items tracked in `ImplementationState.md`). Superseded as the active plan by [ImplementationPlan-UnifiedAccounts.md](ImplementationPlan-UnifiedAccounts.md); kept per Catalog rule 6. **Caution for later readers:** migration 019 re-implements the `get_gym_id()`/role helper internals over `gym_users` — this document's profile-based identity assumptions are historical.
 

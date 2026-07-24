@@ -41,7 +41,6 @@ export function AccessClient() {
   const [addOpen, setAddOpen] = useState(false);
   const [adding, setAdding] = useState(false);
   const [addError, setAddError] = useState<string | null>(null);
-  const [setupLink, setSetupLink] = useState<string | null>(null);
   const [draft, setDraft] = useState({ name: '', email: '', role: 'staff' as TeamRole });
   const closeAddDialog = useCallback(() => {
     if (!adding) setAddOpen(false);
@@ -127,13 +126,9 @@ export function AccessClient() {
       });
       setExpanded(result.person.userId);
       setDraft({ name: '', email: '', role: 'staff' });
-      if (result.magicLink) {
-        setSetupLink(result.magicLink);
-        toast.success('Teammate added. Share their setup link below.');
-      } else {
-        setAddOpen(false);
-        toast.success('Teammate added.');
-      }
+      setAddOpen(false);
+      if (result.deliveryStatus === 'sent') toast.success('Teammate added and invitation sent.');
+      else toast.warning('Teammate added, but invitation delivery failed. You can retry by adding the same email again.');
     } catch (error) {
       setAddError(error instanceof Error ? error.message : 'Could not add this teammate.');
     } finally {
@@ -178,7 +173,7 @@ export function AccessClient() {
       <section className="rounded-xl border p-5" style={{ backgroundColor: 'var(--color-white)', borderColor: 'var(--color-surface)' }}>
         <div className="mb-4 flex items-center justify-between gap-3">
           <h2 className="text-base font-semibold" style={{ color: 'var(--color-text-primary)' }}>Your team</h2>
-          <button type="button" onClick={() => { setAddError(null); setSetupLink(null); setAddOpen(true); }} className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-white" style={{ backgroundColor: 'var(--color-primary)' }}><Plus size={16} />Add teammate</button>
+          <button type="button" onClick={() => { setAddError(null); setAddOpen(true); }} className="inline-flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-semibold text-white" style={{ backgroundColor: 'var(--color-primary)' }}><Plus size={16} />Add teammate</button>
         </div>
 
         {profile && (
@@ -223,7 +218,7 @@ export function AccessClient() {
       {addOpen && (
         <ViewportOverlay onClose={closeAddDialog} labelledBy="add-teammate-title" panelClassName="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
             <div className="flex items-start justify-between gap-4"><div><h2 id="add-teammate-title" className="text-lg font-bold" style={{ color: 'var(--color-text-primary)' }}>Add teammate</h2><p className="mt-1 text-sm" style={{ color: 'var(--color-text-secondary)' }}>Use their Stren email if they already have an account.</p></div><button type="button" aria-label="Close" onClick={closeAddDialog}><X size={20} /></button></div>
-            {setupLink ? <div className="mt-5 space-y-3"><p className="text-sm" style={{ color: 'var(--color-text-secondary)' }}>Their account is ready. Copy this one-time setup link and send it to them.</p><input readOnly value={setupLink} onFocus={(event) => event.currentTarget.select()} className="w-full rounded-lg border p-2 text-xs" style={{ borderColor: 'var(--color-surface)' }} /><button type="button" onClick={() => { setSetupLink(null); setAddOpen(false); }} className="min-h-10 rounded-lg px-4 text-sm font-semibold text-white" style={{ backgroundColor: 'var(--color-primary)' }}>Done</button></div> : <div className="mt-5 space-y-4"><label className="block text-sm font-medium">Name<input aria-label="Teammate name" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} className="mt-1 w-full rounded-lg border p-2" style={{ borderColor: 'var(--color-surface)' }} /></label><label className="block text-sm font-medium">Email<input aria-label="Teammate email" type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} className="mt-1 w-full rounded-lg border p-2" style={{ borderColor: 'var(--color-surface)' }} /></label><label className="block text-sm font-medium">Role<select aria-label="Teammate role" value={draft.role} onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value as TeamRole }))} className="mt-1 w-full rounded-lg border p-2" style={{ borderColor: 'var(--color-surface)' }}><option value="staff">Staff — kiosk and member lookup</option><option value="admin">Admin — day-to-day gym operations</option></select></label>{addError && <p role="alert" className="text-sm" style={{ color: 'var(--color-danger)' }}>{addError}</p>}<div className="flex justify-end gap-2"><button type="button" onClick={() => setAddOpen(false)} className="min-h-10 px-3 text-sm font-semibold">Cancel</button><button type="button" disabled={adding || !draft.name.trim() || !draft.email.trim()} onClick={() => void addPerson()} className="min-h-10 rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: 'var(--color-primary)' }}>{adding ? 'Adding…' : 'Add to team'}</button></div></div>}
+            <div className="mt-5 space-y-4"><label className="block text-sm font-medium">Name<input aria-label="Teammate name" value={draft.name} onChange={(event) => setDraft((current) => ({ ...current, name: event.target.value }))} className="mt-1 w-full rounded-lg border p-2" style={{ borderColor: 'var(--color-surface)' }} /></label><label className="block text-sm font-medium">Email<input aria-label="Teammate email" type="email" value={draft.email} onChange={(event) => setDraft((current) => ({ ...current, email: event.target.value }))} className="mt-1 w-full rounded-lg border p-2" style={{ borderColor: 'var(--color-surface)' }} /></label><label className="block text-sm font-medium">Role<select aria-label="Teammate role" value={draft.role} onChange={(event) => setDraft((current) => ({ ...current, role: event.target.value as TeamRole }))} className="mt-1 w-full rounded-lg border p-2" style={{ borderColor: 'var(--color-surface)' }}><option value="staff">Staff — kiosk and member lookup</option><option value="admin">Admin — day-to-day gym operations</option></select></label>{addError && <p role="alert" className="text-sm" style={{ color: 'var(--color-danger)' }}>{addError}</p>}<div className="flex justify-end gap-2"><button type="button" onClick={() => setAddOpen(false)} className="min-h-10 px-3 text-sm font-semibold">Cancel</button><button type="button" disabled={adding || !draft.name.trim() || !draft.email.trim()} onClick={() => void addPerson()} className="min-h-10 rounded-lg px-4 text-sm font-semibold text-white disabled:opacity-60" style={{ backgroundColor: 'var(--color-primary)' }}>{adding ? 'Adding…' : 'Add to team'}</button></div></div>
         </ViewportOverlay>
       )}
     </div>

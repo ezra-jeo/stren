@@ -15,19 +15,25 @@ export function FeedClient() {
   const supabase = useMemo(() => createClient(), []);
 
   const loadFeed = useCallback(async () => {
-    const { data } = await supabase
-      .from('feed_items')
-      .select('*, profiles!feed_items_member_id_fkey(name, avatar_url)')
-      .order('created_at', { ascending: false })
-      .limit(50);
+    const [{ data }, { data: directory }] = await Promise.all([
+      supabase
+        .from('feed_items')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50),
+      supabase.rpc('get_gym_directory'),
+    ]);
 
     if (data) {
       const items: FeedItem[] = [];
+      const directoryByUserId = new Map(
+        (directory ?? []).map((entry) => [entry.user_id, entry]),
+      );
 
       for (const item of data) {
         if (!isSupportedFeedType(item.type)) continue;
 
-        const profileData = item.profiles as unknown as { name: string; avatar_url: string | null } | null;
+        const profileData = item.member_id ? directoryByUserId.get(item.member_id) : null;
         items.push({
           id: item.id,
           memberId: item.member_id ?? "",
