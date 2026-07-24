@@ -5,6 +5,7 @@ import type { Html5Qrcode as Html5QrcodeType } from "html5-qrcode"
 import {
   BadgeCheck,
   Camera,
+  CreditCard,
   Check,
   CircleAlert,
   Info,
@@ -23,6 +24,8 @@ import {
 import { createClient } from "@/lib/supabase"
 import { withTimeout } from "@/lib/async-guard"
 import { useAuth } from "@/lib/auth-context"
+import { useAccess } from "@/lib/access-context"
+import { RfidPanel } from "@/components/kiosk/RfidPanel"
 import { playKioskFeedback } from "@/lib/kiosk-feedback"
 import {
   KIOSK_RESULT_EXIT_MS,
@@ -37,7 +40,7 @@ const SCANNER_START_TIMEOUT_MS = 8_000
 const PROCESSING_DELAY_MS = 180
 const SEARCH_DEBOUNCE_MS = 280
 
-type KioskMode = "qr" | "search"
+type KioskMode = "qr" | "rfid" | "search"
 type CameraState = "starting" | "ready" | "denied" | "unavailable" | "unsupported"
 type Presentation = "idle" | "processing" | "result" | "exiting" | "persistent"
 type ResultKind = "checked_in" | "checked_out" | "unknown" | "inactive" | "offline" | "error"
@@ -173,6 +176,7 @@ export function KioskDisabledState() {
 export default function KioskPage() {
   const supabase = useMemo(() => createClient(), [])
   const { activeGymId } = useAuth()
+  const access = useAccess()
   const [pinnedGymId, setPinnedGymId] = useState<string | null>(null)
   const [kioskEnabled, setKioskEnabled] = useState<boolean | null>(null)
   const [mode, setMode] = useState<KioskMode>("qr")
@@ -189,6 +193,7 @@ export default function KioskPage() {
   const [connectOpen, setConnectOpen] = useState(false)
   const [connectQr, setConnectQr] = useState("")
   const [connectUrl, setConnectUrl] = useState("")
+  const [rfidProcessing, setRfidProcessing] = useState(false)
 
   const scannerRef = useRef<Html5QrcodeType | null>(null)
   const isStartingScannerRef = useRef(false)
@@ -468,6 +473,22 @@ export default function KioskPage() {
     }
   }, [showResult, supabase])
 
+  const performRfidTap = useCallback(async (uid: string) => {
+    if (!runtimeRef.current.gymId || rfidProcessing) return
+    setRfidProcessing(true)
+    try {
+      const response = await fetch('/api/kiosk/rfid/tap', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ uid }), cache: 'no-store' })
+      const data = await response.json().catch(() => null) as Record<string, unknown> | null
+      if (!response.ok || !data || (data.action !== 'checked_in' && data.action !== 'checked_out')) throw new Error('RFID tap failed')
+      const action = data.action === 'checked_in' ? 'checked_in' : 'checked_out'
+      const nextOccupancy = occupancyRef.current === null ? null : Math.max(0, occupancyRef.current + (action === 'checked_in' ? 1 : -1))
+      setKnownOccupancy(nextOccupancy)
+      showResult({ kind: action, memberName: typeof data.member_name === 'string' ? data.member_name : 'Member', avatarUrl: typeof data.avatar_url === 'string' ? data.avatar_url : null, time: new Date(), occupancy: nextOccupancy })
+      void refreshOccupancy()
+    } catch { showResult({ kind: 'error', occupancy: occupancyRef.current }) }
+    finally { setRfidProcessing(false) }
+  }, [refreshOccupancy, rfidProcessing, setKnownOccupancy, showResult])
+
   useEffect(() => {
     if (pinnedGymId) return
     let stored: string | null = null
@@ -573,6 +594,7 @@ export default function KioskPage() {
   }, [clearResultTimers, stopScanner])
 
   const switchMode = (nextMode: KioskMode) => {
+    if (nextMode === 'rfid' && !access.features.rfid_kiosk) return
     userActivatedRef.current = true
     clearResultTimers()
     scanGateRef.current.settle()
@@ -580,6 +602,7 @@ export default function KioskPage() {
     presentationRef.current = "idle"
     setPresentation("idle")
     setMode(nextMode)
+    if (pinnedGymId) try { window.localStorage.setItem(`stren.kiosk.mode.${pinnedGymId}`, nextMode) } catch { /* QR remains safe in memory. */ }
   }
 
   const openSearch = () => {
@@ -594,6 +617,8 @@ export default function KioskPage() {
   }
 
   if (kioskEnabled === false) return <KioskDisabledState />
+
+  const rfidEnabled = access.features.rfid_kiosk === true && access.permissions.has('kiosk:use') && (access.role === 'owner' || access.role === 'admin')
 
   const hasCameraFailure = cameraState === "denied" || cameraState === "unavailable" || cameraState === "unsupported"
   const resultTitle = result?.kind === "checked_in"
@@ -625,6 +650,9 @@ export default function KioskPage() {
           >
             <QrCode size={18} aria-hidden="true" />QR Scan
           </button>
+          {rfidEnabled && <button id="kiosk-rfid-tab" type="button" role="tab" className={styles.modeTab} aria-selected={mode === "rfid"} aria-controls="kiosk-rfid-panel" onClick={() => switchMode("rfid")} disabled={!networkOnline}>
+            <CreditCard size={18} aria-hidden="true" />RFID Tap
+          </button>}
           <button
             id="kiosk-search-tab"
             type="button"
@@ -728,6 +756,11 @@ export default function KioskPage() {
               )}
             </div>
           </div>
+        ) : mode === 'rfid' ? (
+          <section id="kiosk-rfid-panel" role="tabpanel" aria-labelledby="kiosk-rfid-tab" className={styles.searchPanel}>
+            <RfidPanel enabled={rfidEnabled && networkOnline} processing={rfidProcessing} onTap={performRfidTap} />
+            {result && (result.kind === 'checked_in' || result.kind === 'checked_out') && <div className={styles.resultCard} data-kind={result.kind}><h2>{result.memberName}</h2><p className={styles.resultDetail}>{result.kind === 'checked_in' ? 'Check-in successful' : 'Check-out successful'} at {formatTime(result.time)}.</p></div>}
+          </section>
         ) : (
           <section id="kiosk-search-panel" role="tabpanel" aria-labelledby="kiosk-search-tab" className={styles.searchPanel}>
             <h1>Manual search</h1>

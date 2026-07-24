@@ -1,3 +1,1252 @@
+# RFID Kiosk Implementation Plan
+
+**Planned:** 2026-07-24
+
+**Implementation target:** GPT-5.6 Luna XHigh, in exactly three ordered implementation phases
+
+**Status:** Planning complete; no RFID feature code or migration has been written
+
+**Schema baseline inspected:** migrations `000` through `030`; the next migration number is `031`
+
+**Approved visual reference:** `C:\Users\Zurax\AppData\Local\Temp\codex-clipboard-f5d192e9-556b-40da-9d5a-98c68d76c292.png`
+
+This section is the codebase-grounded implementation plan for adding keyboard-emulation RFID as a third input mode inside Stren's existing `/kiosk`. The previously active Super Admin integration plan and the older Gym Page Studio appendix are retained verbatim after the `RFID_KIOSK_IMPLEMENTATION_PLAN_END` marker so their historical contracts and existing `ImplementationPlan.md` section references are not destroyed.
+
+Legend used throughout:
+
+- **Confirmed** means verified in the current working tree.
+- **Proposed** means the implementation contract for this feature.
+- **Open issue** means the repository or approved requirements do not yet establish the fact; the implementation phase must resolve it at the stated gate rather than guessing.
+
+## 1. Objective
+
+Add an optional `RFID Tap` mode beside the existing `QR Scan` and `Search` tabs in `app/kiosk/page.tsx`. A keyboard-emulation reader supplies a UID; the server resolves an active card assignment and invokes the same transaction-owned attendance transition used by QR and authorized manual attendance. Successful taps create or close ordinary `attendance` sessions, so all existing occupancy, streak, dashboard, member-history, and reporting consumers continue to use the same source of truth.
+
+The finished MVP includes:
+
+- assigned-card check-in and checkout;
+- checkout for an already-open session even if membership or gym-user eligibility changed after entry;
+- server-enforced duplicate protection and request idempotency;
+- durable logging of successful, denied, duplicate, invalid, and unknown attempts;
+- a privacy-limited recent-five RFID list;
+- owner/admin card lifecycle management in the existing member-details interface;
+- password-reauthenticated unknown-card assignment for owner, admin, and front-desk `staff`;
+- access-event history and filters in the existing Reports surface;
+- device/browser-local kiosk-mode persistence;
+- the approved single featured-result layout, with no RFID sidebar page and no persistent multi-state strip.
+
+Out of scope:
+
+- native PC/SC integration;
+- WebUSB or WebHID reader discovery/management;
+- a desktop helper application;
+- multiple currently assigned RFID cards per member;
+- biometric verification;
+- a dedicated RFID sidebar route;
+- hardware-level reader connection telemetry or a claim that the browser can detect a reader;
+- advanced anti-passback beyond a five-second cooldown, request idempotency, and the existing open-attendance state;
+- door-relay control, turnstiles, or physical lock integration;
+- cryptographic smart-card challenge/response; a UID-only card remains cloneable and is an identifier, not a secret authenticator;
+- changing Stren's four gym roles (`owner`, `admin`, `staff`, `member`).
+
+## 2. Codebase findings
+
+### 2.1 Route and kiosk shell
+
+| Status | Actual path/symbol | Finding and RFID consequence |
+|---|---|---|
+| Confirmed | `app/kiosk/layout.tsx` — `KioskLayout` | Owns the existing `Stren Kiosk` header and upper-right `/admin` link with `Shield`. RFID must render inside this shell; no admin sidebar or new operational route is needed. |
+| Confirmed | `app/kiosk/page.tsx` — `KioskPage` | One 798-line client component owns both current modes, camera lifecycle, search, occupancy, result timers, network state, and account-connect dialog. `KioskMode` is currently only `"qr" \| "search"`. RFID should be added without duplicating this entire component; mode-specific UI should be extracted into bounded kiosk components. |
+| Confirmed | `app/kiosk/kiosk.module.css` | Defines the kiosk-only cream/orange design tokens (`--kiosk-peach`, `--kiosk-surface`, borders/shadows), two-column pill tabs, the featured result card, responsive breakpoint at `42rem`, and reduced-motion behavior. The approved mockup matches this existing language. RFID should extend this module: three equal tab columns; left-photo/right-result desktop card; stacked mobile card; recent taps beneath. |
+| Confirmed | `middleware.ts` and `lib/permissions.ts` — `permissionForPath` | `/kiosk` requires an authenticated manager role, `kiosk:use`, and the `kiosk_checkin` feature. Members cannot open the kiosk. RFID endpoints must still perform their own server/database checks; middleware is not the security boundary. |
+| Confirmed | `app/kiosk/page.tsx` local storage key `stren.kiosk.gymId` | The kiosk pins the first resolved active gym in browser storage, while effective `kiosk_access_allowed` also requires that gym to equal `profiles.active_gym_id`. Add mode persistence under `stren.kiosk.mode:<pinnedGymId>` so it is local to this browser and gym. Restore mode before starting a camera or RFID listener; fall back to QR when storage is unavailable or RFID is disabled. |
+
+### 2.2 Current QR and Search behavior
+
+| Status | Actual path/symbol | Finding and RFID consequence |
+|---|---|---|
+| Confirmed | `app/kiosk/page.tsx` — `startScanner`, `performScan`, `showResult`, `returnToScanning` | QR uses `html5-qrcode`, a 10-second RPC timeout, a 180ms delayed processing overlay, `KioskScanGate`, and two timer refs. It calls `kiosk_checkin`, adjusts occupancy locally by `+1/-1`, then refreshes `kiosk_get_occupancy`. RFID should use the same network/offline vocabulary and feedback utility, but use its approved 1.5s/3.5s/persistent timing contract. |
+| Confirmed | `lib/kiosk-scan-gate.ts` — `KioskScanGate` | This gate solves a camera-specific problem: it rearms only after four empty QR frames. It cannot prevent same-UID requests from another tab/device or retries. Keep it for QR; add a distinct client RFID gate and database cooldown/idempotency. |
+| Confirmed | `lib/kiosk-feedback.ts` — `playKioskFeedback` | Provides best-effort success/error audio and vibration after a real user gesture. Reuse it for RFID; it must remain non-blocking and optional. |
+| Confirmed | `app/kiosk/page.tsx` — `performSearch` | Search debounces 280ms and calls `kiosk_search_members` for at least three characters. It displays name and masked email, at most eight rows. It does **not** check a member in/out; copy directs a manager to Admin. Reuse this minimal search RPC inside the authenticated unknown-card assignment flow rather than create a second member directory. |
+| Confirmed | `supabase/migrations/023_kiosk_privacy_and_scan_integrity.sql` — `kiosk_search_members` | Requires `kiosk_access_allowed` plus `members:view`, filters active gym users, and returns only `id`, `name`, `email`. This matches front-desk `staff` defaults and is the correct member-search primitive after reauthentication. Assignment itself still needs a separate one-time server boundary. |
+| Confirmed | `app/kiosk/page.tsx` | Switching to Search stops/clears the camera; returning to QR starts it. Visibility changes stop/restart the camera; unmount clears result timers and scanner state. RFID needs symmetric activation/suspension and cleanup. |
+
+### 2.3 Attendance, occupancy, and eligibility
+
+| Status | Actual path/symbol | Finding and RFID consequence |
+|---|---|---|
+| Confirmed | `public.attendance`, created in `supabase/migrations/001_production_baseline.sql`, hardened in `027_production_security_tenant_closure.sql` | Current columns are `id`, non-null `gym_id`, non-null `member_id`, non-null `check_in`, nullable `check_out`, nullable `duration_min`, `source`, and actor/correction columns. A composite FK to `gym_users(gym_id,user_id)` and partial unique index `attendance_one_open_session_key` enforce tenant consistency and at most one open session. RFID must continue using this table, not create RFID attendance rows. |
+| Confirmed | `027_production_security_tenant_closure.sql` — attendance grants/RLS | Authenticated clients have SELECT only; trusted SECURITY DEFINER functions own writes. Direct insert/update/delete is revoked. RFID attendance mutation must be an RPC transaction, not a browser table write or an elevated application client. |
+| Confirmed | `027_production_security_tenant_closure.sql` — `kiosk_checkin` | The effective QR implementation validates the pinned gym, finds an active member gym-user by `profiles.qr_code`, checks `has_member_portal_entitlement`, takes a member/gym advisory lock, toggles the open session, calls `kiosk_update_streak` on entry, and returns photo/name. It is the behavioral base to refactor, not copy. |
+| Confirmed discrepancy | `027_production_security_tenant_closure.sql` — `kiosk_checkin` | Entitlement is checked **before** the open-session lookup. Therefore an expired/frozen member cannot currently check out by QR. The required RFID rule cannot be safely met by calling this function unchanged. Extract a private shared transition that locks first, closes an existing session before entry eligibility checks, and use it from QR, member/manual, and RFID paths. This is an explicit cross-method behavior correction, not a silent product change. |
+| Confirmed | `029_assisted_onboarding.sql` — `kiosk_checkin_by_member` | Manual member toggle is guarded by `kiosk_access_allowed`, `members:manage`, and `staff_manual_checkin`, then delegates to `kiosk_checkin`. It is not called by the current Search UI. Preserve its signature for compatibility and make it delegate to the shared transition without using the member's QR as an internal key. |
+| Confirmed | `027_production_security_tenant_closure.sql` — `kiosk_checkout`, `close_attendance_session`, `record_attendance_override`, `correct_attendance_session` | Explicit kiosk checkout and dashboard/manual correction are separate write paths. `components/admin/AdminDashboardClient.tsx` calls `close_attendance_session` for the `Out` button. New access-event logging must cover these paths so method/outcome reporting is complete. Privileged manual corrections continue to write `privileged_audit_events`; ordinary taps do not belong in that privileged audit table. |
+| Confirmed discrepancy | `attendance.duration_min` and all current migrations | `duration_min` is a plain nullable integer. No current trigger/function populates it when `check_out` changes, although kiosk RPCs return it. New shared checkout code must set `duration_min = floor(extract(epoch from (check_out-check_in))/60)` atomically. Historical nulls are compatible and can be backfilled only after an inventory in Phase 3. |
+| Confirmed | `029_assisted_onboarding.sql` — `kiosk_get_occupancy` | Occupancy is computed, not stored: `count(*)` of open `attendance` rows for the gym. It returns `0` if `occupancy_count` is disabled. RFID must not introduce a counter. The RFID response should return an authoritative post-transition occupancy (nullable when the feature is off), while scheduled refresh remains reconciliation. |
+| Confirmed | `028_financial_reporting_recovery_closure.sql` — `effective_membership_status`, `has_member_portal_entitlement` | PostgreSQL owns access status on the Manila business date. Effective results include `active`, `frozen`, `expired`, `cancelled`, `scheduled`, `inactive`, and gym-user states such as `rejected`, `disabled`, or `banned`. New entry is granted only for `active`; an existing open session is closable first. Renewal automatically restores access because card assignment is independent of membership. |
+| Confirmed | attendance insert triggers and `kiosk_update_streak` | Attendance inserts drive notification/inactivity hooks, while the kiosk explicitly updates the streak. The shared transition must preserve these effects exactly once on granted check-in and never run them for denied/unknown/duplicate events. |
+
+### 2.4 Members and card-management placement
+
+| Status | Actual path/symbol | Finding and RFID consequence |
+|---|---|---|
+| Confirmed | `app/admin/members/page.tsx` — `MembersPage` | There is no standalone admin member-profile route. The Members page loads `get_gym_member_directory` plus memberships, and opens the existing `Modal` titled `Member Details` with personal, membership, and payment history. This modal is the primary RFID-management location. |
+| Confirmed | `app/admin/members/page.tsx` | Owner/admin member mutations already rely on database permission checks, but the page is visible to staff with `members:view`. RFID lifecycle controls must be hidden unless role is `owner`/`admin` **and** `members:manage` is effective, and every endpoint/RPC must independently enforce the same rule. |
+| Confirmed | `lib/admin-ui.tsx` — `Modal`, `ACard`, `Avatar`, `PrimaryBtn`, `GhostBtn`, `StatusPill` | Reuse these for the member RFID section and confirmations. Extract a `MemberRfidAccess` client component instead of further expanding the 687-line Members page. |
+| Confirmed | `app/member/profile/page.tsx` and `app/api/member/avatar/route.ts` | Members manage their own name/contact/photo and QR; admins do not currently edit those fields from the member detail modal. RFID management belongs to the admin modal, not the member self-profile. The kiosk can use `profiles.avatar_url`; initials are the fallback. |
+| Confirmed | `get_gym_member_directory` | Already returns `avatar_url`, although `MemberRow` currently discards it. Preserve the narrow directory contract; only thread photo data into contexts that need it. Recent taps must receive a separately privacy-reduced projection with no member name. |
+
+### 2.5 Authentication and authorization
+
+| Status | Actual path/symbol | Finding and RFID consequence |
+|---|---|---|
+| Confirmed | `lib/permissions.ts` | Roles are exactly `owner`, `admin`, `staff`, `member`. Owner/admin default to `members:manage`; staff defaults to `members:view` and `kiosk:use`; owner/admin/staff all default to `kiosk:use`. Do not add a role. |
+| Proposed reuse | existing keys | Member-profile card lifecycle requires `members:manage` plus role `owner`/`admin`. Unknown-card lookup/assignment requires role `owner`/`admin`/`staff`, `kiosk:use`, `members:view`, enabled `rfid_kiosk`, and a fresh reauthentication intent. No new permission key is required. |
+| Confirmed | `lib/permissions-server.ts` — `getMyAccess`, `apiRequirePermission`, `requirePermission` | Reuse these in Next route handlers. Database RPCs must repeat active-gym/role/permission checks; TypeScript checks are defense in depth. |
+| Confirmed | `lib/access-context.tsx` — `AccessProvider`, `useAccess` | Admin layout already provides it; kiosk layout does not. Wrap `KioskLayout` children with `AccessProvider` so the third tab can honor an effective default-off `rfid_kiosk` feature, while the RFID RPC remains authoritative. |
+| Confirmed | repository-wide reauthentication search | There is no normal-password reauthentication primitive. Password recovery proofs are not suitable: they prove a recovery link, not current-password knowledge. |
+| Confirmed reusable pattern | `lib/password-recovery.ts` | Demonstrates server-only HMAC domain separation, constant-time proof checks, HttpOnly constraints, and short expiry. RFID should borrow the pattern, not the recovery proof/secret namespace. |
+| Proposed | isolated Supabase Auth verification | `/api/kiosk/rfid/reauthenticate` will obtain the current user with the cookie-scoped server client, then use an isolated `@supabase/supabase-js` client (`persistSession:false`, `autoRefreshToken:false`) to call `signInWithPassword` with the current Auth email and submitted password. It must verify the returned user ID equals the current session user and discard that client. This avoids replacing kiosk cookies and never exposes password hashes or compares passwords in the browser. |
+| Confirmed risk | `lib/rate-limit.ts` | Existing throttling is process-local memory only. Reuse it as a coarse per-user/IP guard, but do not treat it as distributed protection; Supabase Auth rate limiting remains the cross-instance control. Record no password or raw UID in logs. |
+
+### 2.6 Reporting and reusable audit infrastructure
+
+| Status | Actual path/symbol | Finding and RFID consequence |
+|---|---|---|
+| Confirmed | `app/admin/reports/page.tsx`, `components/admin/AdminReportsClient.tsx`, `AdminReportsCharts.tsx` | Reports is the correct historical surface. It currently shows aggregate attendance/revenue/membership data and no access-event table or filters. Add an access-history section here; do not add navigation. |
+| Confirmed | `admin_reports_data` in migrations `025`/`028` | Attendance charts count check-ins from `attendance`; keep that unchanged. A separate paginated RPC should supply access methods/outcomes because denied/unknown attempts cannot be represented as attendance sessions. |
+| Confirmed | `public.privileged_audit_events` and `write_privileged_audit_event` in migration `027` | This append-only table is for privileged mutations. Reuse it for assignment/replacement/deactivation/reactivation with safe card IDs/masked suffixes, but use a dedicated high-volume `access_events` table for every kiosk access attempt. |
+| Confirmed | `components/admin/ReportingUnavailable.tsx` and `tests/integration/reporting-unavailable.test.tsx` | Report failures must not become plausible zeroes. Access-history failure should render an explicit section-level unavailable/retry state while keeping valid aggregate reports visible. |
+
+### 2.7 Tests and delivery tooling
+
+| Status | Actual path/symbol | Finding and RFID consequence |
+|---|---|---|
+| Confirmed | `tests/integration/kiosk-terminal.test.tsx` | Covers QR success/checkout, camera lifecycle, occupancy, inactive/unknown/offline states, Search privacy, timers, and unmount cleanup. Extend it to prove existing QR/Search behavior remains intact after component extraction and mode persistence. |
+| Confirmed | `tests/unit/kiosk-scan-gate.test.ts`, `kiosk-feedback.test.ts` | Reuse patterns, but create RFID-specific buffering/gate tests rather than forcing keyboard semantics into `KioskScanGate`. |
+| Confirmed weakness | `tests/integration/kiosk-pinned-gym.test.ts`, `kiosk-privacy-and-integrity.test.ts`, `kiosk-member-photo-sql.test.ts` | These inspect historical migrations `019`, `023`, and `024`, while effective kiosk definitions now live in `027` and `029`. Keep historical tests if useful, but new RFID correctness must be checked against a clean current database and/or inspect migration `031+`; source-regex alone is insufficient. |
+| Confirmed | `tests/database/run-attendance-concurrency.ps1` | Runs two concurrent `kiosk_checkin_by_member` calls but only asserts no more than one open session; two calls may check in then immediately check out and still pass. RFID concurrency tests must assert the final direction/session and duplicate access event, not only `open <= 1`. |
+| Confirmed | `scripts/run-production-security-tests.mjs` | Runs `production-security.sql` then the attendance concurrency wrapper. Extend it to run the RFID behavior/concurrency suite so `npm run db:test:security` is the mandatory database gate. |
+| Confirmed | `package.json` | Actual gates are `npm run lint`, `npm run typecheck`, `npm run test:unit` (both `tests/unit` and `tests/integration`), `npm run test:e2e`, `npm run build`, `npm run db:reset`, `npm run db:reset:clean`, `npm run db:types:check`, `npm run db:test:security`, `npm run db:invariants`, `npm run verify:deployment:local`, and `npm run verify:deployment:drift:local`. There is no separate integration-test script. |
+
+## 3. Current end-to-end attendance flow
+
+### 3.1 QR Scan today
+
+1. `middleware.ts` confirms a signed-in manager, active gym, `kiosk:use`, and `kiosk_checkin`; `KioskPage` separately polls `kiosk_access_allowed(p_gym_id)`.
+2. `KioskPage.startScanner()` dynamically starts `Html5Qrcode`. A decoded value reaches the callback only when mode is `qr`, the page is online/idle, and `KioskScanGate.tryLock(decodedText)` succeeds.
+3. `performScan(qrCode)` calls `supabase.rpc("kiosk_checkin", { p_qr_code, p_gym_id: pinnedGymId })` with a 10-second client timeout.
+4. Effective `public.kiosk_checkin` from migration `027`:
+   - calls `kiosk_access_allowed`;
+   - joins `profiles` to the pinned gym's `gym_users`, requiring role `member` and status `active`;
+   - matches `profiles.qr_code`;
+   - calls `has_member_portal_entitlement` **before** open-session lookup;
+   - takes a transaction advisory lock on gym/member;
+   - selects and locks an open `attendance` row;
+   - if open, updates `check_out`, otherwise inserts `attendance(source='kiosk', recorded_by=auth.uid())` and calls `kiosk_update_streak`;
+   - returns JSON with action, attendance/member IDs, name/photo, and nullable duration.
+5. Attendance constraints guarantee tenant consistency and one open row; insert triggers emit the existing check-in notification/inactivity effects.
+6. The UI maps expected JSON errors to inactive/unknown/error, computes `occupancy +/- 1` optimistically, bumps an epoch to protect against an older refresh, calls `kiosk_get_occupancy` for reconciliation, shows the result card, plays optional feedback, and returns to the camera after the current roughly 3.3-second cycle.
+7. Dashboard/report/member consumers later query the same `attendance` rows. Occupancy is never persisted.
+
+### 3.2 Search/manual paths today
+
+1. Selecting `Search` calls `switchMode("search")`, clears result timers/gate state, and causes the scanner effect to stop the camera.
+2. A three-character query is debounced and sent to `kiosk_search_members`; the RPC requires `kiosk_access_allowed` and `members:view` and returns at most eight `id/name/email` rows.
+3. Search displays names and masked email. It has no attendance button, so no mutation or occupancy change occurs.
+4. The admin dashboard's `Out` button separately calls `close_attendance_session(p_attendance_id, "Manual dashboard checkout")`, which requires `members:manage`, updates the attendance row, and writes `privileged_audit_events`.
+5. The legacy `lib/engagement-hooks.ts` `handleScan(memberId)` calls `kiosk_checkin_by_member` and then duplicates client-side streak/feed behavior. Repository search found no application caller outside its tests. Do not use it for RFID; re-confirm it remains unused before deleting or reducing it in Phase 3.
+
+### 3.3 Safest RFID integration point
+
+The integration point is a new private PostgreSQL function, proposed as `transition_member_attendance(...)`, called only by trusted SECURITY DEFINER wrappers. It owns:
+
+- the gym/member advisory lock;
+- open-session-first checkout;
+- entry eligibility;
+- attendance insert/update and duration;
+- streak call on check-in only;
+- access-event insert;
+- authoritative post-transition occupancy;
+- the shared response shape.
+
+`kiosk_checkin` resolves a QR to a member then delegates; `kiosk_checkin_by_member` delegates after its manual authorization; new `process_rfid_tap` resolves a digest/card then delegates. `kiosk_checkout` and `close_attendance_session` must append access events and use the same duration calculation, but preserve their existing authorization/correction semantics.
+
+Do **not** implement RFID by calling `kiosk_checkin` with a synthetic QR, by copying the current PL/pgSQL toggle, by inserting attendance in a Next route, or by calling `lib/engagement-hooks.ts`.
+
+## 4. Proposed architecture
+
+```text
+RFID-mode hidden input
+  -> buffer printable keys; finish on Enter or bounded idle gap
+  -> normalize candidate in shared TypeScript helper
+  -> client request-ID gate and bounded FIFO (UX only)
+  -> POST /api/kiosk/rfid/tap { uid, requestId }
+  -> authenticate cookie user + active gym + kiosk permission/feature
+  -> server-only HMAC(gym + normalized UID)
+  -> process_rfid_tap RPC
+       -> same-request idempotency lookup
+       -> per-gym/digest advisory lock
+       -> five-second server cooldown
+       -> card lookup/status check
+       -> transition_member_attendance
+            -> per-gym/member advisory lock
+            -> close open session first, regardless of later membership state
+            -> otherwise require effective status = active
+            -> mutate attendance once and calculate duration
+            -> compute occupancy from open attendance
+       -> append access_events for every expected outcome
+  -> typed response + privacy-limited recent item
+  -> featured result reducer/timer
+  -> merge and reconcile recent five without page refresh
+```
+
+### 4.1 Client responsibilities
+
+- [ ] Render `qr`, `rfid`, and `search` as one WAI-ARIA tablist in the existing kiosk panel.
+- [ ] Restore `stren.kiosk.mode:<gymId>` only after the pinned gym and effective RFID feature are known; default to `qr`; catch local-storage errors.
+- [ ] Mount/activate RFID capture only while the RFID tab is active, page visible/online, feature enabled, and no staff-authenticated dialog is active.
+- [ ] Buffer keyboard-emulated input, enforce bounded candidate length, and send raw UID only to the same-origin server over HTTPS. Never log or persist it in browser storage.
+- [ ] Generate one `crypto.randomUUID()` per logical tap and reuse it for a retry of that same request.
+- [ ] Prevent the same finalized burst/request ID from being submitted twice; serialize up to five separately finalized bursts. A real repeat UID still reaches the server and only the server result may claim `Already processed`.
+- [ ] Keep one reducer-owned featured result. A newer accepted tap cancels old timers and replaces it. Aborting a browser request on unmount does not imply the server transaction was rolled back.
+- [ ] Merge the returned privacy item into recent taps, then call the recent-taps RPC to reconcile; poll while visible at a modest interval for other terminals.
+- [ ] Use inline featured results for kiosk outcomes. Use Sonner toasts only for admin member-card mutations.
+
+### 4.2 Server responsibilities
+
+- [ ] Reject unauthenticated, wrong-gym, non-manager, missing-permission, or disabled-feature calls before digesting/mutating.
+- [ ] Normalize again server-side; the server result is authoritative.
+- [ ] Compute a deterministic HMAC-SHA-256 lookup digest using a dedicated `RFID_UID_HMAC_SECRET` and domain string containing digest version and gym ID.
+- [ ] Never put raw UID/password in console output, errors, analytics, database rows, audit snapshots, URL parameters, or local storage.
+- [ ] Invoke user-bound RPCs through `createServerSupabaseClient`; do not use `createAdminClient` to skip gym authorization.
+- [ ] Treat granted, denied, unknown, and duplicate as normal 200 responses with an `outcome`; reserve HTTP failures for malformed input/auth/config/server unavailability.
+- [ ] Use an isolated, non-persisting Auth client only for password verification and verify identity equality.
+
+### 4.3 Database responsibilities
+
+- [ ] Enforce card/member uniqueness and card lifecycle constraints.
+- [ ] Serialize by digest, then by member, in a documented lock order.
+- [ ] Enforce request idempotency and the five-second same-card cooldown inside PostgreSQL so tabs/devices/retries cannot double-toggle.
+- [ ] Close an existing attendance session before testing current entry entitlement.
+- [ ] Log every expected RFID outcome atomically with the attendance decision; do not create attendance for denial/unknown/duplicate.
+- [ ] Expose only permissioned, reduced RPC projections; authenticated clients receive no digest.
+- [ ] Keep `access_events` append-only and use `privileged_audit_events` for card-management mutations.
+
+### 4.4 UID normalization and reader assumptions
+
+Proposed default `normalizeRfidUid` contract:
+
+- Unicode NFKC normalization;
+- remove only leading/trailing whitespace and CR/LF terminators;
+- uppercase using locale-independent rules;
+- accept 4–64 characters from `[A-Z0-9:_-]`;
+- reject internal control characters and overflow;
+- do **not** silently remove separators, prefixes, or leading zeroes because that can collapse distinct UIDs.
+
+`useRfidKeyboardInput` should finalize on Enter, or after an implementation constant initially set near 80ms of no new character for readers without Enter. Candidate limits and inter-key timing need unit tests and named constants, not magic values in JSX.
+
+**Open issue — pre-Phase-1 calibration gate:** no reader sample/configuration exists in the repository. Capture representative output from the intended hardware (UID length, character set, prefix/suffix, terminator, typical inter-key gap) before freezing the constants. If it violates the default contract, change the normalizer with fixtures; do not trim bytes until two distinct sample UIDs are proved not to collide.
+
+The UI may truthfully show `Ready for RFID tap`, `Reading card…`, `Processing…`, or `Tap input paused — select Resume`. It must never show `Reader connected/disconnected`; keyboard emulation exposes no reliable physical-presence API. Missing server HMAC configuration may produce `RFID setup required`, which is genuinely detectable.
+
+### 4.5 Error, concurrency, and idempotency policy
+
+- One request ID maps to one access event/result through unique `(gym_id, request_id)`.
+- The per-digest advisory lock prevents two distinct request IDs from checking the cooldown concurrently.
+- Every separately completed reader burst receives a fresh request ID and reaches the server, even when the same UID was just processed. Any prior same-digest event within five seconds causes `duplicate/recently_processed`; that duplicate event is logged and no attendance mutation or streak/notification occurs.
+- The client prevents a captured burst from being submitted twice under two IDs and serializes separately captured bursts through a five-item FIFO. It does not hide a real repeat tap under a client-only cooldown.
+- The subsequent per-member lock plus `attendance_one_open_session_key` protects different active cards/QR/manual calls that resolve to the same member.
+- Expected business rejection is caught and returned after inserting an access event. Unexpected database/network failure may prevent durable logging; the route emits a redacted structured operational log with request ID, gym ID, error code, and no UID/password.
+- The client does not optimistically claim entry/exit. It may keep the last occupancy visible with a stale label during a slow request; it updates only from a committed server response.
+
+## 5. Data-model changes
+
+All schema changes are forward migrations after `030`; never edit migrations `001`, `023`, `024`, `027`, or `029`.
+
+### 5.1 `public.rfid_cards` — migration `031_rfid_foundation.sql`
+
+| Field | Proposed PostgreSQL definition | Constraint/use |
+|---|---|---|
+| `id` | `UUID PRIMARY KEY DEFAULT gen_random_uuid()` | Safe internal/card-history reference. |
+| `gym_id` | `UUID NOT NULL REFERENCES public.gyms(id) ON DELETE RESTRICT` | Tenant scope. |
+| `member_id` | `UUID NOT NULL` | Composite FK `(gym_id,member_id)` to `gym_users(gym_id,user_id)` with `ON DELETE RESTRICT`; RPC also requires role `member`. |
+| `uid_digest` | `TEXT NOT NULL` | 64 lowercase hex characters from HMAC-SHA-256; never returned to UI. Unique with `gym_id`. |
+| `uid_digest_version` | `SMALLINT NOT NULL DEFAULT 1` | Makes the lookup contract explicit. |
+| `uid_suffix` | `TEXT NOT NULL` | Last four normalized characters (or the whole value only if shorter, though minimum is four); the only UID-derived display value. Length/check constraint. |
+| `status` | `TEXT NOT NULL DEFAULT 'active'` | CHECK in `active`, `deactivated`, `lost`, `replaced`. Only `deactivated` may reactivate. |
+| `assigned_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Display/audit date. |
+| `assigned_by` | `UUID REFERENCES profiles(id) ON DELETE SET NULL` | Required at creation by RPC; nullable only for historical actor deletion. |
+| `deactivated_at` | `TIMESTAMPTZ NULL` | Set for every non-active state. |
+| `deactivated_by` | `UUID NULL REFERENCES profiles(id) ON DELETE SET NULL` | Actor. |
+| `deactivation_reason` | `TEXT NULL` | `manual`, `lost`, or `replaced` plus bounded staff reason; CHECK paired with status. |
+| `replaced_by_card_id` | `UUID NULL REFERENCES rfid_cards(id) ON DELETE RESTRICT` | Old row points to its replacement; only valid with `status='replaced'`. |
+| `reactivated_at` | `TIMESTAMPTZ NULL` | Latest reactivation timestamp; full lifecycle remains in privileged audit. |
+| `updated_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Maintained by trusted lifecycle functions. |
+
+Constraints/indexes:
+
+- unique `(gym_id, uid_digest)` prevents a physical UID from being reassigned to another member in that gym, including after loss/replacement;
+- partial unique `(gym_id, member_id) WHERE status='active'` enforces one current card per member;
+- index `(gym_id, member_id, assigned_at DESC)`;
+- index `(gym_id, status, updated_at DESC)`;
+- authenticated users get no direct insert/update/delete; management occurs through RPCs;
+- no cascade deletion. Membership expiry/freeze/cancellation never changes this table.
+
+The one-card/one-member rule is intentionally scoped to `gym_id`, Stren's actual tenancy and attendance boundary. A card issued by Gym A never resolves or authorizes entry at Gym B; an unrelated gym may assign the same reader UID without a cross-tenant collision or disclosure. Within one gym, retaining the unique digest on lost/replaced rows prevents reassignment of that UID to a different member. This is the codebase-appropriate interpretation of the approved rule, not platform-global credential sharing.
+
+### 5.2 `public.access_events` — migration `031_rfid_foundation.sql`
+
+This table represents attempts/events, not attendance sessions. It is required because failed/unknown attempts cannot be safely encoded in `attendance`, and `privileged_audit_events` is the wrong high-volume semantic.
+
+| Field | Proposed definition | Constraint/use |
+|---|---|---|
+| `id` | `UUID PRIMARY KEY DEFAULT gen_random_uuid()` | Event ID returned to clients. |
+| `gym_id` | `UUID NOT NULL REFERENCES gyms(id) ON DELETE RESTRICT` | Tenant scope. |
+| `member_id` | `UUID NULL REFERENCES profiles(id) ON DELETE SET NULL` | Null for unknown/invalid input. |
+| `member_snapshot` | `JSONB NULL` | At most `{id,name}` so history remains intelligible after account removal; never returned by the recent-taps RPC. |
+| `attendance_id` | `UUID NULL REFERENCES attendance(id) ON DELETE RESTRICT` | Present only for granted check-in/out. |
+| `rfid_card_id` | `UUID NULL REFERENCES rfid_cards(id) ON DELETE RESTRICT` | Present for known cards. |
+| `uid_digest` | `TEXT NULL` | Protected internal fingerprint for RFID cooldown/unknown assignment; never exposed. |
+| `uid_suffix` | `TEXT NULL` | Masked reporting reference. |
+| `access_method` | `TEXT NOT NULL` | CHECK `qr`, `rfid`, `search`, `manual`, `legacy`. `search` is reserved for a future explicit Search attendance action; current lookup alone creates no event. |
+| `direction` | `TEXT NULL` | CHECK `check_in`, `check_out`; set to the attempted direction when a known card/member state makes it determinable (including entry denial), and null for unknown/invalid or a duplicate whose direction cannot be proved. |
+| `outcome` | `TEXT NOT NULL` | CHECK `granted`, `denied`, `unknown`, `duplicate`, `error`. |
+| `reason` | `TEXT NULL` | Stable machine reason: e.g. `membership_expired`, `membership_frozen`, `member_banned`, `card_deactivated`, `card_lost`, `card_replaced`, `recently_processed`, `invalid_uid`. |
+| `membership_status` | `TEXT NULL` | Effective status snapshot at decision time. |
+| `actor_id` | `UUID NULL REFERENCES profiles(id) ON DELETE SET NULL` | Signed-in kiosk/staff actor. |
+| `actor_snapshot` | `JSONB NOT NULL` | Existing audit style: ID/name/role/status, never email. |
+| `request_id` | `UUID NULL` | Required for live RFID requests; nullable for historical backfill. |
+| `occurred_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Decision timestamp. |
+| `metadata` | `JSONB NOT NULL DEFAULT '{}'` | Bounded non-secret details such as response version/warnings; no UID/name/email duplication. |
+| `backfill_key` | `TEXT NULL UNIQUE` | Idempotent Phase-3 attendance-history reconstruction. |
+
+Indexes/immutability:
+
+- unique partial `(gym_id, request_id) WHERE request_id IS NOT NULL`;
+- `(gym_id, uid_digest, occurred_at DESC, id DESC)` for cooldown;
+- `(gym_id, access_method, occurred_at DESC, id DESC)` for recent/history;
+- `(gym_id, outcome, occurred_at DESC, id DESC)` and `(gym_id, member_id, occurred_at DESC)`;
+- immutable update/delete trigger modeled on `reject_privileged_audit_mutation`;
+- revoke all authenticated table access. Only trusted writer functions, `kiosk_recent_rfid_taps`, and `admin_access_event_history` expose reduced projections.
+
+Expected outcomes, including unknown/denied/duplicate, are inserted in the same transaction as the decision. A granted event references the one attendance mutation. No failed event increments/decrements occupancy.
+
+### 5.3 `public.rfid_assignment_intents` — migration `032_rfid_security_and_lifecycle.sql`
+
+| Field | Proposed definition | Constraint/use |
+|---|---|---|
+| `id` | `UUID PRIMARY KEY DEFAULT gen_random_uuid()` | Internal intent. |
+| `gym_id` | `UUID NOT NULL REFERENCES gyms(id) ON DELETE CASCADE` | Bound active gym. |
+| `access_event_id` | `UUID NOT NULL UNIQUE REFERENCES access_events(id) ON DELETE CASCADE` | Must refer to an unknown RFID event in the same gym. |
+| `actor_id` | `UUID NOT NULL REFERENCES profiles(id) ON DELETE CASCADE` | Reauthenticated manager. |
+| `uid_digest` | `TEXT NOT NULL` | Copied from unknown event; never client-supplied during assignment. |
+| `token_hash` | `TEXT NOT NULL UNIQUE` | SHA-256 of a server-generated high-entropy opaque token. |
+| `created_at` | `TIMESTAMPTZ NOT NULL DEFAULT now()` | Audit. |
+| `expires_at` | `TIMESTAMPTZ NOT NULL` | Five minutes after creation. |
+| `consumed_at` | `TIMESTAMPTZ NULL` | Set atomically on successful assignment. |
+| `cancelled_at` | `TIMESTAMPTZ NULL` | Set on explicit cancellation/replacement of flow. |
+| `assigned_member_id` | `UUID NULL REFERENCES profiles(id) ON DELETE SET NULL` | Set on consume. |
+
+No browser/table access. The raw assignment token exists only in route response and React memory. An intent is valid only for its actor, active gym, unknown event/digest, unexpired/unconsumed/uncancelled state. Expired rows may be retained for bounded audit or purged after an operational retention decision; access events/cards are never deleted by that cleanup.
+
+### 5.4 UID storage security decision
+
+Recommended MVP storage is a keyed lookup digest, not raw UID:
+
+```text
+hex(HMAC-SHA-256(RFID_UID_HMAC_SECRET,
+  "stren-rfid:v1:<gym-id>:<normalized-uid>"))
+```
+
+Why:
+
+- equality lookup and unique indexes remain efficient;
+- an unkeyed SHA hash is weak because many RFID UID spaces are enumerable;
+- including gym ID prevents cross-gym correlation and permits the same physical UID in distinct gyms;
+- no decryptable/raw UID exists in the database or access logs;
+- `uid_suffix` supports safe UI identification.
+
+Tradeoff: losing/rotating the HMAC secret makes existing assignments unresolvable because raw UIDs cannot be rehashed. `uid_digest_version` documents this; back up the dedicated secret with deployment configuration. A secret rotation requires dual-key lookup during a controlled window or member retapping/reassignment. Storing encrypted raw UID would ease rotation but materially increases exposure and is not recommended for this MVP. Card UIDs are cloneable; masking/HMAC improves data handling but does not make the card cryptographically secure.
+
+### 5.5 Migration/backfill/deletion behavior
+
+- `031` creates full final card/access-event shapes, constraints, feature key, shared success path, and types; it adds no member cards.
+- `032` adds assignment intents and lifecycle/security functions; no backfill.
+- `033_rfid_reporting_hardening.sql` adds report/recent projections and idempotently backfills historical successful events:
+  - existing `attendance.source='kiosk'` predates RFID and may be mapped to `qr`;
+  - `manual_override` maps to `manual`;
+  - `manual_correction` and `legacy` map to `legacy` where the original method cannot be proved;
+  - one check-in event per row and one checkout event when `check_out` exists, keyed by `backfill_key`;
+  - no historical denial/unknown events are invented.
+- Inventory closed rows with null `duration_min`. If volume is small, `033` may derive it; otherwise leave historical nulls and document a separate batched maintenance operation. New checkouts always populate it.
+- Card replacement/deactivation never deletes card, attendance, access-event, or privileged-audit history.
+- Forward rollback disables `rfid_kiosk` and reverts the app; it does not drop tables or erase assignments/events.
+
+## 6. API, server-action, and service changes
+
+### 6.1 Shared TypeScript modules
+
+#### `lib/rfid.ts` (new, isomorphic)
+
+- [ ] Export `normalizeRfidUid`, `getMemberInitials`, `maskRfidSuffix`, named timing/length constants, Zod-compatible result types, and discriminated unions for tap/card/recent responses.
+- [ ] Never export a helper that logs or stores raw UID.
+- [ ] Unit-test normalization, masking, initials, bounds, terminators, leading zeroes, and Unicode/control rejection.
+
+#### `lib/rfid-server.ts` (new, `server-only`)
+
+- [ ] Export `digestRfidUid(gymId, normalizedUid, version=1)`, `hashAssignmentToken`, `createIsolatedPasswordVerifier`, and redacted error helpers.
+- [ ] Fail closed with a configuration error when `RFID_UID_HMAC_SECRET` is absent/too short.
+- [ ] Domain-separate HMAC and token hashes. Never reuse the password-recovery proof as an RFID grant.
+
+#### `hooks/use-rfid-keyboard-input.ts` (new)
+
+- [ ] Own the hidden input ref/buffer, Enter/idle finalization, overflow reset, focus restoration, visibility/focus listeners, and cleanup.
+- [ ] Accept `enabled` and `suspended` flags. Unmount listeners and clear buffer when mode changes, staff flow opens, or component unmounts.
+- [ ] Do not attach a global alphanumeric handler in Search mode or while password/member-search fields are active.
+
+#### `lib/rfid-scan-gate.ts` (new)
+
+- [ ] Give each finalized reader burst one UUID, prevent that burst/request from double-submitting, and serialize distinct bursts through a five-item FIFO; clear queue/controllers on reset.
+- [ ] Send a separately captured repeat UID to the server so the authoritative five-second gate can return and log `duplicate`; never implement a client-only cooldown that hides the attempt.
+- [ ] Return explicit `accepted`, `queued`, or `busy` decisions for local flow control. Treat this as UX only; database locking/idempotency/cooldown remains mandatory.
+
+### 6.2 `POST /api/kiosk/rfid/tap`
+
+**Destination:** `app/api/kiosk/rfid/tap/route.ts` (new)
+
+Input schema:
+
+```ts
+{ uid: string /* 1..128 transport bound */, requestId: string /* UUID */ }
+```
+
+Output schema (`200` for business outcomes):
+
+```ts
+{
+  requestId: string
+  eventId: string
+  outcome: "granted" | "denied" | "unknown" | "duplicate"
+  direction: "check_in" | "check_out" | null
+  reason: string | null
+  processedAt: string
+  attendanceId: string | null
+  occupancy: number | null
+  durationMin: number | null
+  retryAfterMs?: number
+  member: null | {
+    name: string
+    avatarUrl: string | null
+    membershipStatus: string
+    planName: string | null
+    membershipEndDate: string | null
+    warnings: string[]
+  }
+  recentTap: {
+    eventId: string
+    avatarUrl: string | null
+    initials: string | null
+    outcome: string
+    direction: string | null
+    occurredAt: string
+  }
+}
+```
+
+Authorization/validation/transaction:
+
+- [ ] `createServerSupabaseClient().auth.getUser()`; `getMyAccess` must resolve same active gym.
+- [ ] Require manager role, `kiosk:use`, `kiosk_checkin`, and proposed `rfid_kiosk`.
+- [ ] Normalize/digest server-side; call `process_rfid_tap(p_uid_digest,p_uid_suffix,p_request_id)`.
+- [ ] A transport-valid request whose UID fails normalization calls a guarded `record_invalid_rfid_tap(p_request_id,p_reason)` RPC and returns the logged denied/error result. Malformed JSON, unauthenticated probes, and requests that cannot establish a gym are rejected and only operationally logged because they cannot be attributed safely as gym access attempts.
+- [ ] RPC validates digest/request, idempotency, locks, cooldown, card status, open-session-first transition, eligibility, attendance, event, and occupancy atomically.
+- [ ] Map malformed `400`, unauthenticated `401`, permission/feature `403`, rate `429`, missing secret `503`, unexpected `500`. Do not return raw database messages or UID.
+- [ ] Set `Cache-Control: no-store`.
+
+### 6.3 `public.transition_member_attendance` and wrappers
+
+**Destination:** `supabase/migrations/031_rfid_foundation.sql`
+
+Proposed private signature:
+
+```text
+transition_member_attendance(
+  p_member_id UUID,
+  p_gym_id UUID,
+  p_access_method TEXT,
+  p_request_id UUID DEFAULT NULL,
+  p_rfid_card_id UUID DEFAULT NULL,
+  p_uid_digest TEXT DEFAULT NULL,
+  p_uid_suffix TEXT DEFAULT NULL
+) RETURNS JSONB
+```
+
+- [ ] Revoke direct function access from `PUBLIC`, `anon`, and `authenticated`; only wrapper functions may call it.
+- [ ] Validate caller/gym in each wrapper before delegation.
+- [ ] Take member lock; load role/status/profile without requiring active state.
+- [ ] If an open attendance row exists, close it and calculate duration **before** any new-entry entitlement check.
+- [ ] If none exists, require role member, active gym-user, and effective membership `active`; return a stable denial reason otherwise.
+- [ ] Insert/update one attendance row, call streak only for check-in, insert one access event, compute nullable authoritative occupancy, return versioned JSON.
+- [ ] Replace bodies but preserve signatures/grants for `kiosk_checkin`, `kiosk_checkin_by_member`, and `kiosk_checkout`.
+- [ ] Make QR/manual wrappers supply method `qr`/`manual` and log their successful/denied outcomes. The current Search lookup alone stays non-mutating.
+- [ ] Update `close_attendance_session` to calculate duration and append method `manual` access event while preserving its privileged audit.
+- [ ] Add user-bound `record_invalid_rfid_tap(p_request_id UUID,p_reason TEXT)` for a structurally valid kiosk request whose candidate fails normalization. It repeats kiosk/gym/feature authorization, is idempotent by request ID, inserts an RFID `error/invalid_uid` event with null member/card/digest/suffix, and returns the same reduced result shape.
+
+### 6.4 Member RFID API
+
+**Destination:** `app/api/admin/members/[memberId]/rfid/route.ts` (new)
+
+`GET` output:
+
+```ts
+{ card: null | {
+  id: string
+  maskedId: string
+  status: "active" | "deactivated" | "lost" | "replaced"
+  assignedAt: string
+  deactivatedAt: string | null
+} }
+```
+
+`POST` input:
+
+```ts
+{ uid: string; operation: "assign" | "replace" }
+```
+
+`PATCH` input:
+
+```ts
+{ action: "deactivate" | "reactivate" | "report_lost"; reason?: string }
+```
+
+Contract:
+
+- [ ] Require authenticated active gym, role `owner`/`admin`, and `members:manage`; feature enablement is not required to manage already-issued cards.
+- [ ] Normalize/digest only in server route, then invoke user-bound `get_member_rfid_card`, `assign_member_rfid_card`, or `set_member_rfid_card_status`.
+- [ ] RPC validates target is a member in the active gym and performs assign/replace/status transitions under digest/member locks.
+- [ ] Replace atomically marks old active row `replaced`, creates new active row, links them, and writes privileged audits without digest.
+- [ ] Reactivate only `deactivated`, only when no other active card exists. `lost` and `replaced` are terminal.
+- [ ] Return `400` invalid UID/action, `401`, `403`, `404` member/card, `409` UID/member conflict, `503` secret/config, or redacted `500`.
+- [ ] Never return digest/full UID.
+
+### 6.5 Unknown-card reauthentication and assignment
+
+#### `POST /api/kiosk/rfid/reauthenticate`
+
+**Destination:** `app/api/kiosk/rfid/reauthenticate/route.ts`
+
+Input:
+
+```ts
+{ accessEventId: string /* UUID */, password: string /* 1..128 */ }
+```
+
+Output:
+
+```ts
+{ assignmentToken: string; expiresAt: string }
+```
+
+- [ ] Require current role `owner`/`admin`/`staff`, `kiosk:use`, `members:view`, both kiosk features, and an unknown RFID access event in current gym.
+- [ ] Apply existing process-local `rateLimit` by hashed user ID plus client address as a supplemental bound, then rely on Supabase Auth's provider control.
+- [ ] Verify password server-side with the isolated client and same returned user ID; clear local variables as soon as practical and never log input.
+- [ ] Generate a 32-byte random token, store only its SHA-256 hash through `create_rfid_assignment_intent`, and return raw token once.
+- [ ] Use generic `401` copy for incorrect password; `403` unauthorized role/permission; `404` wrong event; `409` event no longer unknown/card already assigned; `429`; `500`.
+
+#### `POST`/`DELETE /api/kiosk/rfid/assignment`
+
+**Destination:** `app/api/kiosk/rfid/assignment/route.ts`
+
+POST input:
+
+```ts
+{ assignmentToken: string; memberId: string /* UUID */ }
+```
+
+POST output:
+
+```ts
+{ assigned: true; card: { id: string; maskedId: string; status: "active"; assignedAt: string }; freshTapRequired: true }
+```
+
+DELETE input:
+
+```ts
+{ assignmentToken: string }
+```
+
+- [ ] Reconfirm current authenticated actor/gym/role/permissions.
+- [ ] Hash token server-side and call `consume_rfid_assignment_intent` atomically.
+- [ ] RPC locks intent/digest/member, checks expiry/actor/gym/event, ensures UID still unassigned and member has no active card, inserts card, consumes intent, and writes `rfid.card_assigned_from_kiosk` privileged audit.
+- [ ] DELETE cancels the intent. Closing/unmounting after a token exists should make a best-effort cancellation; expiry remains the hard boundary.
+- [ ] Assignment **does not** trigger attendance. Require a fresh tap. This avoids a password/search action silently granting entry, prevents ambiguity around the original five-second cooldown, and gives staff/member a clear confirmation boundary.
+
+### 6.6 Recent taps and report RPCs
+
+#### `kiosk_recent_rfid_taps(p_gym_id UUID, p_limit INTEGER DEFAULT 5)`
+
+**Destination:** `033_rfid_reporting_hardening.sql`
+
+- [ ] Require `kiosk_access_allowed`, enabled `rfid_kiosk`, `p_limit BETWEEN 1 AND 5`.
+- [ ] Return only event ID, avatar URL, server-derived initials, outcome, direction, reason label, occurred time.
+- [ ] Do not return member name, email, member ID, digest, suffix, membership, attendance ID, or actor.
+- [ ] Unknown rows return null photo/initials; UI renders a generic contactless-card icon.
+
+#### `admin_access_event_history(...)`
+
+**Destination:** `033_rfid_reporting_hardening.sql`
+
+Inputs: nullable method/outcome/direction/from/to filters, keyset cursor (`beforeOccurredAt`, `beforeId`), and limit `1..100`.
+
+Output: event ID, member display name when known, timestamp, direction, method, outcome, stable reason, masked card reference, safe actor display when relevant, and cursor fields. Never return a digest.
+
+- [ ] Require `reports:attendance:view` and active gym.
+- [ ] Filter all/RFID/QR/manual/Search/legacy, success check-in/out, denied, unknown, and duplicate. `search` remains empty unless a future explicit Search attendance action writes it; the current read-only member lookup is not falsely logged as access.
+- [ ] Use keyset pagination ordered `(occurred_at DESC,id DESC)` to avoid the PostgREST 1,000-row cap.
+- [ ] Add an `AccessHistoryTable` client section to Reports with loading/error/empty states and `Load more`.
+
+## 7. UI and interaction specification
+
+### 7.1 Kiosk state machine
+
+| State | Visible content | Actions/timing/transition | Focus, keyboard, accessibility, cleanup |
+|---|---|---|---|
+| `idle` | Heading `Tap to check in or check out`; short nontechnical instruction; one subtle `Ready for RFID tap` status if needed; recent five remains below. No empty featured card and no three-state strip. | Any valid completed UID moves to `processing`. QR/Search tabs remain available. | Hidden RFID input is focused with `preventScroll`; `tabIndex=-1`, descriptive label, no mobile keyboard (`inputMode="none"` where supported). Visibility/focus regain refocuses only when no dialog/interactive field owns focus. |
+| `receiving` | Same layout; subtle status changes to `Reading card…`. | Buffer finalizes on Enter or bounded idle gap. Invalid/short partial input resets quietly; an Enter-completed invalid candidate reaches server and can become a logged invalid result. | Do not announce every character. Bound length and clear overflow. |
+| `processing` | One featured-area loading state `Checking access…`; recent taps remain visible; tabs may remain visible and separately framed taps are queued. | Show immediately or after a very short delay; committed response selects result. A new queued tap cancels the prior result timer and becomes the next processing item. A slow-request note appears after 2s without claiming failure; 10s timeout becomes retryable server/offline result. | `aria-busy=true`; status is `aria-live=polite`. Keep the hidden capture focused but serialize requests; suspend only for mode/form/dialog/visibility rules. Abort fetch and clear the queue on unmount, then reconcile recent events on remount. |
+| `successful check-in` | Prominent card: photo or two-letter initials left; full name only here; active membership badge; `Check-in successful`, `Access granted`, server time, plan/end date when present, warnings, authoritative occupancy when enabled. | Auto-dismiss after about 1,500ms; next different tap may replace it and cancels old timer. | `role=status`, atomic polite announcement; success feedback optional. On dismiss restore capture focus. |
+| `successful checkout` | Same featured layout with `Check-out successful`, visit duration when non-null, checkout time, and occupancy. Membership warning may state access is inactive but checkout completed. | Auto-dismiss after about 1,500ms. | Same cleanup/focus. Duration is server-derived. |
+| `denied` | Photo/initials and full name for known member; `Entry not allowed`; human reason (expired/frozen/banned/card inactive); no private extra details beyond relevant status/renewal guidance. | Hold 3,500ms (within approved 3–4s), then dismiss; manual dismiss permitted. | `role=alert`/assertive once; error feedback. Never decrement/increment occupancy. |
+| `duplicate ignored` | Compact featured result `Already processed` and `Please wait a moment before tapping again`; optional retry countdown. | Hold about 1,500ms; no attendance/occupancy mutation. Client busy duplicate may be immediate; server duplicate is authoritative. | Polite status, no error alarm. |
+| `unknown card` | Persistent featured card `Card not recognized`; generic contactless-card icon; masked suffix only if product copy needs it; `Find member` and `Dismiss`. | Remains until dismissed, a new scan replaces it, or staff starts assignment. `Find member` opens reauth. | Result is assertive once. While no modal is open, capture stays available so a new card can replace the result. |
+| `staff reauthentication` | Modal explains `Sign in as staff to assign this card`; email may be shown read-only from current account; `current-password` field; submit/cancel; generic error. | Successful auth creates five-minute intent then opens member search. Incorrect password stays. Cancel invalidates/abandons flow. | RFID hook is suspended/unmounted; password gets focus; focus trapped/restored. Password state clears on response/cancel/unmount. Because keyboard readers are indistinguishable from keyboards, scans during this form are not processed as cards; no global handler may steal ordinary typing. |
+| `member search and assignment` | Reuse Search query/result styling and `kiosk_search_members`; selected member confirmation shows name plus masked email; `Assign card`/Cancel. | Consume one-time token. On success show `Card assigned — tap again to check in`; never auto-check-in. Conflicts explain card/member state and require restart/fresh tap. | RFID capture remains suspended. Token stays in memory. Expiry (`410`) returns to persistent unknown result with `Authenticate again`. |
+| `input paused/failure` | Only for detectable state: offline, tab hidden, focus could not be restored after explicit Resume, invalid reader output, server HMAC missing. Never `Reader disconnected`. | Offline remains persistent like current QR offline; Resume button retries focus; config error directs staff to Admin/support. | Cleanup all listeners/timers. Do not expose diagnostics containing UID. |
+
+### 7.2 Mode persistence and switching
+
+- [ ] Three tabs are `QR Scan`, `RFID Tap`, `Search`; RFID orange-selected as in the mockup.
+- [ ] `rfid_kiosk` is an available, default-off Operations feature. When off, retain today's two-tab kiosk; an owner enables `Enable RFID tap` through the existing Studio Features panel. This is the safest rollout feature toggle, not a global default-mode change.
+- [ ] Switching away from QR calls existing `stopScanner`; switching away from RFID disables its input hook, clears partial buffer, cancels visual timers, and cancels any unsubmitted assignment state.
+- [ ] Switching to Search focuses the searchbox and no RFID/QR listener consumes typing.
+- [ ] Switching back to RFID remounts/focuses capture after one animation frame and reconciles recent taps.
+- [ ] Persist only successful manual tab selection. If stored RFID is no longer enabled, use and persist QR.
+- [ ] Local-storage failure falls back to QR for that page load; it is not a reader error.
+
+### 7.3 Recent five privacy
+
+- [ ] Featured result and recent list are separate state.
+- [ ] Exactly the newest five RFID access events are rendered, newest first.
+- [ ] Known member: photo when available; otherwise server-derived two-letter initials. No name, email, plan, expiry, denial detail, card suffix, or member ID.
+- [ ] Unknown/invalid UID: generic RFID/contactless icon, not initials derived from UID.
+- [ ] Text is limited to `Check-in`, `Check-out`, `Access denied`, `Not recognized`, or `Already processed`, plus local time.
+- [ ] Response merge updates immediately; reconciliation fetch/poll corrects cross-tab/terminal ordering without full-page refresh.
+- [ ] Empty state: `No RFID taps yet`.
+- [ ] Desktop uses five quiet equal cards/rows beneath the feature card; narrow screens use accessible horizontal overflow/snap or a vertical list, not clipped names (there are none) and not mandatory carousel controls.
+
+### 7.4 Member-profile RFID management
+
+- [ ] Add `components/admin/MemberRfidAccess.tsx` inside the existing Member Details modal.
+- [ ] No card: `No RFID card assigned` and `Assign card`.
+- [ ] Capture modal: explicit `Tap the card to assign`, active only while open; masked preview after valid UID; confirm/cancel. It must not globally capture the Members-page search input.
+- [ ] Active: masked `•••• ABCD`, `Active`, assigned date, Replace, Deactivate, Report lost.
+- [ ] Deactivated: status/date and Reactivate; Reactivate disabled if another active card exists.
+- [ ] Lost/replaced: terminal status; no Reactivate. A new card uses Assign/Replace semantics.
+- [ ] Replace/deactivate/lost require clear `Modal` confirmation. Inline section shows loading/errors; Sonner announces final success/error.
+- [ ] Card assignment is allowed regardless of membership state. UI may show membership separately but must not imply the card was removed on expiry.
+- [ ] Use `useAccess()` to hide controls from staff/read-only admins; server/RPC is final.
+
+### 7.5 Responsive, motion, and accessibility
+
+- [ ] Preserve `KioskLayout`, maximum panel width, cream background, heading font, orange tokens, border/shadow vocabulary, and `42rem` breakpoint.
+- [ ] RFID featured card follows the approved mockup: horizontal photo/status composition on desktop, stacked on mobile; no page-wide sidebar.
+- [ ] All state changes have a text equivalent and do not rely on red/green alone.
+- [ ] The tablist has valid `role=tab`, `aria-selected`, `aria-controls`; panels have matching IDs/labels.
+- [ ] Dialogs trap/restore focus and support Escape/cancel; destructive confirmations name the member/card action.
+- [ ] Respect `prefers-reduced-motion`: opacity-only or no transition; timers still meet readable durations.
+- [ ] Do not optimistically show granted/denied. Admin card lifecycle may show pending controls but commits UI only from server response.
+
+## 8. Exactly three implementation phases
+
+The feature remains behind default-off `rfid_kiosk` until Phase 3 rollout approval. This makes Phase 1 and Phase 2 independently safe even though they intentionally stop short of production enablement.
+
+### Phase 1: RFID foundation and end-to-end happy path
+
+#### Phase goal
+
+With the `rfid_kiosk` fixture flag enabled, an owner/admin can assign one card in the existing Member Details modal, and an active member can tap that card in the real kiosk to check in and tap later to check out through `attendance`. Occupancy, photo/initials, membership details, mode persistence, and QR/Search regressions are verifiable. Production gyms still see no RFID tab by default.
+
+#### Preconditions
+
+- [ ] Confirm working tree and preserve unrelated changes.
+- [ ] Read the effective definitions in migrations `027`–`030`, not only historical kiosk migrations.
+- [ ] Capture at least two real intended-reader UID samples and freeze normalization fixtures.
+- [ ] Provision a non-production `RFID_UID_HMAC_SECRET`; do not commit it.
+- [ ] Start from schema through migration `030`.
+
+#### Files to inspect
+
+- [ ] `app/kiosk/page.tsx`, `layout.tsx`, `kiosk.module.css`
+- [ ] `lib/kiosk-scan-gate.ts`, `kiosk-feedback.ts`, `async-guard.ts`
+- [ ] `lib/features.ts`, `access-context.tsx`, `permissions.ts`, `permissions-server.ts`
+- [ ] `app/admin/members/page.tsx`, `lib/admin-ui.tsx`
+- [ ] migrations `023`, `024`, `027`, `028`, `029`, `030`
+- [ ] `lib/database.types.ts`
+- [ ] all current kiosk tests and database attendance-concurrency files
+
+#### Files to modify
+
+- [ ] `app/kiosk/layout.tsx` — provide effective access context.
+- [ ] `app/kiosk/page.tsx` — add mode orchestration/persistence and integrate extracted RFID/shared result components without changing QR/Search behavior.
+- [ ] `app/kiosk/kiosk.module.css` — three tabs and approved RFID/result responsive layout.
+- [ ] `app/admin/members/page.tsx` — mount the RFID section in Member Details and pass the confirmed member/access context.
+- [ ] `lib/features.ts` — add default-off available `rfid_kiosk`.
+- [ ] `lib/database.types.ts` — regenerate only after clean migration.
+- [ ] `tests/unit/features.test.ts`, `tests/integration/feature-toggles-sql.test.ts`, and `tests/integration/get-my-access.test.ts` — assert the new default-off flag and SQL/TypeScript access-shape parity.
+- [ ] `tests/fixtures/role-permission-defaults.json` only if generation/parity tooling rewrites it; no new permission is planned.
+- [ ] `scripts/run-production-security-tests.mjs` — include foundation behavior tests.
+
+#### Files to create
+
+- [ ] `supabase/migrations/031_rfid_foundation.sql`
+- [ ] `lib/rfid.ts`
+- [ ] `lib/rfid-server.ts`
+- [ ] `lib/rfid-scan-gate.ts`
+- [ ] `hooks/use-rfid-keyboard-input.ts`
+- [ ] `components/kiosk/KioskResultCard.tsx`
+- [ ] `components/kiosk/RfidPanel.tsx`
+- [ ] `components/admin/MemberRfidAccess.tsx`
+- [ ] `app/api/kiosk/rfid/tap/route.ts`
+- [ ] `app/api/admin/members/[memberId]/rfid/route.ts`
+- [ ] `tests/unit/rfid.test.ts`
+- [ ] `tests/unit/rfid-scan-gate.test.ts`
+- [ ] `tests/integration/rfid-kiosk.test.tsx`
+- [ ] `tests/integration/member-rfid-access.test.tsx`
+- [ ] `tests/integration/rfid-api.test.ts`
+- [ ] `tests/database/rfid-foundation.sql`
+- [ ] `tests/e2e/rfid-kiosk.spec.ts`
+
+#### Database work
+
+- [ ] Start with failing database-backed tests for card uniqueness, tenant FK, grants, immutable access events, open-session-first checkout, and authoritative occupancy.
+- [ ] Create full `rfid_cards` and `access_events` tables/constraints/indexes/grants.
+- [ ] Add `rfid_kiosk` false default to `gym_feature_enabled` and `get_my_access`; update TypeScript/SQL feature parity.
+- [ ] Add private `transition_member_attendance` and refactor effective `kiosk_checkin`, `kiosk_checkin_by_member`, `kiosk_checkout`, and `close_attendance_session` without changing public signatures.
+- [ ] Populate `duration_min` for every newly closed session.
+- [ ] Add basic `get_member_rfid_card`, initial `assign_member_rfid_card`, and `process_rfid_tap` for an active assigned card. Full exception/cooldown lifecycle remains off behind the feature flag until Phase 2.
+- [ ] Keep attendance source compatible (`kiosk` for QR/RFID sessions); use `access_events.access_method` for method-level reporting.
+- [ ] Regenerate `lib/database.types.ts`; extend deployment/protected-definition checks for new tables/functions/triggers.
+
+#### Backend work
+
+- [ ] Implement and test server normalization/HMAC; reject missing secret.
+- [ ] Implement tap route authentication, validation, digest, RPC call, redacted mapping, and no-store response.
+- [ ] Implement member RFID GET/POST initial assignment with owner/admin + `members:manage`.
+- [ ] Ensure no service-role client is used for application authorization.
+
+#### Frontend work
+
+- [ ] Characterize current QR/Search DOM and timers before extraction.
+- [ ] Extract `KioskResultCard` with compatibility props, then keep current QR tests green.
+- [ ] Add third feature-gated tab and gym-scoped local mode persistence with a pre-activation hydration gate.
+- [ ] Add RFID input hook/panel states idle/receiving/processing/success and basic errors.
+- [ ] Render approved featured result with full name, photo/two-letter fallback, membership status/plan/end date, server time, duration, occupancy.
+- [ ] Add member-detail initial assign-by-tap UI; listener exists only while capture modal is open.
+- [ ] Clear all timers/listeners/requests on mode change/unmount.
+
+#### Security and permissions
+
+- [ ] Database and routes require active-gym tenant match.
+- [ ] Tap requires manager + `kiosk:use` + both feature gates.
+- [ ] Member assignment requires owner/admin role plus `members:manage`.
+- [ ] Raw UID exists only in input memory and same-origin request; digest/suffix only at rest.
+- [ ] No digest/full UID reaches client response or logs.
+
+#### Tests
+
+- [ ] Unit: normalization/buffering/masking/initials/gate/timer cleanup.
+- [ ] Integration: route auth/role/feature/config/validation; member assignment; kiosk rendering/focus/mode persistence; unchanged QR/Search/camera behavior.
+- [ ] Database: active card check-in, later checkout, one attendance row, duration, occupancy, streak once, card/member uniqueness, cross-gym denial, direct-write denial.
+- [ ] E2E smoke: enable fixture, assign card, tap UID into hidden input, observe check-in/out and local mode restore.
+- [ ] Manual: approved desktop/mobile layout and real reader sample.
+
+#### Acceptance criteria
+
+- [ ] An assigned active member tap returns `granted/check_in`, creates exactly one open `attendance`, and raises occupancy once.
+- [ ] A later tap after the temporary foundation test interval returns `granted/check_out`, closes that row, sets duration, and lowers occupancy once.
+- [ ] The featured result shows full name/photo or two-letter initials and never exposes full UID.
+- [ ] QR and Search behave exactly as before except the explicit shared checkout eligibility correction.
+- [ ] Refreshing the same browser/gym restores RFID mode; another browser starts at QR.
+- [ ] Feature false means the existing two-mode kiosk remains.
+
+#### Validation commands
+
+```bash
+npm run test:unit -- tests/unit/rfid.test.ts tests/unit/rfid-scan-gate.test.ts
+npm run test:unit -- tests/integration/kiosk-terminal.test.tsx tests/integration/rfid-kiosk.test.tsx tests/integration/member-rfid-access.test.tsx tests/integration/rfid-api.test.ts
+npm run db:reset
+npm run db:types:check
+npm run db:test:security
+npm run db:invariants
+npm run verify:deployment:local
+npm run verify:deployment:drift:local
+npm run lint
+npm run typecheck
+npm run build
+npm run test:e2e -- tests/e2e/rfid-kiosk.spec.ts
+```
+
+`npm run test:unit` is the repository's combined unit/integration runner; there is no separate integration command.
+
+#### Commit boundary
+
+The developer may commit migration `031`, generated types, shared transition, initial secure assignment/tap routes, feature-gated UI, tests, and corresponding `ImplementationState.md`/`CHANGELOG.md` updates. Do not enable RFID for any real gym. Unknown assignment, lifecycle actions, complete denial logging, five-second distributed cooldown, recent taps, and reports remain for later phases.
+
+### Phase 2: Exceptions, authorization, and card lifecycle
+
+#### Phase goal
+
+All operational RFID outcomes are safe: eligibility denial, checkout-after-ineligibility, inactive/lost/replaced cards, unknown cards, five-second duplicate protection across tabs/kiosks, password-reauthenticated front-desk assignment, and full owner/admin lifecycle work atomically and are durably logged. RFID remains default-off pending reporting/polish.
+
+#### Preconditions
+
+- [ ] Phase 1 database/application gates pass and its developer commit boundary is clean/reviewable.
+- [ ] `031` is applied locally and generated types match.
+- [ ] Supabase Auth password sign-in is available in the target environment and provider rate limits are documented.
+
+#### Files to inspect
+
+- [ ] All Phase 1 RFID files and migration `031`
+- [ ] `lib/password-recovery.ts`, `lib/rate-limit.ts`, `lib/supabase-server.ts`
+- [ ] `lib/auth-context.tsx` sign-in/session handling
+- [ ] `kiosk_search_members` effective grants
+- [ ] `privileged_audit_events` writer/immutability in migration `027`
+- [ ] `tests/database/production-security.sql` and attendance concurrency wrapper
+
+#### Files to modify
+
+- [ ] `lib/rfid-server.ts` — isolated current-password verification and assignment-token hashing.
+- [ ] `components/kiosk/RfidPanel.tsx` — denied/duplicate/unknown/staff flows and robust timers.
+- [ ] `components/admin/MemberRfidAccess.tsx` — replace/deactivate/lost/reactivate states.
+- [ ] `app/api/admin/members/[memberId]/rfid/route.ts` — PATCH and atomic replace.
+- [ ] `app/kiosk/kiosk.module.css` — dialogs/status variants without a state strip.
+- [ ] `tests/e2e/rfid-kiosk.spec.ts` — extend the Phase 1 smoke path with reauthentication, assignment, denial, lifecycle, and concurrency-facing behavior.
+- [ ] `scripts/run-production-security-tests.mjs` — run RFID concurrency checks.
+- [ ] `lib/database.types.ts` — regenerate after `032`.
+- [ ] Existing kiosk/permission/security tests as behavior changes require.
+
+#### Files to create
+
+- [ ] `supabase/migrations/032_rfid_security_and_lifecycle.sql`
+- [ ] `components/kiosk/RfidAssignmentDialog.tsx`
+- [ ] `app/api/kiosk/rfid/reauthenticate/route.ts`
+- [ ] `app/api/kiosk/rfid/assignment/route.ts`
+- [ ] `tests/integration/rfid-reauth-api.test.ts`
+- [ ] `tests/integration/rfid-assignment-api.test.ts`
+- [ ] `tests/integration/rfid-card-lifecycle.test.tsx`
+- [ ] `tests/database/rfid-access-security.sql`
+- [ ] `tests/database/rfid-concurrency-prepare.sql`
+- [ ] `tests/database/rfid-concurrency-call.sql`
+- [ ] `tests/database/rfid-concurrency-assert.sql`
+- [ ] `tests/database/run-rfid-concurrency.ps1`
+
+#### Database work
+
+- [ ] Start with failing tests for every status/outcome and role.
+- [ ] Create `rfid_assignment_intents` with one-time/expiry/actor/gym checks.
+- [ ] Harden `process_rfid_tap` with request replay, digest lock, five-second cooldown, full known-card states, stable denial reasons, and access-event inserts for expected failures.
+- [ ] Ensure open session checkout occurs for expired/frozen/cancelled/banned/disabled member when the presented card itself remains active; a lost/deactivated/replaced card remains denied and staff can use existing manual checkout.
+- [ ] Implement atomic replace/deactivate/lost/reactivate RPCs and privileged audit events containing card IDs/masked suffix only.
+- [ ] Implement create/cancel/consume assignment-intent RPCs; prevent already-assigned UID/member races.
+- [ ] Strengthen constraints/checks and protected-definition hashes discovered by negative-path tests.
+
+#### Backend work
+
+- [ ] Reauth route authenticates cookie user, role/permissions/features, event, rate limits, verifies password in isolated client, verifies same user ID, and creates one-time intent.
+- [ ] Assignment route consumes/cancels without accepting UID.
+- [ ] Member route exposes lifecycle actions with role + permission checks and stable conflict mapping.
+- [ ] Tap route maps every expected outcome, `retryAfterMs`, and a privacy event; unexpected errors remain redacted.
+- [ ] No endpoint refreshes/replaces the kiosk session during password verification.
+
+#### Frontend work
+
+- [ ] Add denied result variants and exact 3.5s timer.
+- [ ] Add duplicate result and 1.5s timer; new event cancels stale timers by sequence/event ID.
+- [ ] Keep unknown persistent and allow a new scan to replace it until staff flow begins.
+- [ ] Add reauth dialog, password cleanup, search reuse, member selection, assignment confirmation, expiry/conflict/cancel states.
+- [ ] Suspend RFID capture throughout staff fields; restore only after dialog fully closes.
+- [ ] After assignment, show confirmation and require fresh tap.
+- [ ] Complete member card replace/deactivate/report-lost/reactivate confirmations and error recovery.
+- [ ] Handle tab hidden/regained, rapid mode switching, slow/failing server, and page refresh without stale state.
+
+#### Security and permissions
+
+- [ ] Owner/admin lifecycle = role owner/admin **and** `members:manage`.
+- [ ] Unknown flow = owner/admin/staff **and** `kiosk:use` + `members:view` + fresh one-time intent.
+- [ ] Incorrect password gives generic response; passwords/tokens/UIDs never logged.
+- [ ] Intent token is memory-only, five minutes, one use, actor/gym/event-bound.
+- [ ] Direct RPC calls, forged gym/member/event/token, service-role assumptions, and cross-gym targets are denied.
+- [ ] Card lifecycle does not depend on membership and never deletes history.
+
+#### Tests
+
+- [ ] Unit: reducer transitions, timers, abort/unmount, password-state cleanup, client cooldown.
+- [ ] API integration: correct/incorrect password, identity mismatch, rate limit, unauthorized roles, stale/expired/cancelled/replayed intent, conflict codes, missing secret.
+- [ ] Component: unknown → reauth → search → assign → fresh-tap message; cancellation; another scan before flow replaces unknown; capture paused during password/Search.
+- [ ] Database: all eligibility/card states, checkout exception, idempotent same request, same UID/different request cooldown, two tabs/kiosks concurrent, two different cards for same member, assignment/replace races, audit redaction.
+- [ ] E2E: staff unknown assignment with real account password; owner/admin lifecycle.
+- [ ] Manual: verify a scanner tap cannot be claimed as hardware-connected telemetry and normal Search/password typing is not captured by application listeners.
+
+#### Acceptance criteria
+
+- [ ] Two simultaneous same-card taps yield one attendance transition and one duplicate outcome; final state cannot immediately reverse.
+- [ ] Expired/frozen/banned member with no open session is denied/logged and occupancy is unchanged.
+- [ ] The same member with an open session and active card can check out/log successfully despite those later status changes.
+- [ ] Unknown card is logged and cannot be assigned without correct current staff password.
+- [ ] Front-desk `staff` can assign unknown card after reauth but cannot manage lifecycle in Member Details.
+- [ ] Replacing a card immediately revokes the old; deactivated may reactivate only when appropriate; lost/replaced cannot.
+- [ ] Renewal restores entry on the existing card without reassignment.
+- [ ] All expected failures have access events; no failure corrupts occupancy.
+
+#### Validation commands
+
+```bash
+npm run test:unit -- tests/unit/rfid.test.ts tests/unit/rfid-scan-gate.test.ts
+npm run test:unit -- tests/integration/rfid-api.test.ts tests/integration/rfid-reauth-api.test.ts tests/integration/rfid-assignment-api.test.ts tests/integration/rfid-card-lifecycle.test.tsx tests/integration/rfid-kiosk.test.tsx
+npm run db:reset
+npm run db:types:check
+npm run db:test:security
+npm run db:invariants
+npm run verify:deployment:local
+npm run verify:deployment:drift:local
+npm run lint
+npm run typecheck
+npm run build
+npm run test:e2e -- tests/e2e/rfid-kiosk.spec.ts
+```
+
+#### Commit boundary
+
+The developer may commit migration `032`, secure exception/cooldown/reauth/assignment/lifecycle behavior, generated types, negative-path/concurrency tests, and matching status/changelog updates. Do not yet enable a real gym: recent-five, full historical reporting/backfill, accessibility/observability hardening, and release evidence remain in Phase 3.
+
+### Phase 3: History, reporting, polish, and production hardening
+
+#### Phase goal
+
+RFID is production-ready within MVP scope: recent five updates privately without refresh, Reports offers paginated/filterable access history, historical successful attendance is represented honestly, the approved UI is responsive/accessibility-reviewed, operations are observable without UID leakage, and complete clean-migration/CI/deployment evidence passes before a gym opts in.
+
+#### Preconditions
+
+- [ ] Phase 2 gates pass and migrations `031`/`032` are applied locally.
+- [ ] Product owner accepts default-off `rfid_kiosk` rollout and the calibrated reader normalization.
+- [ ] Deployment environment can securely provide/back up `RFID_UID_HMAC_SECRET`.
+
+#### Files to inspect
+
+- [ ] All RFID files/migrations/tests from Phases 1–2
+- [ ] `app/admin/reports/page.tsx`
+- [ ] `components/admin/AdminReportsClient.tsx`, `AdminReportsCharts.tsx`, `ReportingUnavailable.tsx`
+- [ ] `scripts/check-local-deployment-contract.mjs`, `check-local-deployment-drift.mjs`
+- [ ] `tests/database/recovery-invariants.sql`
+- [ ] `.github/workflows/test-suite.yml`, `playwright.config.ts`
+- [ ] `AgentsContextKnowledgeBase/ImplementationState.md`, `CHANGELOG.md`, `package.json`
+
+#### Files to modify
+
+- [ ] `components/kiosk/RfidPanel.tsx` — recent fetch/merge/poll and final accessibility.
+- [ ] `app/kiosk/page.tsx`, `kiosk.module.css` — final responsive/motion/focus polish.
+- [ ] `app/admin/reports/page.tsx` — initial access-history query/error contract.
+- [ ] `components/admin/AdminReportsClient.tsx` — mount history section without disturbing aggregates/reconciliation.
+- [ ] `scripts/check-local-deployment-contract.mjs`, `scripts/check-local-deployment-drift.mjs`
+- [ ] `scripts/run-production-security-tests.mjs`
+- [ ] `tests/database/recovery-invariants.sql`
+- [ ] `tests/e2e/rfid-kiosk.spec.ts` — extend the committed RFID spec with recent-history, reporting, accessibility, and release-regression coverage.
+- [ ] `lib/database.types.ts`
+- [ ] `AgentsContextKnowledgeBase/ImplementationState.md`
+- [ ] `CHANGELOG.md`
+- [ ] `package.json`/lockfile only for the final release version required by repository convention.
+
+#### Files to create
+
+- [ ] `supabase/migrations/033_rfid_reporting_hardening.sql`
+- [ ] `components/kiosk/RecentRfidTaps.tsx`
+- [ ] `components/admin/AccessHistoryTable.tsx`
+- [ ] `tests/integration/rfid-recent-taps.test.tsx`
+- [ ] `tests/integration/rfid-access-history.test.tsx`
+- [ ] `tests/database/rfid-reporting.sql`
+
+#### Database work
+
+- [ ] Inventory attendance counts/sources/null durations before backfill and record non-PII evidence.
+- [ ] Add `kiosk_recent_rfid_taps` privacy projection and `admin_access_event_history` filters/keyset pagination.
+- [ ] Backfill provable historical check-in/out events idempotently with honest method mapping and no invented failures.
+- [ ] Optionally derive null historical durations only after volume/lock review; otherwise document the retained null behavior.
+- [ ] Extend recovery invariants for card uniqueness, no raw UID fields, immutable events, attendance links, intent validity, and source/access-event reconciliation.
+- [ ] Extend deployment definition hashes/grants/RLS/function signatures and regenerate types.
+
+#### Backend work
+
+- [ ] Return first Reports history page server-side without converting errors to empty history.
+- [ ] Ensure recent/report RPCs never expose names in recent taps or digest anywhere.
+- [ ] Add redacted structured log fields/counters: request ID, gym ID, outcome/reason/method, latency bucket; no UID/digest/password/token/member name.
+- [ ] Document HMAC secret availability/backup/rotation behavior in existing deployment/operations documentation if such configuration documentation is touched; do not create a new standalone RFID document unless Catalog rules require it.
+
+#### Frontend work
+
+- [ ] Recent five loads on RFID entry, merges each tap, reconciles after response, polls only while visible, and stops timers on mode change/unmount.
+- [ ] Known recent item shows photo/initials and no name; unknown shows generic icon.
+- [ ] Add Reports filters for all methods, RFID, QR, Manual/Search/legacy; granted check-ins, granted checkouts, denied, unknown, duplicate.
+- [ ] Add keyset `Load more`, loading, empty, retry, and explicit unavailable states.
+- [ ] Complete approved visual comparison on desktop and current `42rem` mobile breakpoint.
+- [ ] Keyboard-only, screen-reader, contrast, high zoom, reduced-motion, focus-return, and rapid-scan checks.
+- [ ] Remove temporary/unused abstractions only after `rg` confirms no callers; characterize before changing legacy `lib/engagement-hooks.ts`.
+
+#### Security and permissions
+
+- [ ] Reports RPC requires `reports:attendance:view`; staff cannot fetch it directly.
+- [ ] Recent RPC requires kiosk authorization/feature and returns privacy-minimal rows.
+- [ ] Backfill/report tables remain append-only/no direct authenticated mutation.
+- [ ] Logs/monitoring/configuration evidence contains no raw UID, digest, password, token, email, or member name.
+- [ ] Review feature enable control: only existing `features:manage` owner path changes `rfid_kiosk`.
+
+#### Tests
+
+- [ ] Complete Section 9 matrix at unit/component/API/database/E2E layers.
+- [ ] Privacy assertions inspect exact recent/report payload keys.
+- [ ] Pagination beyond 1,000 events and filter combinations.
+- [ ] Clean reset from empty database through `033`, generated type parity, protected definition drift, and recovery invariants.
+- [ ] Full unit/integration suite, build, and Playwright, with any pre-existing failure clearly separated from RFID evidence.
+- [ ] Manual real-reader soak: several hours, tab background/foreground, rapid different members, network interruption/recovery, restricted local storage.
+
+#### Acceptance criteria
+
+- [ ] Recent list shows the latest five processed RFID taps immediately and after featured result disappears, with no names/private membership details.
+- [ ] Reports distinguish required methods/outcomes, paginate, and preserve safe member/actor/card references.
+- [ ] Historical backfill is rerunnable with identical counts and no attendance mutation.
+- [ ] Responsive UI matches the approved hierarchy and has no persistent multi-state strip/sidebar.
+- [ ] All listeners, intervals, abort controllers, and result timers clean up on mode change/unmount.
+- [ ] Full gates pass and the feature remains disabled until a named gym opts in after hardware/secret checks.
+
+#### Validation commands
+
+```bash
+npm run db:reset:clean
+npm run db:types:check
+npm run db:test:security
+npm run db:test:financial
+npm run db:test:platform
+npm run db:invariants
+npm run verify:deployment:local
+npm run verify:deployment:drift:local
+npm run lint
+npm run typecheck
+npm run test:unit
+npm run build
+npm run test:e2e
+npm run test:ci
+```
+
+`db:reset:clean` currently has recorded seed-wrapper limitations in `ImplementationState.md`; Phase 3 must either make the command complete successfully under its documented guarded local-seed configuration or record that precise pre-existing blocker. It may not claim a clean reset from separate partial commands.
+
+#### Commit boundary
+
+The developer may commit migration `033`, recent/history/reporting/backfill, final UI/accessibility/observability hardening, comprehensive tests, generated types, deployment/recovery contract changes, final version/lockfile, `ImplementationState.md`, and `CHANGELOG.md`. No agent commits or pushes. Hosted migration/feature enablement remains a separately reviewed deployment action.
+
+## 9. Test matrix
+
+| ID | Scenario | Required layer(s) | Observable pass condition |
+|---|---|---|---|
+| T01 | Active member checks in | DB + API + component + E2E | One open attendance; granted/check-in event; occupancy +1; one streak update. |
+| T02 | Checked-in member checks out | DB + E2E | Same attendance closes; granted/check-out event; occupancy -1; duration correct. |
+| T03 | Occupancy increments once | DB concurrency | Count changes by exactly one after accepted entry. |
+| T04 | Occupancy decrements once | DB concurrency | Count changes by exactly one after accepted exit. |
+| T05 | Duplicate tap does not reverse attendance | unit + DB + component | Within five seconds result is duplicate; open state unchanged. |
+| T06 | Duplicate requests from separate tabs | DB parallel + API | Distinct request IDs/same digest yield one transition; same request ID replays one event. |
+| T07 | Expired member denied entry | DB + component | Denied/`membership_expired`; no attendance/occupancy change; event logged. |
+| T08 | Expired member already inside may check out | DB + E2E | Active card closes open session despite expiry. |
+| T09 | Frozen member denied entry | DB | Stable frozen reason; no attendance. |
+| T10 | Banned/blocked member denied entry | DB authorization | Known member denial, not unknown; no attendance. |
+| T11 | Manually deactivated card denied | DB + component | `card_deactivated`; assignment retained; no attendance. |
+| T12 | Unknown card logged | DB + API | Unknown event has digest/suffix internally, no member/attendance. |
+| T13 | Unknown assignment requires staff password | API + E2E | Assignment endpoint has no valid token before reauth. |
+| T14 | Incorrect staff password | API | Generic 401; no intent/card; secret not logged. |
+| T15 | Unauthorized role | API + direct RPC | Member denied tap-management/assignment/report; no mutation. |
+| T16 | Front-desk staff permitted | API + E2E | `staff` with kiosk/use+members/view can reauth/search/assign unknown card. |
+| T17 | Card already assigned to another member | DB + API | 409 under sequential and concurrent attempts; original owner unchanged. |
+| T18 | Member already has a card | DB + API | Assign 409; explicit replace succeeds atomically. |
+| T19 | Replacement revokes old card | DB + E2E | Old status replaced/denied; new active; one active card; history retained. |
+| T20 | Membership renewal restores eligibility | DB | Existing card grants entry once effective status returns active. |
+| T21 | Assignment survives membership expiry | DB | Card row/status unchanged after expiry; tap denied only at access decision. |
+| T22 | Recent taps conceal names | SQL projection + component | Payload/DOM has no name/email/member ID/plan/suffix. |
+| T23 | Featured result displays full name | component | Full name appears only in featured result. |
+| T24 | No-photo fallback initials | unit + component | First/last initials; unknown card uses icon, not UID-derived text. |
+| T25 | Mode persists same device | component + E2E | Reload same browser/gym restores selected mode. |
+| T26 | Mode does not propagate | E2E contexts | Fresh browser context/device/gym defaults QR. |
+| T27 | Rapid mode switching | component | Camera/RFID listeners never overlap; partial UID/timers cleared. |
+| T28 | Scan while Search input active | component | Search receives typing; RFID request count stays zero. |
+| T29 | Scan during staff password entry | component/manual | RFID application handler is suspended; no card/attendance request is created. |
+| T30 | Page refresh | E2E | Mode restores; committed event visible after recent reconciliation; no replay. |
+| T31 | Tab loses/regains focus | component/E2E | Capture suspends/clears partial buffer and reliably refocuses on visible RFID tab. |
+| T32 | Server failure after UID read | API + component | No false grant; retryable redacted error; occupancy unchanged; best-effort operational log. |
+| T33 | Slow request | component fake timers | One processing state; no double submit; eventual result owns timer. |
+| T34 | Two kiosks same card concurrently | DB parallel | One transition; other duplicate; no immediate reversal. |
+| T35 | Historical report filters | DB + component | Method/outcome/direction/date combinations and keyset pagination are correct. |
+| T36 | Failed attempts do not corrupt occupancy | DB | All denied/unknown/duplicate/error cases leave open-row count unchanged. |
+| T37 | Checkout duration | DB | `floor((checkout-checkin)/60)` persisted/returned; never negative. |
+| T38 | Timer/listener cleanup | unit + component | Fake timers/unmount show no setState, fetch, focus, poll, or listener after cleanup. |
+| T39 | Card reactivation | DB + API | Only manually deactivated card with no other active assignment reactivates. |
+| T40 | Lost/replaced terminal state | DB | Reactivation rejected; records/audits preserved. |
+| T41 | Intent expires/cancels/replays | DB + API | 410/409; no assignment; consumed token cannot reuse. |
+| T42 | Another card replaces persistent unknown | component | Before auth starts, new tap replaces featured result and preserves both access events. |
+| T43 | Another card while staff flow active | component/manual | Capture is explicitly paused; active intent remains bound to original event and no silent replacement occurs. |
+| T44 | Raw UID privacy | unit + API + DB schema/log inspection | Raw UID absent from DB, response, logs, audit, local/session storage. |
+| T45 | Cross-gym/active-gym mismatch | DB + API | No lookup/assignment/report disclosure or mutation. |
+| T46 | QR regression and checkout correction | DB + component | QR still checks in/out; known open QR may exit after expiry; scan gate/camera remain correct. |
+| T47 | Manual dashboard checkout logging | DB + component | Session closes, duration/access event and privileged audit each exist once. |
+| T48 | Feature disabled | middleware/component/API/DB | No RFID tab; direct tap denied; QR/Search unchanged. |
+| T49 | Restricted local storage | component | Kiosk works in memory, defaults QR, and does not claim reader failure. |
+| T50 | Report/recent query failure | component | Explicit unavailable/retry state; no plausible empty/zero claim. |
+
+## 10. Rollout and migration plan
+
+### Migration/deployment order
+
+1. Review inventory and backup/recovery readiness; no hosted mutation is authorized by this plan.
+2. Provision and back up `RFID_UID_HMAC_SECRET` in the deployment environment before any card assignment. Use the same stable secret across app instances.
+3. Apply `031`, regenerate/check types and definitions, deploy the Phase-1 app with `rfid_kiosk` default false.
+4. Apply `032`, deploy the Phase-2 app, run negative-path database/auth checks; feature remains false.
+5. Apply `033`, run idempotent backfill/report reconciliation, deploy the Phase-3 app and complete full gates.
+6. Enable `Enable RFID tap` through the existing owner-only Features control for one test gym/device; do not change every gym's default or selected kiosk mode.
+7. Assign cards through Member Details; unknown-flow assignment is a secondary operational path, not bulk provisioning.
+8. Verify occupancy/open-session integrity before widening rollout.
+
+### Compatibility
+
+- Existing `attendance` rows and signatures remain; old clients ignore additive JSON fields.
+- A database-first deploy is safe because old app ignores new tables/feature key and false default hides RFID.
+- If the app deploys before DB, false/missing feature state hides RFID; route must return setup unavailable rather than partially operate.
+- Existing QR values/cards are untouched.
+
+### Feature flag and enablement
+
+- Add `rfid_kiosk` to `FEATURE_CATALOG` as available/default false and SQL parity.
+- Owner with `features:manage` enables it in the existing Studio Operations group.
+- The last selected tab remains per-browser/per-gym local storage, never a gym-wide setting.
+
+### Rollback
+
+- First disable `rfid_kiosk` for affected gyms.
+- Roll back application code to QR/Search-compatible version; retained migrations are additive and existing RPC signatures compatible.
+- Do not drop tables, revoke member assignments, or delete access/attendance history.
+- Correct migration defects with a forward migration. Restore only through the existing isolated recovery process and approval boundaries.
+- If the HMAC secret is lost, disable RFID; assignments require controlled retap/reassignment. Do not attempt unkeyed brute-force recovery.
+
+### Monitoring and privacy
+
+Monitor per gym without identifiers:
+
+- tap request count and latency;
+- granted check-in/out, denied by stable reason, unknown, duplicate, server error;
+- reauth failure/rate-limit and assignment conflict counts;
+- event-without-expected-attendance and attendance-without-access-event reconciliation;
+- occupancy anomalies: duplicate open rows (must remain zero), negative/invalid duration (zero), kiosk displayed vs computed count;
+- recent/report RPC failures.
+
+Never log raw UID, digest, suffix where unnecessary, password, assignment token, email, or member name. Operational logs use request/event/card IDs and gym ID. Reports may show masked suffix/member/actor only to authorized managers.
+
+### Post-release occupancy verification
+
+- Compare `kiosk_get_occupancy(gym)` to direct authorized count of `attendance WHERE check_out IS NULL`.
+- Assert no duplicate `(gym_id,member_id)` open sessions.
+- Reconcile granted check-in minus granted check-out events against open attendance, accounting for historical/manual corrections.
+- Sample denied/unknown/duplicate events and prove no linked attendance.
+- Run before enablement, after the first operating day, and after any rollback/forward repair.
+
+## 11. Risks and unresolved decisions
+
+| Risk/open decision | Codebase evidence | Mitigation/required decision |
+|---|---|---|
+| Attendance eligibility currently precedes checkout | Effective `kiosk_checkin` in migration `027` | Phase 1 private shared transition closes open session first and adds database-backed QR/RFID/manual regression tests. |
+| Attendance logic is spread across wrappers/manual correction | `kiosk_checkin`, `kiosk_checkout`, `close_attendance_session`, `record_attendance_override`; legacy `handleScan` | Centralize normal transitions; keep privileged corrections distinct but log them. Confirm `handleScan` has no production caller before cleanup. |
+| `duration_min` is never populated | Plain column; no trigger in migrations | Set atomically on every new close; inventory/backfill in Phase 3. |
+| Current concurrency test can pass a check-in-then-checkout race | Assertion only checks `open_sessions > 1` | New parallel same-digest test asserts exact final state and duplicate outcome. |
+| SQL tests inspect superseded migration bodies | Tests read `019`, `023`, `024`; effective definitions in `027`/`029` | Add current-migration checks and mandatory database-backed tests; do not rely on regex. |
+| Kiosk component is monolithic | `app/kiosk/page.tsx` 798 lines | Characterize first, extract shared result/RFID panel incrementally, preserve QR/Search tests. |
+| No reauthentication primitive | Repository search finds only sign-in and recovery proof | Isolated server-side Auth password verification + one-time DB intent; never browser compare or session replacement. |
+| Process-local rate limit is not distributed | `lib/rate-limit.ts` Map | Use as supplemental UX/security; rely on Supabase Auth throttling and monitor. Decide on distributed limiter before multi-region/high-scale rollout. |
+| Keyboard reader is indistinguishable from a keyboard | Browser platform constraint | Capture only in RFID mode/explicit profile capture; suspend during Search/staff forms; never claim hardware presence. A physical tap while a password field owns focus cannot be reliably identified as a reader event without configured prefix/suffix—operationally pause taps during staff flow. |
+| Reader format/timing unknown | No hardware fixture/config in repository | Calibration is a Phase-1 precondition; freeze sample-based fixtures and documented constants. |
+| Local storage may be blocked | Existing kiosk already catches storage errors | Hydration gate and in-memory QR fallback; no false reader error. |
+| UID hashing/secret rotation | HMAC-only storage has no raw recovery | Dedicated backed-up versioned secret; dual-key or retap plan. No unkeyed SHA/encrypted raw by default. |
+| UID cloning | Keyboard UID is static identifier | State clearly in operational docs; cooldown/state checks reduce accidental duplicates, not deliberate cloning. Advanced anti-passback out of scope. |
+| Card inactive while member is inside | Product says card revocation is explicit and checkout exception concerns member eligibility | Proposed: active card required; expired/frozen/banned member may exit, lost/deactivated/replaced card is denied. Staff uses existing dashboard checkout. Product must override explicitly if revoked cards should still close sessions. |
+| Multi-branch meaning | Schema has gym only; `gyms.branch_name` exists, no separate branch entity in attendance | Treat `gym_id` as operational scope and return `gyms.branch_name/name` for reports if needed. Do not invent a branch FK. |
+| Recent/privacy leakage | Kiosk is manager-authenticated but visible at front desk | Dedicated projection omits names/member IDs/details; unknown uses generic icon; main full name auto-dismisses. |
+| Access-event growth | Every attempt is durable | Composite indexes/keyset pagination; define retention only with product/legal approval. Never prune attendance/card/audit history in this feature. |
+| Backfill cannot prove every historical method | `attendance.source` is broad/overwritten by correction | Map only provable kiosk rows to QR; label ambiguous rows legacy. Do not invent past denials. |
+| Feature configuration currently lives in Gym Page Studio | `FeaturesGroup` owns all feature toggles | Reuse it for MVP to avoid a new settings page. If product later moves Operations settings, migrate the control without changing key semantics. |
+| Current member-admin page exposes mutations to staff UI broadly | Page route requires `members:view`; DB guards mutations | RFID controls use role+permission UI checks and server/DB checks. Do not use visibility alone. |
+| Unexpected server failure may roll back its log | Atomic DB transaction | Return no false grant; emit redacted operational error. Durable logging is guaranteed for expected outcomes, not infrastructure failure that prevents a transaction. |
+
+No unresolved item above blocks implementation code from starting. Real hardware calibration and secret provisioning block enabling RFID for a gym, not Phases 1–3 development.
+
+## 12. Definition of done
+
+### Functional
+
+- [ ] RFID is a third mode inside the existing kiosk and is default-off per gym.
+- [ ] Active assigned card checks in/out through ordinary attendance.
+- [ ] Existing open session can close after membership/gym-user ineligibility.
+- [ ] Expired/frozen/cancelled/banned entry is denied; renewal restores access without card reassignment.
+- [ ] Unknown/denied/duplicate/invalid expected attempts are logged.
+- [ ] One active card per member and one historical owner per gym/card digest are database-enforced.
+- [ ] Assign/replace/deactivate/lost/reactivate rules and fresh-tap-after-assignment work.
+- [ ] Recent five and Reports history meet method/outcome/filter requirements.
+
+### Security/privacy
+
+- [ ] Password verification is server-side, same-user, scoped, short-lived, rate-limited, and never exposes hashes.
+- [ ] Owner/admin profile lifecycle and front-desk assignment role/permission matrices pass direct API/RPC tests.
+- [ ] Raw UID/password/token never persists or appears in logs/responses/URLs.
+- [ ] HMAC digest/secret strategy, backup, and rotation limitation are documented.
+- [ ] Recent taps contain no member names/private membership/card details.
+- [ ] Card/audit/access history is retained across lifecycle changes.
+
+### Database integrity/concurrency
+
+- [ ] Migrations `031`–`033` apply cleanly after `030` and generated types match.
+- [ ] Shared transition, lock order, request idempotency, five-second cooldown, partial unique open attendance, and card uniqueness all pass database-backed concurrency tests.
+- [ ] Denied/unknown/duplicate events never mutate occupancy/attendance/streak.
+- [ ] Duration and occupancy reconcile with attendance truth.
+- [ ] Access events are append-only and report projections are tenant/permission safe.
+
+### UI/accessibility
+
+- [ ] Approved quiet premium layout, header/Admin action, three-tab control, single feature card, and recent list are visually verified desktop/mobile.
+- [ ] No sidebar, hardware telemetry claim, technical reader explanation, or multi-state strip.
+- [ ] Timings are approximately 1.5s success, 3.5s denial, persistent unknown; rapid scans cannot race timers.
+- [ ] Search/password/member fields are not consumed by RFID application listeners.
+- [ ] Focus, live regions, contrast, keyboard dialogs, zoom, reduced motion, empty/error/loading states, and photo/initial fallbacks pass.
+
+### Testing/deployment/documentation
+
+- [ ] Section 9 matrix is represented by unit, integration, component, database, E2E, and manual evidence.
+- [ ] `npm run lint`, `typecheck`, `test:unit`, `build`, `test:e2e`, database security/invariants/types, and deployment drift gates pass or a precise pre-existing blocker is recorded.
+- [ ] Clean migration/reset and idempotent backfill evidence is recorded without PII.
+- [ ] Feature remains off until a named gym/device passes reader/secret/occupancy smoke checks.
+- [ ] Rollback is feature-disable + app rollback/forward database repair, never destructive history deletion.
+- [ ] `ImplementationState.md`, `CHANGELOG.md`, package version when warranted, and operational/deployment contracts are updated in the implementation PR.
+- [ ] Agents leave changes uncommitted/unpushed for the developer, per `AGENTS.md`/`CLAUDE.md`.
+
+RFID_KIOSK_IMPLEMENTATION_PLAN_END
+
+---
+
+# Preserved prior implementation plans
+
 # `polish-and-hardening` + `super-admin` Integration Plan
 
 **Planned 2026-07-23; branch analysis refreshed 2026-07-24.** This is the three-phase execution contract for GPT-5.6 Luna High to integrate the `super-admin` branch into the current `polish-and-hardening` baseline without weakening Stren's tenant, authorization, financial, migration, or recovery guarantees.

@@ -3,6 +3,7 @@ import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 const migrationPath = resolve(process.cwd(), 'supabase/migrations/016_feature_toggles.sql');
+const rfidMigrationPath = resolve(process.cwd(), 'supabase/migrations/031_rfid_foundation.sql');
 
 describe('SQL feature-toggle model', () => {
   it('stores flags, applies catalog defaults, and returns effective flags in get_my_access', () => {
@@ -81,5 +82,13 @@ describe('SQL feature-toggle model', () => {
     }
 
     expect(sql).toMatch(/CREATE OR REPLACE FUNCTION public\.member_home_stats\(\)[\s\S]*?'people_in_gym'/i);
+  });
+});
+
+describe('RFID feature-toggle extension', () => {
+  it('adds a false-by-default RFID flag to effective access', () => {
+    const sql = readFileSync(rfidMigrationPath, 'utf8');
+    expect(sql).toMatch(/p_feature = 'rfid_kiosk'[\s\S]*?false/i);
+    expect(sql).toMatch(/'rfid_kiosk',public\.gym_feature_enabled\('rfid_kiosk'/i);
   });
 });

@@ -7,13 +7,14 @@ import {
 } from '@/lib/features';
 
 describe('FEATURE_CATALOG — §4 defaults', () => {
-  it('has 14 entries: 10 available on, 4 coming_soon off', () => {
-    expect(FEATURE_CATALOG).toHaveLength(14);
+  it('keeps RFID available but default-off, with four coming-soon flags off', () => {
+    expect(FEATURE_CATALOG).toHaveLength(15);
     const available = FEATURE_CATALOG.filter((f) => f.status === 'available');
     const coming = FEATURE_CATALOG.filter((f) => f.status === 'coming_soon');
-    expect(available).toHaveLength(10);
+    expect(available).toHaveLength(11);
     expect(coming).toHaveLength(4);
-    expect(available.every((f) => f.defaultEnabled)).toBe(true);
+    expect(available.filter((f) => f.key !== 'rfid_kiosk').every((f) => f.defaultEnabled)).toBe(true);
+    expect(available.find((f) => f.key === 'rfid_kiosk')?.defaultEnabled).toBe(false);
     expect(coming.every((f) => !f.defaultEnabled)).toBe(true);
   });
 
@@ -40,6 +41,7 @@ describe('isFeatureEnabled', () => {
     expect(isFeatureEnabled(null, 'member_feed')).toBe(true);
     expect(isFeatureEnabled(undefined, 'leaderboards')).toBe(true);
     expect(isFeatureEnabled({}, 'public_pricing')).toBe(true);
+    expect(isFeatureEnabled({}, 'rfid_kiosk')).toBe(false);
   });
 
   it('an explicit stored value wins over the default', () => {

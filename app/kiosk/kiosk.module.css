@@ -68,7 +68,7 @@
 .kioskPanel { width: min(100%, 60rem); border: 1px solid rgba(116, 83, 60, .13); border-radius: clamp(1.5rem, 3vw, 2rem); padding: clamp(1.25rem, 3.2vw, 2.5rem); background: var(--kiosk-surface); box-shadow: 0 24px 54px rgba(83, 55, 35, .14); }
 
 .welcome { display: flex; align-items: center; justify-content: center; gap: .45rem; color: var(--kiosk-peach-deep); font-size: .9rem; font-weight: 700; }
-.modeTabs { display: grid; width: min(100%, 23.5rem); grid-template-columns: 1fr 1fr; margin: 1.25rem auto 0; padding: .25rem; border: 1px solid var(--kiosk-line); border-radius: 999px; background: #f8f2ed; }
+.modeTabs { display: grid; width: min(100%, 30rem); grid-template-columns: repeat(3, 1fr); margin: 1.25rem auto 0; padding: .25rem; border: 1px solid var(--kiosk-line); border-radius: 999px; background: #f8f2ed; }
 .modeTab { display: inline-flex; min-height: 2.8rem; align-items: center; justify-content: center; gap: .5rem; border: 0; border-radius: 999px; background: transparent; color: #504946; font: inherit; font-size: .95rem; font-weight: 700; cursor: pointer; }
 .modeTab[aria-selected='true'] { background: var(--kiosk-peach); color: white; box-shadow: 0 5px 12px rgba(177, 94, 49, .2); }
 .modeTab:disabled, .utilityButton:disabled { cursor: not-allowed; opacity: .48; }
@@ -146,6 +146,10 @@
 .searchPanel { width: min(100%, 39rem); margin: 0 auto; }
 .searchPanel h1 { margin: 0; text-align: center; font-family: var(--font-heading); font-size: clamp(1.85rem, 3.9vw, 2.5rem); letter-spacing: -.055em; }
 .searchPanel > p { margin: .65rem auto 1.2rem; color: var(--kiosk-muted); text-align: center; }
+.rfidPanel { display: grid; min-height: 20rem; place-content: center; gap: .65rem; text-align: center; color: var(--kiosk-muted); }
+.rfidPanel h2 { margin: 0; color: var(--kiosk-ink); font-family: var(--font-heading); font-size: clamp(1.8rem, 4vw, 2.5rem); }
+.rfidResultCard { display: flex; align-items: center; gap: 1rem; margin: 1rem auto; padding: 1rem; border: 1px solid var(--kiosk-line); border-radius: 1rem; background: #fffdfa; text-align: left; }
+.rfidAvatar { display: grid; width: 3.5rem; height: 3.5rem; place-items: center; overflow: hidden; border-radius: 50%; background: #fff0e6; color: var(--kiosk-peach-deep); font-weight: 800; }.rfidAvatar img { width: 100%; height: 100%; object-fit: cover; }
 .searchForm { position: relative; }
 .searchForm svg { position: absolute; top: 50%; left: 1rem; color: var(--kiosk-muted); transform: translateY(-50%); }
 .searchInput { width: 100%; min-height: 3.4rem; border: 1px solid var(--kiosk-line); border-radius: 1rem; padding: .7rem 1rem .7rem 3rem; outline: none; background: white; color: var(--kiosk-ink); font: inherit; }

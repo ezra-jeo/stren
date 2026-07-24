@@ -41,6 +41,7 @@ describe('get_my_access client contract', () => {
     expect(fallback.gymId).toBe('gym-2');
     expect(fallback.permissions.has('members:view')).toBe(true);
     expect(fallback.features.kiosk_checkin).toBe(true);
+    expect(fallback.features.rfid_kiosk).toBe(false);
   });
 });
 
@@ -53,5 +54,6 @@ describe('get_my_access server enforcement', () => {
     expect(access.permissions.size).toBe(0);
     expect(access.features.kiosk_checkin).toBe(false);
     expect(access.features.member_feed).toBe(false);
+    expect(access.features.rfid_kiosk).toBe(false);
   });
 });
