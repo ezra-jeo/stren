@@ -9,6 +9,91 @@
 export type Database = {
   public: {
     Tables: {
+      access_events: {
+        Row: {
+          access_method: string
+          actor_id: string | null
+          attendance_id: string | null
+          card_id: string | null
+          direction: string | null
+          gym_id: string
+          id: string
+          member_id: string | null
+          occurred_at: string
+          outcome: string
+          reason: string
+        }
+        Insert: {
+          access_method: string
+          actor_id?: string | null
+          attendance_id?: string | null
+          card_id?: string | null
+          direction?: string | null
+          gym_id: string
+          id?: string
+          member_id?: string | null
+          occurred_at?: string
+          outcome: string
+          reason?: string
+        }
+        Update: {
+          access_method?: string
+          actor_id?: string | null
+          attendance_id?: string | null
+          card_id?: string | null
+          direction?: string | null
+          gym_id?: string
+          id?: string
+          member_id?: string | null
+          occurred_at?: string
+          outcome?: string
+          reason?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "access_events_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_events_attendance_id_fkey"
+            columns: ["attendance_id"]
+            isOneToOne: false
+            referencedRelation: "attendance"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_events_card_gym_fkey"
+            columns: ["gym_id", "card_id"]
+            isOneToOne: false
+            referencedRelation: "rfid_cards"
+            referencedColumns: ["gym_id", "id"]
+          },
+          {
+            foreignKeyName: "access_events_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "rfid_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_events_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "access_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       announcements: {
         Row: {
           body: string
@@ -1594,6 +1679,71 @@ export type Database = {
           },
         ]
       }
+      rfid_cards: {
+        Row: {
+          assigned_at: string
+          assigned_by: string
+          card_digest: string
+          created_at: string
+          gym_id: string
+          id: string
+          masked_id: string
+          member_id: string
+          status: string
+        }
+        Insert: {
+          assigned_at?: string
+          assigned_by: string
+          card_digest: string
+          created_at?: string
+          gym_id: string
+          id?: string
+          masked_id: string
+          member_id: string
+          status?: string
+        }
+        Update: {
+          assigned_at?: string
+          assigned_by?: string
+          card_digest?: string
+          created_at?: string
+          gym_id?: string
+          id?: string
+          masked_id?: string
+          member_id?: string
+          status?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rfid_cards_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfid_cards_gym_id_fkey"
+            columns: ["gym_id"]
+            isOneToOne: false
+            referencedRelation: "gyms"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rfid_cards_gym_member_fkey"
+            columns: ["gym_id", "member_id"]
+            isOneToOne: false
+            referencedRelation: "gym_users"
+            referencedColumns: ["gym_id", "user_id"]
+          },
+          {
+            foreignKeyName: "rfid_cards_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saved_gyms: {
         Row: {
           created_at: string
@@ -1716,6 +1866,15 @@ export type Database = {
         }
         Returns: Json
       }
+      assign_member_rfid_card: {
+        Args: {
+          p_card_digest: string
+          p_gym_id: string
+          p_masked_id: string
+          p_member_id: string
+        }
+        Returns: Json
+      }
       backfill_legacy_membership_financial_transactions: {
         Args: never
         Returns: Json
@@ -1815,6 +1974,7 @@ export type Database = {
       deployment_protected_definition_hashes: { Args: never; Returns: Json }
       deployment_protected_definition_hashes_028: { Args: never; Returns: Json }
       deployment_protected_definition_hashes_029: { Args: never; Returns: Json }
+      deployment_protected_definition_hashes_030: { Args: never; Returns: Json }
       effective_membership_status: {
         Args: { p_gym_id: string; p_on_date?: string; p_user_id: string }
         Returns: string
@@ -1874,6 +2034,10 @@ export type Database = {
           status: Database["public"]["Enums"]["profile_status"]
           user_id: string
         }[]
+      }
+      get_member_rfid_card: {
+        Args: { p_gym_id: string; p_member_id: string }
+        Returns: Json
       }
       get_my_access: { Args: never; Returns: Json }
       get_my_gyms: {
@@ -2054,6 +2218,10 @@ export type Database = {
       process_daily_notifications: { Args: never; Returns: Json }
       process_expiry_notifications: { Args: never; Returns: number }
       process_inactivity_notifications: { Args: never; Returns: number }
+      process_rfid_tap: {
+        Args: { p_card_digest: string; p_gym_id: string }
+        Returns: Json
+      }
       provision_gym_staff: {
         Args: {
           p_reason: string
@@ -2178,6 +2346,10 @@ export type Database = {
           p_gym_id: string
           p_new_token_hash: string
         }
+        Returns: Json
+      }
+      transition_member_attendance: {
+        Args: { p_gym_id: string; p_member_id: string }
         Returns: Json
       }
       unsave_gym: { Args: { p_gym_id: string }; Returns: Json }

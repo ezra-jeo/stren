@@ -8,6 +8,14 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ## [Unreleased]
 
+### RFID Kiosk — Phase 1 (working tree, not release-ready)
+
+#### Added
+- Added default-off `rfid_kiosk`, HMAC UID normalization helpers, initial card/tap route boundaries, member-detail capture UI, kiosk RFID tab, and migration `031_rfid_foundation.sql` scaffolding for cards, immutable access events, and shared attendance transitions.
+
+#### Verification
+- Focused unit/feature/access contracts (**20/20**), typecheck, and lint pass. Clean local migration, generated database types, database/deployment suites, E2E, real-reader calibration, and non-production HMAC-secret provisioning remain incomplete; RFID is not enabled for any gym.
+
 ### Super Admin Integration — Phase 3 independent hardening gate
 
 #### Changed

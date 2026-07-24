@@ -3,11 +3,12 @@
 import React from "react"
 import Link from "next/link"
 import { Shield } from "lucide-react"
+import { AccessProvider } from "@/lib/access-context"
 import styles from "./kiosk.module.css"
 
 export default function KioskLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className={styles.kioskApp}>
+    <AccessProvider><div className={styles.kioskApp}>
       <header className={styles.kioskHeader}>
         <Link href="/kiosk" className={styles.brandLink} aria-label="Stren Kiosk home">
           <span className={styles.brandMark} aria-hidden="true">
@@ -24,6 +25,6 @@ export default function KioskLayout({ children }: { children: React.ReactNode })
         </Link>
       </header>
       <main className={styles.kioskMain}>{children}</main>
-    </div>
+    </div></AccessProvider>
   )
 }

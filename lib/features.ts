@@ -11,7 +11,7 @@
 
 export type FeatureKey =
   | 'member_feed' | 'leaderboards' | 'public_team' | 'public_pricing'
-  | 'public_location' | 'announcements' | 'promos' | 'kiosk_checkin'
+  | 'public_location' | 'announcements' | 'promos' | 'kiosk_checkin' | 'rfid_kiosk'
   | 'staff_manual_checkin' | 'occupancy_count'
   | 'trainer_bookings' | 'friends_chat' | 'workout_log' | 'session_posts';
 
@@ -37,6 +37,7 @@ export const FEATURE_CATALOG: readonly FeatureDef[] = [
   { key: 'announcements', label: 'Enable announcements', effect: 'You can post announcements that members see in notifications.', group: 'operations', defaultEnabled: true, status: 'available', publicSurface: false },
   { key: 'promos', label: 'Enable promos', effect: 'You can create promo discounts to apply to payments.', group: 'operations', defaultEnabled: true, status: 'available', publicSurface: false },
   { key: 'kiosk_checkin', label: 'Enable kiosk check-ins', effect: 'The front-desk kiosk can check members in and out.', group: 'operations', defaultEnabled: true, status: 'available', publicSurface: false },
+  { key: 'rfid_kiosk', label: 'Enable RFID tap', effect: 'Authorized kiosk operators can check members in and out with assigned RFID cards.', group: 'operations', defaultEnabled: false, status: 'available', publicSurface: false },
   { key: 'staff_manual_checkin', label: 'Allow staff manual check-in', effect: 'Authorized staff can check in a verified member by name or account.', group: 'operations', defaultEnabled: true, status: 'available', publicSurface: false },
   { key: 'occupancy_count', label: 'Show kiosk occupancy count', effect: 'The kiosk can show the current count of open attendance sessions.', group: 'operations', defaultEnabled: true, status: 'available', publicSurface: false },
   // COMING SOON (teasers)

@@ -6,6 +6,16 @@ Last updated: 2026-07-24 (**Shot A is committed at `408fe3c`; Shot B is committe
 
 ---
 
+## Workstream (working tree 2026-07-24): RFID Kiosk Phase 1
+
+| Unit | Scope | Status |
+|---|---|---|
+| RFID1 | Default-off RFID card foundation, HMAC-only server boundary, first assignment/tap path, shared attendance transition, and kiosk/member-details surface | In progress (working tree, 2026-07-24) — source/unit/type/lint work is prepared; clean migration, generated types, database/deployment checks, component/API/DB/E2E coverage, reader calibration, and secret provisioning remain required before this phase can be marked shipped or enabled |
+
+No gym has RFID enabled. The `RFID_UID_HMAC_SECRET` is not present in repository files.
+
+---
+
 ## Workstream (queued 2026-07-23): Super Admin Branch Integration
 
 Spec and three separate-chat prompts: [ImplementationPlan.md](ImplementationPlan.md), above the `SUPER_ADMIN_INTEGRATION_PLAN_END` marker.

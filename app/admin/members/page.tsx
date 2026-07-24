@@ -3,6 +3,8 @@
 import React, { useState, useMemo, useEffect, useCallback, useRef } from "react"
 import { createClient } from "@/lib/supabase"
 import { useAuth } from "@/lib/auth-context"
+import { useAccess } from "@/lib/access-context"
+import { MemberRfidAccess } from "@/components/admin/MemberRfidAccess"
 import { OnboardMemberModal } from "@/components/admin/OnboardMemberModal"
 import {
   A,
@@ -86,6 +88,7 @@ function withTimeout<T>(promise: Promise<T>, ms: number, message: string): Promi
 export default function MembersPage() {
   const supabase = useMemo(() => createClient(), [])
   const { activeScope } = useAuth()
+  const access = useAccess()
   const [members, setMembers] = useState<MemberRow[]>([])
   const [search, setSearch] = useState("")
   const [statusFilter, setStatusFilter] = useState<string>("all")
@@ -575,6 +578,8 @@ export default function MembersPage() {
               <div><p style={{ color: A.muted }}>End</p><p style={{ color: A.text }}>{selectedMember.end_date ?? "-"}</p></div>
               <div><p style={{ color: A.muted }}>Member Since</p><p style={{ color: A.text }}>{selectedMember.created_at ? selectedMember.created_at.split("T")[0] : "-"}</p></div>
             </div>
+
+            <MemberRfidAccess memberId={selectedMember.profile_id} canManage={access.features.rfid_kiosk === true && (access.role === 'owner' || access.role === 'admin') && access.permissions.has('members:manage')} />
 
             <div>
               <p className="mb-2 text-xs font-medium" style={{ color: A.muted }}>Payment History</p>
