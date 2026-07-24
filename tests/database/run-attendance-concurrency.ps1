@@ -16,8 +16,10 @@ $common = @("-h", $HostName, "-p", "$Port", "-U", $UserName, "-d", $Database, "-
 & psql @common -f $prepare
 if ($LASTEXITCODE -ne 0) { throw "Attendance concurrency preparation failed." }
 
-$first = Start-Process -FilePath "psql" -ArgumentList ($common + @("-f", $call)) -PassThru -WindowStyle Hidden
-$second = Start-Process -FilePath "psql" -ArgumentList ($common + @("-f", $call)) -PassThru -WindowStyle Hidden
+$startOptions = @{ FilePath = "psql"; PassThru = $true }
+if ($env:OS -eq "Windows_NT") { $startOptions.WindowStyle = "Hidden" }
+$first = Start-Process @startOptions -ArgumentList ($common + @("-f", $call))
+$second = Start-Process @startOptions -ArgumentList ($common + @("-f", $call))
 $first.WaitForExit()
 $second.WaitForExit()
 

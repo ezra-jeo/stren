@@ -12,8 +12,10 @@ $call = Join-Path $PSScriptRoot "financial-reversal-concurrency-call.sql"
 $assert = Join-Path $PSScriptRoot "financial-reversal-concurrency-assert.sql"
 $common = @("-h", $HostName, "-p", "$Port", "-U", $UserName, "-d", $Database, "-v", "ON_ERROR_STOP=1")
 
-$first = Start-Process -FilePath "psql" -ArgumentList ($common + @("-v", "idempotency_key=test-concurrent-reversal-a", "-f", $call)) -PassThru -WindowStyle Hidden
-$second = Start-Process -FilePath "psql" -ArgumentList ($common + @("-v", "idempotency_key=test-concurrent-reversal-b", "-f", $call)) -PassThru -WindowStyle Hidden
+$startOptions = @{ FilePath = "psql"; PassThru = $true }
+if ($env:OS -eq "Windows_NT") { $startOptions.WindowStyle = "Hidden" }
+$first = Start-Process @startOptions -ArgumentList ($common + @("-v", "idempotency_key=test-concurrent-reversal-a", "-f", $call))
+$second = Start-Process @startOptions -ArgumentList ($common + @("-v", "idempotency_key=test-concurrent-reversal-b", "-f", $call))
 $first.WaitForExit()
 $second.WaitForExit()
 
